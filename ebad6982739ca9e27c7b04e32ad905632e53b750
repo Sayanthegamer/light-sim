@@ -1,0 +1,2 @@
+Task: Fix Lens Implementations
+Added proper analytic Biconcave and Planoconcave geometric boundaries, accounting for true surface curvatures.
