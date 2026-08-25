@@ -90,7 +90,7 @@
 
 ## Phase 5: Interactive Scene Graph, Preset Library & Svelte 5 Flat Matte UI
 
-- [ ] Task: Polymorphic Scene Graph & Flat Boundary Cache
+- [x] Task: Polymorphic Scene Graph & Flat Boundary Cache [c309807]
   - [ ] Write unit tests for SceneNode hierarchy and flat boundary cache flattening (`tests/scene/sceneGraph.test.ts`)
   - [ ] Implement `SceneNode`, `EmitterNode`, `PrismNode`, `LensNode`, `BlackHoleNode`, and `BarrierNode` (`src/engine/scene/`)
   - [ ] Confirm cache invalidation on `TRANSFORM_DIRTY` and `PARAM_DIRTY` flags
