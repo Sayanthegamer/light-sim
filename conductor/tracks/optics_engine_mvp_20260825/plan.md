@@ -66,7 +66,7 @@
 
 ---
 
-## Phase 4: Atmospheric Post-Processing & Multi-Pass HDR Pipeline
+## Phase 4: Atmospheric Post-Processing & Multi-Pass HDR Pipeline [checkpoint: c85ff00]
 
 - [x] Task: Extension-Guarded HDR Framebuffers & WebGL2 Pipeline [f75af8c]
   - [x] Implement WebGL2 resource manager (`src/engine/renderer/webglContext.ts`) with `RGBA16F` half-float FBOs and `RGBM` 8-bit fallback
@@ -81,10 +81,10 @@
 - [x] Task: Extended Reinhard Tonemapping & Composite (Pass 4) [853e92e]
   - [x] Implement linear luminance-weighted Extended Reinhard tonemapper shader ($L_{\text{white}} = 4.0$) + sRGB gamma correction ($\gamma = 2.2$) (`src/shaders/compositeTonemap.frag`)
   - [x] Implement final screen blit pass (`src/engine/renderer/compositePass.ts`)
-- [ ] Task: 8-Frame Progressive EMA Temporal Accumulator & Idle Sleep
-  - [ ] Implement ping-pong accumulation buffer manager with exponential moving average (`src/engine/renderer/temporalAccumulator.ts`)
-  - [ ] Implement dirty-state event-driven render coordinator with idle sleep state (`src/engine/renderer/renderLoop.ts`)
-- [ ] Task: Phase Verification & Checkpoint (Refer to workflow.md)
+- [x] Task: 8-Frame Progressive EMA Temporal Accumulator & Idle Sleep [c85ff00]
+  - [x] Implement ping-pong accumulation buffer manager with exponential moving average (`src/engine/renderer/temporalAccumulator.ts`)
+  - [x] Implement dirty-state event-driven render coordinator with idle sleep state (`src/engine/renderer/renderLoop.ts`)
+- [x] Task: Phase Verification & Checkpoint (Refer to workflow.md) [c85ff00]
 
 ---
 
