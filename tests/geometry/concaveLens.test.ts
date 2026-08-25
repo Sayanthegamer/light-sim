@@ -1,7 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { LensNode, LensType } from '../../src/engine/scene/lensNode';
 import { BranchManager } from '../../src/engine/geometry/branchManager';
-import { type Ray2D } from '../../src/engine/geometry/intersections';
 
 describe('Concave Lens Geometry Bounds', () => {
   it('Biconcave lens should diverge parallel incoming rays', () => {

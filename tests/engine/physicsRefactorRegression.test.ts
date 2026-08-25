@@ -165,7 +165,6 @@ describe('Physics Refactor & Regression Tests', () => {
     });
 
     it('gracefully handles pool scaling beyond 32 without aliasing references to the last slot', () => {
-      const manager = new BranchManager();
       // Should support large pool capacity (e.g. 1024)
       expect(MAX_FRUSTUM_POOL).toBeGreaterThanOrEqual(256);
     });
@@ -198,7 +197,7 @@ describe('Physics Refactor & Regression Tests', () => {
         isDispersed: false
       };
 
-      const frustums = manager.traceLightTree(initialFrustum, obstacles, [], [], 2000);
+      const frustums = manager.traceLightTree(initialFrustum, obstacles, [], [], [], undefined, 2000);
       
       // All returned frustums must be unique objects
       const uniqueObjects = new Set(frustums);
@@ -212,10 +211,10 @@ describe('Physics Refactor & Regression Tests', () => {
       expect(trajectory.capacity).toBe(256);
 
       const bh: BlackHole = {
+        id: 1,
         center: { x: 300, y: 300 },
         rs: 20,
-        rInfluence: 240,
-        mass: 1.0
+        rInfluence: 240
       };
 
       const ray = {
@@ -235,7 +234,12 @@ describe('Physics Refactor & Regression Tests', () => {
       scene.clear();
 
       // 1. Emitter shooting right
-      const emitter = new EmitterNode('emitter-1', { x: 50, y: 120 }, 0, 20, 1.0, 550, false);
+      const emitter = new EmitterNode('emitter-1', { x: 50, y: 120 }, 0, {
+        beamWidth: 20,
+        intensity: 1.0,
+        wavelength: 550,
+        isWhiteLight: false
+      });
       scene.addNode(emitter);
 
       // 2. Black hole deflecting light downwards (impact parameter b ~ 140 px, both rays escape)

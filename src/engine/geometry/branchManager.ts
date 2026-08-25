@@ -240,8 +240,8 @@ export class BranchManager {
         arcs
       );
 
-      const distL = hasLeftHit ? this.leftHitResult.distance : maxDistance;
-      const distR = hasRightHit ? this.rightHitResult.distance : maxDistance;
+      const distL = hasLeftHit ? this.leftHitResult.t : maxDistance;
+      const distR = hasRightHit ? this.rightHitResult.t : maxDistance;
 
       // Check if frustum enters a black hole BEFORE reaching the obstacles
       let closestBH: BlackHole | null = null;

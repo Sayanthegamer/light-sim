@@ -1,7 +1,5 @@
 import { describe, it, expect } from 'vitest';
 import { cauchyIndex, WAVELENGTH_RED, WAVELENGTH_VIOLET } from '../../src/engine/optics/refraction';
-import { newtonPrismPreset } from '../../src/engine/presets/newtonPrism';
-import { achromaticDoubletPreset } from '../../src/engine/presets/achromaticDoublet';
 
 describe('Cauchy Angular Dispersion Invariants', () => {
   it('Crown glass (N-BK7) preset should exhibit physically meaningful dispersion between violet and red', () => {

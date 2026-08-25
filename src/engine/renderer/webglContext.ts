@@ -137,8 +137,8 @@ export class WebGLContextManager {
 
     gl.bindTexture(gl.TEXTURE_2D, texture);
     gl.texImage2D(gl.TEXTURE_2D, 0, internalFormat, width, height, 0, format, type, null);
-    let minFilter = gl.LINEAR;
-    let magFilter = gl.LINEAR;
+    let minFilter: number = gl.LINEAR;
+    let magFilter: number = gl.LINEAR;
 
     if (isHDR && !this.isHalfFloatLinearFilteringSupported()) {
       minFilter = gl.NEAREST;
