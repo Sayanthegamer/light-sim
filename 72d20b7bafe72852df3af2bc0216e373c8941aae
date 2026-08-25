@@ -1,0 +1,7 @@
+Task: Branch Management & Energy Culling
+
+Summary: Implemented recursive beam branch traversal engine with zero-allocation memory pooling (<=32 frustums), Fresnel energy conservation culling (I < 0.005), and hard bounce depth bounding (depth <= 8) for lossless TIR preservation.
+
+Files:
+- src/engine/geometry/branchManager.ts
+- tests/geometry/branches.test.ts
