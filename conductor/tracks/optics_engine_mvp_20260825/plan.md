@@ -75,9 +75,9 @@
 - [x] Task: Obstacle Geometry Mask Rasterization (Pass 2) [39a8ec1]
   - [x] Create Pass 2 shaders and FBO for dedicated 1-byte `R8` obstacle geometry mask (`src/shaders/mask.vert`, `src/shaders/mask.frag`)
   - [x] Implement obstacle mask renderer preventing light bleeding into solid glass/prisms (`src/engine/renderer/maskPass.ts`)
-- [ ] Task: Two-Tier Hybrid Scatter Filter (Pass 3)
-  - [ ] Implement 1/2-res 5-tap depth-masked bilateral Gaussian blur shader (`src/shaders/bilateralScatter.frag`)
-  - [ ] Implement 2-stage Dual Kawase downsampler/upsampler for ambient Mie/Rayleigh dust haze (`src/shaders/dualKawase.frag`, `src/engine/renderer/scatterPass.ts`)
+- [x] Task: Two-Tier Hybrid Scatter Filter (Pass 3) [ca97fe4]
+  - [x] Implement 1/2-res 5-tap depth-masked bilateral Gaussian blur shader (`src/shaders/bilateralScatter.frag`)
+  - [x] Implement 2-stage Dual Kawase downsampler/upsampler for ambient Mie/Rayleigh dust haze (`src/shaders/dualKawase.frag`, `src/engine/renderer/scatterPass.ts`)
 - [ ] Task: Extended Reinhard Tonemapping & Composite (Pass 4)
   - [ ] Implement linear luminance-weighted Extended Reinhard tonemapper shader ($L_{\text{white}} = 4.0$) + sRGB gamma correction ($\gamma = 2.2$) (`src/shaders/compositeTonemap.frag`)
   - [ ] Implement final screen blit pass (`src/engine/renderer/compositePass.ts`)
