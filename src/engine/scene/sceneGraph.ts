@@ -21,6 +21,7 @@ export class SceneGraph {
   // Contiguous Flat Geometry Caches
   private cachedSegments: Segment2D[] = [];
   private cachedArcs: Arc2D[] = [];
+  private cachedCorners: { x: number, y: number, elementId: number }[] = [];
   private cachedBlackHoles: BlackHole[] = [];
   private cachedObstaclePolygons: IVec2[][] = [];
   private cachedObstacleCircles: CircleObstacle[] = [];
@@ -72,6 +73,7 @@ export class SceneGraph {
     this.nodeMap.clear();
     this.cachedSegments.length = 0;
     this.cachedArcs.length = 0;
+    this.cachedCorners.length = 0;
     this.cachedBlackHoles.length = 0;
     this.cachedObstaclePolygons.length = 0;
     this.cachedObstacleCircles.length = 0;
@@ -97,6 +99,7 @@ export class SceneGraph {
 
     this.cachedSegments = [];
     this.cachedArcs = [];
+    this.cachedCorners = [];
     this.cachedBlackHoles = [];
     this.cachedObstaclePolygons = [];
     this.cachedObstacleCircles = [];
@@ -114,6 +117,12 @@ export class SceneGraph {
       const arcs = node.getBoundaryArcs();
       for (let a = 0; a < arcs.length; a++) {
         this.cachedArcs.push(arcs[a]);
+      }
+
+      // Flatten Corners
+      const corners = node.getCorners();
+      for (let c = 0; c < corners.length; c++) {
+        this.cachedCorners.push(corners[c]);
       }
 
       // Flatten Black Holes
@@ -144,6 +153,10 @@ export class SceneGraph {
 
   getCachedArcs(): Arc2D[] {
     return this.cachedArcs;
+  }
+
+  getCachedCorners() {
+    return this.cachedCorners;
   }
 
   getCachedBlackHoles(): BlackHole[] {

@@ -103,6 +103,20 @@ export class PrismNode extends SceneNode {
     return [];
   }
 
+  getCorners() {
+    const worldVerts = this.getObstaclePolygon();
+    const corners = [];
+    const n = worldVerts.length;
+    for (let i = 0; i < n; i++) {
+      corners.push({
+        x: worldVerts[i].x,
+        y: worldVerts[i].y,
+        elementId: (this.id.charCodeAt(0) * 100 + i) % 100000
+      });
+    }
+    return corners;
+  }
+
   getObstacleCircle(): CircleObstacle | null {
     return null;
   }

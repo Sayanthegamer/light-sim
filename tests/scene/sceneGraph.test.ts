@@ -170,7 +170,7 @@ describe('Polymorphic Scene Nodes', () => {
       thickness: 20
     });
     expect(plano.getBoundaryArcs().length).toBe(1);
-    expect(plano.getBoundarySegments().length).toBe(1);
+    expect(plano.getBoundarySegments().length).toBe(3);
     expect(plano.getObstacleCircle()).toBeNull();
   });
 

@@ -194,72 +194,94 @@ export class LensNode extends SceneNode {
     const segments: Segment2D[] = [];
     const hHalf = this.height * 0.5;
 
+    let leftEdgeX = -this.thickness * 0.5;
+    let rightEdgeX = this.thickness * 0.5;
+
+    if (this.lensType === LensType.Biconcave) {
+      const r1 = Math.max(this.radius1, hHalf + 1);
+      const cx1 = -this.thickness * 0.5 - r1;
+      leftEdgeX = cx1 + Math.sqrt(Math.max(0, r1 * r1 - hHalf * hHalf));
+
+      const r2 = Math.max(this.radius2, hHalf + 1);
+      const cx2 = this.thickness * 0.5 + r2;
+      rightEdgeX = cx2 - Math.sqrt(Math.max(0, r2 * r2 - hHalf * hHalf));
+    } else if (this.lensType === LensType.Planoconcave) {
+      const r1 = Math.max(this.radius1, hHalf + 1);
+      const cx1 = -this.thickness * 0.5 - r1;
+      leftEdgeX = cx1 + Math.sqrt(Math.max(0, r1 * r1 - hHalf * hHalf));
+      rightEdgeX = this.thickness * 0.5;
+    }
+
     if (this.lensType === LensType.Planoconvex || this.lensType === LensType.Planoconcave) {
       // Flat back face
       let flatX = -this.thickness * 0.5;
       if (this.lensType === LensType.Planoconcave) {
-        // Planoconcave curves inward on left, so its right face is the flat one
         flatX = this.thickness * 0.5;
       }
       const p1 = this.localToWorld({ x: flatX, y: -hHalf });
       const p2 = this.localToWorld({ x: flatX, y: hHalf });
       segments.push({
         id: (this.id.charCodeAt(0) * 100 + 3) % 100000,
-        p1,
-        p2,
-        n1: 1.0,
-        n2: this.refractiveIndex,
-        cauchyA: this.cauchyA,
-        cauchyB: this.cauchyB
+        p1, p2, n1: 1.0, n2: this.refractiveIndex,
+        cauchyA: this.cauchyA, cauchyB: this.cauchyB
       });
     }
+
+    // Top edge
+    segments.push({
+      id: (this.id.charCodeAt(0) * 100 + 4) % 100000,
+      p1: this.localToWorld({ x: leftEdgeX, y: hHalf }),
+      p2: this.localToWorld({ x: rightEdgeX, y: hHalf }),
+      n1: 1.0, n2: 1.0, isBarrier: true
+    });
+    // Bottom edge
+    segments.push({
+      id: (this.id.charCodeAt(0) * 100 + 5) % 100000,
+      p1: this.localToWorld({ x: leftEdgeX, y: -hHalf }),
+      p2: this.localToWorld({ x: rightEdgeX, y: -hHalf }),
+      n1: 1.0, n2: 1.0, isBarrier: true
+    });
+
+    return segments;
+  }
+
+  getCorners() {
+    const corners = [];
+    const hHalf = this.height * 0.5;
+
+    let leftEdgeX = -this.thickness * 0.5;
+    let rightEdgeX = this.thickness * 0.5;
 
     if (this.lensType === LensType.Biconcave) {
       const r1 = Math.max(this.radius1, hHalf + 1);
       const cx1 = -this.thickness * 0.5 - r1;
-      const leftEdgeX = cx1 + Math.sqrt(Math.max(0, r1 * r1 - hHalf * hHalf));
+      leftEdgeX = cx1 + Math.sqrt(Math.max(0, r1 * r1 - hHalf * hHalf));
 
       const r2 = Math.max(this.radius2, hHalf + 1);
       const cx2 = this.thickness * 0.5 + r2;
-      const rightEdgeX = cx2 - Math.sqrt(Math.max(0, r2 * r2 - hHalf * hHalf));
-
-      // Top edge
-      segments.push({
-        id: (this.id.charCodeAt(0) * 100 + 4) % 100000,
-        p1: this.localToWorld({ x: leftEdgeX, y: hHalf }),
-        p2: this.localToWorld({ x: rightEdgeX, y: hHalf }),
-        n1: 1.0, n2: 1.0, isBarrier: true
-      });
-      // Bottom edge
-      segments.push({
-        id: (this.id.charCodeAt(0) * 100 + 5) % 100000,
-        p1: this.localToWorld({ x: leftEdgeX, y: -hHalf }),
-        p2: this.localToWorld({ x: rightEdgeX, y: -hHalf }),
-        n1: 1.0, n2: 1.0, isBarrier: true
-      });
+      rightEdgeX = cx2 - Math.sqrt(Math.max(0, r2 * r2 - hHalf * hHalf));
     } else if (this.lensType === LensType.Planoconcave) {
       const r1 = Math.max(this.radius1, hHalf + 1);
       const cx1 = -this.thickness * 0.5 - r1;
-      const leftEdgeX = cx1 + Math.sqrt(Math.max(0, r1 * r1 - hHalf * hHalf));
-      const rightEdgeX = this.thickness * 0.5;
-
-      // Top edge
-      segments.push({
-        id: (this.id.charCodeAt(0) * 100 + 4) % 100000,
-        p1: this.localToWorld({ x: leftEdgeX, y: hHalf }),
-        p2: this.localToWorld({ x: rightEdgeX, y: hHalf }),
-        n1: 1.0, n2: 1.0, isBarrier: true
-      });
-      // Bottom edge
-      segments.push({
-        id: (this.id.charCodeAt(0) * 100 + 5) % 100000,
-        p1: this.localToWorld({ x: leftEdgeX, y: -hHalf }),
-        p2: this.localToWorld({ x: rightEdgeX, y: -hHalf }),
-        n1: 1.0, n2: 1.0, isBarrier: true
-      });
+      leftEdgeX = cx1 + Math.sqrt(Math.max(0, r1 * r1 - hHalf * hHalf));
+      rightEdgeX = this.thickness * 0.5;
     }
 
-    return segments;
+    const baseId = (this.id.charCodeAt(0) * 100) % 100000;
+    
+    const pts = [
+      { x: leftEdgeX, y: hHalf },
+      { x: rightEdgeX, y: hHalf },
+      { x: leftEdgeX, y: -hHalf },
+      { x: rightEdgeX, y: -hHalf }
+    ];
+
+    for (let i = 0; i < pts.length; i++) {
+      const w = this.localToWorld(pts[i]);
+      corners.push({ x: w.x, y: w.y, elementId: baseId + 1 });
+    }
+
+    return corners;
   }
 
   getObstaclePolygon(): IVec2[] {

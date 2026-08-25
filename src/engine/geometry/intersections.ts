@@ -87,6 +87,11 @@ export function intersectRaySegment(
   const sx = segment.p2.x - segment.p1.x;
   const sy = segment.p2.y - segment.p1.y;
 
+  const segLenSq = sx * sx + sy * sy;
+  if (segLenSq < EPSILON * EPSILON) {
+    return false; // Zero-length segment guard
+  }
+
   const denom = dx * sy - dy * sx;
   if (Math.abs(denom) < 1e-10) {
     return false; // Ray is parallel to segment
@@ -185,6 +190,9 @@ export function intersectRayArc(
   const cx = arc.center.x;
   const cy = arc.center.y;
   const r = arc.radius;
+  if (r < EPSILON) {
+    return false; // Zero-radius arc guard
+  }
 
   const deltaX = ox - cx;
   const deltaY = oy - cy;

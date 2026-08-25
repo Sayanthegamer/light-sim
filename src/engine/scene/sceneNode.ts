@@ -82,4 +82,8 @@ export abstract class SceneNode {
   abstract getObstaclePolygon(): IVec2[];
   abstract getObstacleCircle(): CircleObstacle | null;
   abstract containsPoint(worldPoint: IVec2): boolean;
+
+  getCorners(): { x: number, y: number, elementId: number }[] {
+    return [];
+  }
 }

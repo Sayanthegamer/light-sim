@@ -264,6 +264,7 @@ export class OpticsEngine {
 
     const segments = this.scene.getCachedSegments();
     const arcs = this.scene.getCachedArcs();
+    const corners = this.scene.getCachedCorners();
     const blackHoles = this.scene.getCachedBlackHoles();
     const emitters = this.scene.getEmitters();
 
@@ -294,7 +295,8 @@ export class OpticsEngine {
           const frustums = this.branchManager.traceLightTree(
             initialFrustum,
             segments,
-            arcs
+            arcs,
+            corners
           );
 
           for (let f = 0; f < frustums.length; f++) {
@@ -321,7 +323,8 @@ export class OpticsEngine {
         const frustums = this.branchManager.traceLightTree(
           initialFrustum,
           segments,
-          arcs
+          arcs,
+          corners
         );
 
         for (let f = 0; f < frustums.length; f++) {
