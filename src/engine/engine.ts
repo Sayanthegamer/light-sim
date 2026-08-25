@@ -434,6 +434,9 @@ export class OpticsEngine {
     this.renderCoordinator.beamPass.begin(this.beamFbo, this.width, this.height);
     this.renderCoordinator.beamPass.render(this.vboPacker);
 
+    // 2.5. Temporal Accumulator & Idle Sleep
+    const stableBeamFbo = this.renderCoordinator.tick(this.beamFbo);
+
     // 3. GPU Pass 2: Obstacle Geometry Mask Rasterization
     this.renderCoordinator.maskPass.begin(this.maskFbo, this.width, this.height);
     this.renderCoordinator.maskPass.renderPolygons(this.scene.getCachedObstaclePolygons());
@@ -441,7 +444,7 @@ export class OpticsEngine {
 
     // 4. GPU Pass 3: Two-Tier Hybrid Scatter Filter (Bilateral + Dual Kawase)
     const scatterFbo = this.renderCoordinator.scatterPass.execute(
-      this.beamFbo,
+      stableBeamFbo,
       this.maskFbo,
       this.width,
       this.height,
@@ -452,7 +455,7 @@ export class OpticsEngine {
     // 5. GPU Pass 4: Composite & Extended Reinhard Tonemap Blit
     this.renderCoordinator.compositePass.render(
       null, // Blit directly to screen canvas
-      this.beamFbo,
+      stableBeamFbo,
       scatterFbo,
       this.maskFbo,
       this.width,
@@ -461,9 +464,6 @@ export class OpticsEngine {
       this.whitePoint,
       this.scatterWeight
     );
-
-    // 6. Temporal Accumulator & Idle Sleep
-    this.renderCoordinator.tick(this.beamFbo);
 
     this.stats.renderTimeMs = performance.now() - t0;
     this.stats.renderState = this.renderCoordinator.getState();

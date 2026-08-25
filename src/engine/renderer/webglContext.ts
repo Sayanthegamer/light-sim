@@ -137,8 +137,16 @@ export class WebGLContextManager {
 
     gl.bindTexture(gl.TEXTURE_2D, texture);
     gl.texImage2D(gl.TEXTURE_2D, 0, internalFormat, width, height, 0, format, type, null);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    let minFilter = gl.LINEAR;
+    let magFilter = gl.LINEAR;
+
+    if (isHDR && !this.isHalfFloatLinearFilteringSupported()) {
+      minFilter = gl.NEAREST;
+      magFilter = gl.NEAREST;
+    }
+
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, minFilter);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, magFilter);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
 
@@ -208,7 +216,13 @@ export class WebGLContextManager {
     if (!shader) {
       throw new Error('Failed to create WebGL shader object.');
     }
-    gl.shaderSource(shader, source);
+
+    let processedSource = source;
+    if (type === gl.FRAGMENT_SHADER && !this.isHalfFloatSupported()) {
+      processedSource = source.replace('#version 300 es', '#version 300 es\n#define USE_RGBM\n');
+    }
+
+    gl.shaderSource(shader, processedSource);
     gl.compileShader(shader);
 
     const success = gl.getShaderParameter(shader, gl.COMPILE_STATUS);

@@ -95,20 +95,24 @@ export class RenderCoordinator {
     this.markDirty(true);
   }
 
-  tick(sourceFrame?: FramebufferResource): void {
-    if (this.state === RenderState.Sleeping) {
-      return;
+  tick(sourceFrame: FramebufferResource): FramebufferResource {
+    if (this.state === RenderState.Interacting) {
+      return sourceFrame;
     }
 
     if (this.state === RenderState.Settling) {
-      if (sourceFrame) {
-        this.accumulator.accumulate(sourceFrame, this.width, this.height);
-      }
-      if (this.accumulator.isComplete()) {
+      const result = this.accumulator.accumulate(sourceFrame, this.width, this.height);
+      if (result.isComplete) {
         this.state = RenderState.Sleeping;
-        return;
       }
+      return result.resultFbo;
     }
+
+    if (this.state === RenderState.Sleeping) {
+      return this.accumulator.accumulate(sourceFrame, this.width, this.height).resultFbo;
+    }
+
+    return sourceFrame;
   }
 
   dispose(): void {

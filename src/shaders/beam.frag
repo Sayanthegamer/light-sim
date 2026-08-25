@@ -3,6 +3,10 @@ precision highp float;
 
 #include "includes/cie1931.glsl"
 
+#ifdef USE_RGBM
+#include "includes/rgbm.glsl"
+#endif
+
 in float v_Intensity;
 in float v_DispersionU;
 in float v_EdgeV;
@@ -22,5 +26,9 @@ void main() {
     // HDR radiant energy output (linear RGB * intensity * edge profile)
     vec3 linearOutput = spectralColor * (v_Intensity * edgeProfile);
 
+#ifdef USE_RGBM
+    fragColor = encodeRGBM(linearOutput);
+#else
     fragColor = vec4(linearOutput, 1.0);
+#endif
 }

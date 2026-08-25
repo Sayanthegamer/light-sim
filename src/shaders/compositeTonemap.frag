@@ -32,16 +32,28 @@ vec3 toSRGB(vec3 linearColor) {
     return pow(clamp(linearColor, 0.0, 1.0), vec3(1.0 / 2.2));
 }
 
+#ifdef USE_RGBM
+#include "includes/rgbm.glsl"
+#endif
+
 void main() {
-    vec4 beamColor = texture(u_BeamTexture, v_Uv);
-    vec4 scatterColor = texture(u_ScatterTexture, v_Uv);
+    vec4 beamTex = texture(u_BeamTexture, v_Uv);
+    vec4 scatterTex = texture(u_ScatterTexture, v_Uv);
     float mask = texture(u_MaskTexture, v_Uv).r;
+
+#ifdef USE_RGBM
+    vec3 beamRGB = decodeRGBM(beamTex);
+    vec3 scatterRGB = decodeRGBM(scatterTex);
+#else
+    vec3 beamRGB = beamTex.rgb;
+    vec3 scatterRGB = scatterTex.rgb;
+#endif
 
     // Reject atmospheric scatter inside solid obstacles
     float effectiveScatter = mask > 0.5 ? 0.0 : u_ScatterWeight;
 
     // Linear color addition in HDR space
-    vec3 linearSum = (beamColor.rgb + scatterColor.rgb * effectiveScatter) * u_Exposure;
+    vec3 linearSum = (beamRGB + scatterRGB * effectiveScatter) * u_Exposure;
 
     // Luminance-weighted Extended Reinhard tonemapping
     vec3 tonemapped = extendedReinhard(linearSum, u_WhitePoint);

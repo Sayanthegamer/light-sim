@@ -13,7 +13,7 @@
     - [x] Write failing tests for bisection intersection splitting.
 - [x] Task: Phase Verification & Checkpoint (Refer to workflow.md) 1b252a5
 
-## Phase 2: Optics Core & Geometry Fixes
+## Phase 2: Optics Core & Geometry Fixes [checkpoint: 5594f04]
 - [x] Task: Correct Cauchy Dispersion Presets 45aad8e
     - [x] Update `A` and `B` presets for Crown/Flint glasses.
     - [x] Validate tests pass.
@@ -32,13 +32,13 @@
     - [x] Validate tests pass.
 - [x] Task: Phase Verification & Checkpoint (Refer to workflow.md)
 
-## Phase 3: Spacetime & Black Hole Engine
-- [ ] Task: Ray Tree Integration
-    - [ ] Restructure `OpticsEngine.solveLightField` to pass all branches (prisms, lenses, TIR) into the Black Hole RK2 integrator.
-- [ ] Task: Schwarzschild Adjustments & Redshift
-    - [ ] Adjust RK2 spatial geodesic equation to properly reflect weak-field deflection.
-    - [ ] Pass `blackHole` and `baseLambda` to `generateRibbonMesh` to wire redshift into the pipeline.
-- [ ] Task: Phase Verification & Checkpoint (Refer to workflow.md)
+## Phase 3: Spacetime & Black Hole Engine [checkpoint: 70372d7]
+- [x] Task: Ray Tree Integration
+    - [x] Restructure `OpticsEngine.solveLightField` to pass all branches (prisms, lenses, TIR) into the Black Hole RK2 integrator.
+- [x] Task: Schwarzschild Adjustments & Redshift
+    - [x] Adjust RK2 spatial geodesic equation to properly reflect weak-field deflection.
+    - [x] Pass `blackHole` and `baseLambda` to `generateRibbonMesh` to wire redshift into the pipeline.
+- [x] Task: Phase Verification & Checkpoint (Refer to workflow.md)
 
 ## Phase 4: Render Pipeline & Post-Processing
 - [ ] Task: Temporal Accumulation Fix
