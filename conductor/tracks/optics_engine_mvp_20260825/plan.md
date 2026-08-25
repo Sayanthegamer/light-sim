@@ -32,10 +32,10 @@
   - [x] Write unit tests for boundary discontinuity detection and 5-step bisection corner snapping (`tests/geometry/bisection.test.ts`)
   - [x] Implement `bisection.ts` with $\epsilon < 0.5\text{ px}$ vertex snapping to prevent light leakage
   - [x] Confirm corner subdivision tests pass
-- [ ] Task: Branch Management & Energy Culling
-  - [ ] Write unit tests for Fresnel tree recursion, $I < 0.005$ energy culling, and TIR max bounce depth $\le 8$ (`tests/geometry/branches.test.ts`)
-  - [ ] Implement branch traversal and recursive beam splitting manager (`src/engine/geometry/branchManager.ts`)
-  - [ ] Confirm branch culling tests pass
+- [x] Task: Branch Management & Energy Culling [72d20b7]
+  - [x] Write unit tests for Fresnel tree recursion, $I < 0.005$ energy culling, and TIR max bounce depth $\le 8$ (`tests/geometry/branches.test.ts`)
+  - [x] Implement branch traversal and recursive beam splitting manager (`src/engine/geometry/branchManager.ts`)
+  - [x] Confirm branch culling tests pass
 - [ ] Task: 24-Byte Interleaved VBO Layout & Frustum Triangulation
   - [ ] Write unit tests for 24-byte interleaved packing `[Float32x2, Float32, Float32, Float32, Uint8x4]` (`tests/geometry/vboPacker.test.ts`)
   - [ ] Implement `vboPacker.ts` with zero-allocation pre-allocated buffer writing
