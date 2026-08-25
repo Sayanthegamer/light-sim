@@ -1,0 +1,2 @@
+Task: Corner Bisection & Intersection Overhaul
+Wired corner generation into SceneGraph and passed to bisection engine. Added guards for zero-length and zero-radius intersections.
