@@ -1,0 +1,7 @@
+Task: 4-Condition Priority Termination & Boundary Splicing
+
+Summary: Implemented localized field boundary handoff at R_influence = 12 rs, ray-circle quadratic intersection solver, and the 4-condition priority exit model (horizon capture at r <= rs, boundary escape at r >= 12 rs, 2*PI winding cap, and 64-step failsafe).
+
+Created files:
+- src/engine/physics/blackHoleBoundary.ts
+- tests/physics/blackHoleBoundary.test.ts
