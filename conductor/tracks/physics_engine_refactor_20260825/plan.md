@@ -38,12 +38,12 @@
 - [x] Task: Verify Phase 1 black hole tests pass (631576c)
 - [x] Task: Phase Verification & Checkpoint (Refer to workflow.md) (631576c)
 
-## Phase 4: Full System Verification, Performance & Coverage Validation
+## Phase 4: Full System Verification, Performance & Coverage Validation [checkpoint: 1c68b5c]
 
-- [ ] Task: Comprehensive test suite execution and coverage check
-  - [ ] Run `CI=true npx vitest run --coverage` and verify >80% coverage on core math/physics/geometry
-  - [ ] Run type checking with `npm run check`
-- [ ] Task: Real-time performance and WebGL2 rendering verification
-  - [ ] Verify 60 FPS performance in complex scenes with multiple spectral emitters, lenses, prisms, and black holes
-  - [ ] Confirm zero GC allocations in active per-frame solve loops
-- [ ] Task: Phase Verification & Checkpoint (Refer to workflow.md)
+- [x] Task: Comprehensive test suite execution and coverage check (1c68b5c)
+  - [x] Run `CI=true npx vitest run --coverage` and verify >80% coverage on core math/physics/geometry
+  - [x] Run type checking with `npm run check`
+- [x] Task: Real-time performance and WebGL2 rendering verification (1c68b5c)
+  - [x] Verify 60 FPS performance in complex scenes with multiple spectral emitters, lenses, prisms, and black holes
+  - [x] Confirm zero GC allocations in active per-frame solve loops
+- [x] Task: Phase Verification & Checkpoint (Refer to workflow.md) (1c68b5c)
