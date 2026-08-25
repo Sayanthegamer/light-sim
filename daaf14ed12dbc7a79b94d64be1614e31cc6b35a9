@@ -1,0 +1,3 @@
+Task: Direct 2D Canvas Vector Hit-Testing & Gizmo Manipulation
+Summary: Implemented unified HitTester and GizmoController for 2D canvas vector hit-testing, point-in-polygon raycasting, smooth translation, rotation pivot manipulation, and aperture/radius resize handles.
+Files: src/engine/interaction/hitTester.ts, src/engine/interaction/gizmoController.ts, src/engine/interaction/index.ts, tests/interaction/interaction.test.ts
