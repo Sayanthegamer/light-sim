@@ -1,0 +1,4 @@
+Task: Zero-Allocation Inlined Math Module
+- Implemented static Vec2 vector arithmetic, dot, cross, rotate, reflect, refract
+- Implemented clamp, lerp, smoothstep, degToRad, radToDeg helpers
+- Added full test suite with 100% test coverage
