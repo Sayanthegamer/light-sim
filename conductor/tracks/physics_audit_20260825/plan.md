@@ -1,6 +1,6 @@
 # Implementation Plan: Comprehensive Physics Audit & Refactor
 
-## Phase 1: Test Suite Enhancement (Physical Invariants)
+## Phase 1: Test Suite Enhancement (Physical Invariants) [checkpoint: 26db1d2]
 - [x] Task: Scaffold Physical Property Tests bf42761
     - [x] Create test files for Black Hole Schwarzschild deflection invariants.
     - [x] Create test files for Cauchy angular dispersion invariants.
@@ -11,7 +11,7 @@
     - [x] Write failing test for Cauchy angular spread magnitude.
     - [x] Write failing tests for secondary branch black hole integration.
     - [x] Write failing tests for bisection intersection splitting.
-- [~] Task: Phase Verification & Checkpoint (Refer to workflow.md)
+- [x] Task: Phase Verification & Checkpoint (Refer to workflow.md) 1b252a5
 
 ## Phase 2: Optics Core & Geometry Fixes
 - [ ] Task: Correct Cauchy Dispersion Presets
