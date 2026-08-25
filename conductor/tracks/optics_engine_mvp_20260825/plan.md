@@ -58,7 +58,7 @@
   - [ ] Write unit tests for ribbon quad strip generation and $\epsilon_{\text{pinch}} = 0.5\text{ px}$ inverse-width caustic scaling (`tests/physics/ribbonMesh.test.ts`)
   - [ ] Implement `ribbonMesh.ts` generating unbroken contiguous quad strips
   - [ ] Confirm ribbon mesh generation tests pass
-- [ ] Task: Vertex-Stage Gravitational Redshift & Extinction Damping
+- [x] Task: Vertex-Stage Gravitational Redshift & Extinction Damping [30eee67]
   - [ ] Write unit tests for Schwarzschild dilation $(1+z) = (1 - r_s/r)^{-1/2}$ and $>780\text{ nm}$ extinction damping (`tests/physics/redshift.test.ts`)
   - [ ] Implement `redshift.ts` vertex wavelength remapping and photopic luminance damping
   - [ ] Confirm redshift tests pass
