@@ -87,11 +87,9 @@ export class LensNode extends SceneNode {
       const cx2 = -(Math.sqrt(Math.max(0, r2 * r2 - hHalf * hHalf)) - this.thickness * 0.5);
       const angleHalf2 = Math.asin(Math.min(1.0, hHalf / r2));
 
-      // Transform centers to world space
       const worldCenter1 = this.localToWorld({ x: cx1, y: 0 });
       const worldCenter2 = this.localToWorld({ x: cx2, y: 0 });
 
-      // Arc 1 (Left surface): angles around Math.PI
       arcs.push({
         id: (this.id.charCodeAt(0) * 100 + 1) % 100000,
         center: worldCenter1,
@@ -104,7 +102,6 @@ export class LensNode extends SceneNode {
         cauchyB: this.cauchyB
       });
 
-      // Arc 2 (Right surface): angles around 0
       arcs.push({
         id: (this.id.charCodeAt(0) * 100 + 2) % 100000,
         center: worldCenter2,
@@ -116,8 +113,62 @@ export class LensNode extends SceneNode {
         cauchyA: this.cauchyA,
         cauchyB: this.cauchyB
       });
+    } else if (this.lensType === LensType.Biconcave) {
+      // Surface 1 (Left): Center is to the left
+      const r1 = Math.max(this.radius1, hHalf + 1);
+      const cx1 = -this.thickness * 0.5 - r1;
+      const angleHalf1 = Math.asin(Math.min(1.0, hHalf / r1));
+
+      // Surface 2 (Right): Center is to the right
+      const r2 = Math.max(this.radius2, hHalf + 1);
+      const cx2 = this.thickness * 0.5 + r2;
+      const angleHalf2 = Math.asin(Math.min(1.0, hHalf / r2));
+
+      const worldCenter1 = this.localToWorld({ x: cx1, y: 0 });
+      const worldCenter2 = this.localToWorld({ x: cx2, y: 0 });
+
+      arcs.push({
+        id: (this.id.charCodeAt(0) * 100 + 1) % 100000,
+        center: worldCenter1,
+        radius: r1,
+        startAngle: -angleHalf1 + this.rotation,
+        endAngle: angleHalf1 + this.rotation,
+        nInside: 1.0,
+        nOutside: this.refractiveIndex,
+        cauchyA: this.cauchyA,
+        cauchyB: this.cauchyB
+      });
+
+      arcs.push({
+        id: (this.id.charCodeAt(0) * 100 + 2) % 100000,
+        center: worldCenter2,
+        radius: r2,
+        startAngle: Math.PI - angleHalf2 + this.rotation,
+        endAngle: Math.PI + angleHalf2 + this.rotation,
+        nInside: 1.0,
+        nOutside: this.refractiveIndex,
+        cauchyA: this.cauchyA,
+        cauchyB: this.cauchyB
+      });
+    } else if (this.lensType === LensType.Planoconcave) {
+      const r1 = Math.max(this.radius1, hHalf + 1);
+      const cx1 = -this.thickness * 0.5 - r1;
+      const angleHalf1 = Math.asin(Math.min(1.0, hHalf / r1));
+      const worldCenter1 = this.localToWorld({ x: cx1, y: 0 });
+
+      arcs.push({
+        id: (this.id.charCodeAt(0) * 100 + 1) % 100000,
+        center: worldCenter1,
+        radius: r1,
+        startAngle: -angleHalf1 + this.rotation,
+        endAngle: angleHalf1 + this.rotation,
+        nInside: 1.0,
+        nOutside: this.refractiveIndex,
+        cauchyA: this.cauchyA,
+        cauchyB: this.cauchyB
+      });
     } else {
-      // Planoconvex or generic
+      // Planoconvex
       const r1 = Math.max(this.radius1, hHalf + 1);
       const cx1 = -(Math.sqrt(Math.max(0, r1 * r1 - hHalf * hHalf)) - this.thickness * 0.5);
       const angleHalf1 = Math.asin(Math.min(1.0, hHalf / r1));
@@ -145,8 +196,13 @@ export class LensNode extends SceneNode {
 
     if (this.lensType === LensType.Planoconvex || this.lensType === LensType.Planoconcave) {
       // Flat back face
-      const p1 = this.localToWorld({ x: -this.thickness * 0.5, y: -hHalf });
-      const p2 = this.localToWorld({ x: -this.thickness * 0.5, y: hHalf });
+      let flatX = -this.thickness * 0.5;
+      if (this.lensType === LensType.Planoconcave) {
+        // Planoconcave curves inward on left, so its right face is the flat one
+        flatX = this.thickness * 0.5;
+      }
+      const p1 = this.localToWorld({ x: flatX, y: -hHalf });
+      const p2 = this.localToWorld({ x: flatX, y: hHalf });
       segments.push({
         id: (this.id.charCodeAt(0) * 100 + 3) % 100000,
         p1,
@@ -158,38 +214,120 @@ export class LensNode extends SceneNode {
       });
     }
 
+    if (this.lensType === LensType.Biconcave) {
+      const r1 = Math.max(this.radius1, hHalf + 1);
+      const cx1 = -this.thickness * 0.5 - r1;
+      const leftEdgeX = cx1 + Math.sqrt(Math.max(0, r1 * r1 - hHalf * hHalf));
+
+      const r2 = Math.max(this.radius2, hHalf + 1);
+      const cx2 = this.thickness * 0.5 + r2;
+      const rightEdgeX = cx2 - Math.sqrt(Math.max(0, r2 * r2 - hHalf * hHalf));
+
+      // Top edge
+      segments.push({
+        id: (this.id.charCodeAt(0) * 100 + 4) % 100000,
+        p1: this.localToWorld({ x: leftEdgeX, y: hHalf }),
+        p2: this.localToWorld({ x: rightEdgeX, y: hHalf }),
+        n1: 1.0, n2: 1.0, isBarrier: true
+      });
+      // Bottom edge
+      segments.push({
+        id: (this.id.charCodeAt(0) * 100 + 5) % 100000,
+        p1: this.localToWorld({ x: leftEdgeX, y: -hHalf }),
+        p2: this.localToWorld({ x: rightEdgeX, y: -hHalf }),
+        n1: 1.0, n2: 1.0, isBarrier: true
+      });
+    } else if (this.lensType === LensType.Planoconcave) {
+      const r1 = Math.max(this.radius1, hHalf + 1);
+      const cx1 = -this.thickness * 0.5 - r1;
+      const leftEdgeX = cx1 + Math.sqrt(Math.max(0, r1 * r1 - hHalf * hHalf));
+      const rightEdgeX = this.thickness * 0.5;
+
+      // Top edge
+      segments.push({
+        id: (this.id.charCodeAt(0) * 100 + 4) % 100000,
+        p1: this.localToWorld({ x: leftEdgeX, y: hHalf }),
+        p2: this.localToWorld({ x: rightEdgeX, y: hHalf }),
+        n1: 1.0, n2: 1.0, isBarrier: true
+      });
+      // Bottom edge
+      segments.push({
+        id: (this.id.charCodeAt(0) * 100 + 5) % 100000,
+        p1: this.localToWorld({ x: leftEdgeX, y: -hHalf }),
+        p2: this.localToWorld({ x: rightEdgeX, y: -hHalf }),
+        n1: 1.0, n2: 1.0, isBarrier: true
+      });
+    }
+
     return segments;
   }
 
   getObstaclePolygon(): IVec2[] {
-    // Tessellate lens boundary into polygon for R8 mask pass
     const verts: IVec2[] = [];
     const steps = 16;
     const hHalf = this.height * 0.5;
-    const r1 = Math.max(this.radius1, hHalf + 1);
-    const r2 = Math.max(this.radius2, hHalf + 1);
 
-    const cx1 = Math.sqrt(Math.max(0, r1 * r1 - hHalf * hHalf)) - this.thickness * 0.5;
-    const angleHalf1 = Math.asin(Math.min(1.0, hHalf / r1));
-    const cx2 = -(Math.sqrt(Math.max(0, r2 * r2 - hHalf * hHalf)) - this.thickness * 0.5);
-    const angleHalf2 = Math.asin(Math.min(1.0, hHalf / r2));
+    let r1 = Math.max(this.radius1, hHalf + 1);
+    let r2 = Math.max(this.radius2, hHalf + 1);
+    let cx1, cx2, angleHalf1, angleHalf2;
 
-    // Left arc: top to bottom
-    for (let i = 0; i <= steps; i++) {
-      const t = i / steps;
-      const angle = (Math.PI - angleHalf1) + (2.0 * angleHalf1) * t;
-      const lx = cx1 + r1 * Math.cos(angle);
-      const ly = r1 * Math.sin(angle);
-      verts.push(this.localToWorld({ x: lx, y: ly }));
-    }
+    if (this.lensType === LensType.Biconvex) {
+      cx1 = Math.sqrt(Math.max(0, r1 * r1 - hHalf * hHalf)) - this.thickness * 0.5;
+      angleHalf1 = Math.asin(Math.min(1.0, hHalf / r1));
+      cx2 = -(Math.sqrt(Math.max(0, r2 * r2 - hHalf * hHalf)) - this.thickness * 0.5);
+      angleHalf2 = Math.asin(Math.min(1.0, hHalf / r2));
 
-    // Right arc: bottom to top
-    for (let i = 0; i <= steps; i++) {
-      const t = i / steps;
-      const angle = angleHalf2 - (2.0 * angleHalf2) * t;
-      const lx = cx2 + r2 * Math.cos(angle);
-      const ly = r2 * Math.sin(angle);
-      verts.push(this.localToWorld({ x: lx, y: ly }));
+      // Left arc: top to bottom
+      for (let i = 0; i <= steps; i++) {
+        const angle = (Math.PI - angleHalf1) + (2.0 * angleHalf1) * (i / steps);
+        verts.push(this.localToWorld({ x: cx1 + r1 * Math.cos(angle), y: r1 * Math.sin(angle) }));
+      }
+      // Right arc: bottom to top
+      for (let i = 0; i <= steps; i++) {
+        const angle = angleHalf2 - (2.0 * angleHalf2) * (i / steps);
+        verts.push(this.localToWorld({ x: cx2 + r2 * Math.cos(angle), y: r2 * Math.sin(angle) }));
+      }
+    } else if (this.lensType === LensType.Biconcave) {
+      cx1 = -this.thickness * 0.5 - r1;
+      angleHalf1 = Math.asin(Math.min(1.0, hHalf / r1));
+      cx2 = this.thickness * 0.5 + r2;
+      angleHalf2 = Math.asin(Math.min(1.0, hHalf / r2));
+
+      // Left arc: top to bottom (curves inward)
+      for (let i = 0; i <= steps; i++) {
+        const angle = angleHalf1 - (2.0 * angleHalf1) * (i / steps);
+        verts.push(this.localToWorld({ x: cx1 + r1 * Math.cos(angle), y: r1 * Math.sin(angle) }));
+      }
+      // Right arc: bottom to top (curves inward)
+      for (let i = 0; i <= steps; i++) {
+        const angle = (Math.PI - angleHalf2) + (2.0 * angleHalf2) * (i / steps);
+        verts.push(this.localToWorld({ x: cx2 + r2 * Math.cos(angle), y: r2 * Math.sin(angle) }));
+      }
+    } else if (this.lensType === LensType.Planoconvex) {
+      cx1 = -(Math.sqrt(Math.max(0, r1 * r1 - hHalf * hHalf)) - this.thickness * 0.5);
+      angleHalf1 = Math.asin(Math.min(1.0, hHalf / r1));
+      
+      // Left flat face (top to bottom)
+      verts.push(this.localToWorld({ x: -this.thickness * 0.5, y: hHalf }));
+      verts.push(this.localToWorld({ x: -this.thickness * 0.5, y: -hHalf }));
+
+      // Right arc: bottom to top
+      for (let i = 0; i <= steps; i++) {
+        const angle = -angleHalf1 + (2.0 * angleHalf1) * (i / steps);
+        verts.push(this.localToWorld({ x: cx1 + r1 * Math.cos(angle), y: r1 * Math.sin(angle) }));
+      }
+    } else if (this.lensType === LensType.Planoconcave) {
+      cx1 = -this.thickness * 0.5 - r1;
+      angleHalf1 = Math.asin(Math.min(1.0, hHalf / r1));
+
+      // Left arc: top to bottom
+      for (let i = 0; i <= steps; i++) {
+        const angle = angleHalf1 - (2.0 * angleHalf1) * (i / steps);
+        verts.push(this.localToWorld({ x: cx1 + r1 * Math.cos(angle), y: r1 * Math.sin(angle) }));
+      }
+      // Right flat face (bottom to top)
+      verts.push(this.localToWorld({ x: this.thickness * 0.5, y: -hHalf }));
+      verts.push(this.localToWorld({ x: this.thickness * 0.5, y: hHalf }));
     }
 
     return verts;
