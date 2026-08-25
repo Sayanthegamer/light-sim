@@ -10,8 +10,8 @@ import { Vec2, type IVec2, clamp, smoothstep } from '../math/vec2';
 import { type Ray2D } from '../geometry/intersections';
 
 export const MAX_RK2_STEPS = 64;
-export const DEFAULT_DT_MIN = 0.5;
-export const DEFAULT_DT_MAX = 8.0;
+export const DEFAULT_DT_MIN = 2.0;
+export const DEFAULT_DT_MAX = 40.0;
 
 export interface BlackHole {
   id: number;
