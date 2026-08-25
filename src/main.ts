@@ -11,4 +11,4 @@ const app = mount(App, {
   target
 });
 
-export default app;
+export { app };

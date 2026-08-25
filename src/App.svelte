@@ -6,6 +6,9 @@
   import { LensNode } from './engine/scene/lensNode';
   import { BlackHoleNode } from './engine/scene/blackHoleNode';
   import { BarrierNode } from './engine/scene/barrierNode';
+  import { RenderState } from './engine/renderer/renderLoop';
+  import { type SceneNode } from './engine/scene/sceneNode';
+  import { type GizmoHandle } from './engine/interaction/hitTester';
   import { loadFromCurrentURL, syncToURL } from './engine/state/serializer';
   import { newtonPrismPreset } from './engine/presets/newtonPrism';
   import Dock from './ui/Dock.svelte';
@@ -23,11 +26,11 @@
     activeFrustums: 0,
     solveTimeMs: 0,
     renderTimeMs: 0,
-    renderState: 'INTERACTING' as any
+    renderState: RenderState.Interacting
   });
 
-  let selectedNode = $state<any>(null);
-  let gizmoHandles = $state<any[]>([]);
+  let selectedNode = $state<SceneNode | null>(null);
+  let gizmoHandles = $state<GizmoHandle[]>([]);
 
   function updateSelectedNode() {
     if (!engine) return;
