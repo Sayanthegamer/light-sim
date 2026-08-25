@@ -54,7 +54,7 @@
   - [ ] Write unit tests for horizon capture $r \le r_s$, boundary exit $r \ge 12 r_s$, $2\pi$ winding cap, and smoothstep acceleration fade (`tests/physics/blackHoleBoundary.test.ts`)
   - [ ] Implement boundary handoff and priority loop exit logic in `blackHoleBoundary.ts`
   - [ ] Confirm termination conditions pass
-- [ ] Task: Double-Sided Quad Ribbon Mesh & Caustic Concentration
+- [x] Task: Double-Sided Quad Ribbon Mesh & Caustic Concentration [fc07f56]
   - [ ] Write unit tests for ribbon quad strip generation and $\epsilon_{\text{pinch}} = 0.5\text{ px}$ inverse-width caustic scaling (`tests/physics/ribbonMesh.test.ts`)
   - [ ] Implement `ribbonMesh.ts` generating unbroken contiguous quad strips
   - [ ] Confirm ribbon mesh generation tests pass
