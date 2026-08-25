@@ -94,7 +94,7 @@
   - [ ] Write unit tests for SceneNode hierarchy and flat boundary cache flattening (`tests/scene/sceneGraph.test.ts`)
   - [ ] Implement `SceneNode`, `EmitterNode`, `PrismNode`, `LensNode`, `BlackHoleNode`, and `BarrierNode` (`src/engine/scene/`)
   - [ ] Confirm cache invalidation on `TRANSFORM_DIRTY` and `PARAM_DIRTY` flags
-- [ ] Task: Direct 2D Canvas Vector Hit-Testing & Gizmo Manipulation
+- [x] Task: Direct 2D Canvas Vector Hit-Testing & Gizmo Manipulation [daaf14e]
   - [ ] Implement canvas pointer event raycasting (point-in-polygon, circle distance, transform handles) (`src/engine/interaction/hitTester.ts`, `src/engine/interaction/gizmoController.ts`)
   - [ ] Implement smooth translation, rotation pivots, and aperture/radius resize handles
 - [ ] Task: 32-Slot Snapshot Undo/Redo Engine
