@@ -115,7 +115,9 @@ describe('4-Condition Priority Termination and Boundary Splicing', () => {
 
       expect(result.reason).toBe(TerminationReason.Escaped);
       expect(result.exitRay).not.toBeNull();
-      expect(result.exitRay!.dir.x).toBeGreaterThan(0);
+      if (result.exitRay) {
+        expect(result.exitRay.dir.x).toBeGreaterThan(0);
+      }
 
       // Final point should be at or beyond influence radius
       const lastIdx = trajectory.pointCount - 1;

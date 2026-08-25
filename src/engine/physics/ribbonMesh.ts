@@ -6,10 +6,17 @@
  * for non-Euclidean gravitational lensing and caustics.
  */
 
-import { type GeodesicTrajectory } from './rk2Integrator';
+import { type BlackHole, type GeodesicTrajectory } from './rk2Integrator';
 import { type VboPacker } from '../geometry/vboPacker';
+import { modulateVertexRedshift, type VertexModulationResult } from './redshift';
+import { dispersionUToWavelength } from '../optics/refraction';
 
 export const DEFAULT_EPSILON_PINCH = 0.5;
+
+const scratchModL0: VertexModulationResult = { dispersionU: 0, intensity: 0 };
+const scratchModR0: VertexModulationResult = { dispersionU: 0, intensity: 0 };
+const scratchModL1: VertexModulationResult = { dispersionU: 0, intensity: 0 };
+const scratchModR1: VertexModulationResult = { dispersionU: 0, intensity: 0 };
 
 /**
  * Computes Euclidean distance between left and right boundary trajectory points.
@@ -50,7 +57,9 @@ export function generateRibbonMesh(
   baseIntensity: number,
   dispersionU: number,
   tintRGB: [number, number, number],
-  epsilonPinch = DEFAULT_EPSILON_PINCH
+  epsilonPinch = DEFAULT_EPSILON_PINCH,
+  blackHole?: BlackHole,
+  baseLambda?: number
 ): number {
   const stepCount = Math.min(leftTrajectory.pointCount, rightTrajectory.pointCount);
   if (stepCount < 2) {
@@ -68,6 +77,7 @@ export function generateRibbonMesh(
   );
 
   const [r, g, b] = tintRGB;
+  const baseWl = blackHole ? (baseLambda ?? dispersionUToWavelength(dispersionU)) : 0;
   let quadsGenerated = 0;
 
   for (let n = 0; n < stepCount - 1; n++) {
@@ -87,15 +97,42 @@ export function generateRibbonMesh(
     const i0 = calculateCausticIntensity(baseIntensity, w0, wn0, epsilonPinch);
     const i1 = calculateCausticIntensity(baseIntensity, w0, wn1, epsilonPinch);
 
+    let dispL0 = dispersionU;
+    let dispR0 = dispersionU;
+    let dispL1 = dispersionU;
+    let dispR1 = dispersionU;
+
+    let iL0 = i0;
+    let iR0 = i0;
+    let iL1 = i1;
+    let iR1 = i1;
+
+    if (blackHole) {
+      modulateVertexRedshift(scratchModL0, baseWl, i0, leftTrajectory.radii[n], blackHole.rs);
+      modulateVertexRedshift(scratchModR0, baseWl, i0, rightTrajectory.radii[n], blackHole.rs);
+      modulateVertexRedshift(scratchModL1, baseWl, i1, leftTrajectory.radii[n + 1], blackHole.rs);
+      modulateVertexRedshift(scratchModR1, baseWl, i1, rightTrajectory.radii[n + 1], blackHole.rs);
+
+      dispL0 = scratchModL0.dispersionU;
+      dispR0 = scratchModR0.dispersionU;
+      dispL1 = scratchModL1.dispersionU;
+      dispR1 = scratchModR1.dispersionU;
+
+      iL0 = scratchModL0.intensity;
+      iR0 = scratchModR0.intensity;
+      iL1 = scratchModL1.intensity;
+      iR1 = scratchModR1.intensity;
+    }
+
     // Tri 1: (L_n, R_n, L_{n+1})
-    packer.writeVertex(lx0, ly0, i0, dispersionU, 0.0, r, g, b);
-    packer.writeVertex(rx0, ry0, i0, dispersionU, 1.0, r, g, b);
-    packer.writeVertex(lx1, ly1, i1, dispersionU, 0.0, r, g, b);
+    packer.writeVertex(lx0, ly0, iL0, dispL0, 0.0, r, g, b);
+    packer.writeVertex(rx0, ry0, iR0, dispR0, 1.0, r, g, b);
+    packer.writeVertex(lx1, ly1, iL1, dispL1, 0.0, r, g, b);
 
     // Tri 2: (R_n, R_{n+1}, L_{n+1})
-    packer.writeVertex(rx0, ry0, i0, dispersionU, 1.0, r, g, b);
-    packer.writeVertex(rx1, ry1, i1, dispersionU, 1.0, r, g, b);
-    packer.writeVertex(lx1, ly1, i1, dispersionU, 0.0, r, g, b);
+    packer.writeVertex(rx0, ry0, iR0, dispR0, 1.0, r, g, b);
+    packer.writeVertex(rx1, ry1, iR1, dispR1, 1.0, r, g, b);
+    packer.writeVertex(lx1, ly1, iL1, dispL1, 0.0, r, g, b);
 
     quadsGenerated++;
   }

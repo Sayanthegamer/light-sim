@@ -99,6 +99,10 @@ export function calculateGravitationalAcceleration(
   outAcc.y = ry * mag;
 }
 
+const scratchAcc1: IVec2 = { x: 0, y: 0 };
+const scratchMidPos: IVec2 = { x: 0, y: 0 };
+const scratchAcc2: IVec2 = { x: 0, y: 0 };
+
 /**
  * Advances photon state (position and velocity) by one adaptive RK2 midpoint step.
  */
@@ -111,24 +115,20 @@ export function stepRK2(
   dt: number
 ): void {
   // k1 = a(r_n) * dt
-  const acc1: IVec2 = { x: 0, y: 0 };
-  calculateGravitationalAcceleration(acc1, currentPos, blackHole);
-  const k1x = acc1.x * dt;
-  const k1y = acc1.y * dt;
+  calculateGravitationalAcceleration(scratchAcc1, currentPos, blackHole);
+  const k1x = scratchAcc1.x * dt;
+  const k1y = scratchAcc1.y * dt;
 
   // Midpoint state: r_mid = r_n + v_n * (dt/2) + k1 * (dt/4)
   const halfDt = dt * 0.5;
   const qtrDt = dt * 0.25;
-  const midPos: IVec2 = {
-    x: currentPos.x + currentVel.x * halfDt + k1x * qtrDt,
-    y: currentPos.y + currentVel.y * halfDt + k1y * qtrDt
-  };
+  scratchMidPos.x = currentPos.x + currentVel.x * halfDt + k1x * qtrDt;
+  scratchMidPos.y = currentPos.y + currentVel.y * halfDt + k1y * qtrDt;
 
   // k2 = a(r_mid) * dt
-  const acc2: IVec2 = { x: 0, y: 0 };
-  calculateGravitationalAcceleration(acc2, midPos, blackHole);
-  const k2x = acc2.x * dt;
-  const k2y = acc2.y * dt;
+  calculateGravitationalAcceleration(scratchAcc2, scratchMidPos, blackHole);
+  const k2x = scratchAcc2.x * dt;
+  const k2y = scratchAcc2.y * dt;
 
   // r_{n+1} = r_n + v_n * dt + k1 * (dt/2)
   outPos.x = currentPos.x + currentVel.x * dt + k1x * halfDt;

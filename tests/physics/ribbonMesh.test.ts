@@ -113,4 +113,47 @@ describe('Double-Sided Quad Ribbon Mesh & Caustic Concentration Engine', () => {
     // In Tri 1 of step 0 (L0, R0, L1), L1 is at vertex index 2 (offset 2 * 6 + 2 = 14)
     expect(f32[14]).toBeCloseTo(40.0, 2);
   });
+
+  it('modulates vertex dispersion coordinate and intensity when blackHole is provided', () => {
+    leftTrajectory.pointCount = 2;
+    rightTrajectory.pointCount = 2;
+
+    // Step 0: far from black hole (r = 4000)
+    leftTrajectory.pointsX[0] = 4000; leftTrajectory.pointsY[0] = 500; leftTrajectory.radii[0] = 4000;
+    rightTrajectory.pointsX[0] = 4000; rightTrajectory.pointsY[0] = 480; rightTrajectory.radii[0] = 4000;
+
+    // Step 1: deep in gravity well near horizon (r = 42, rs = 40)
+    leftTrajectory.pointsX[1] = 42; leftTrajectory.pointsY[1] = 0; leftTrajectory.radii[1] = 42;
+    rightTrajectory.pointsX[1] = 42; rightTrajectory.pointsY[1] = 20; rightTrajectory.radii[1] = 42;
+
+    const blackHole = {
+      id: 1,
+      center: { x: 0, y: 0 },
+      rs: 40,
+      rInfluence: 480
+    };
+
+    const quads = generateRibbonMesh(
+      packer,
+      leftTrajectory,
+      rightTrajectory,
+      1.0,
+      0.5, // 580 nm (yellow/green)
+      [255, 255, 255],
+      0.5,
+      blackHole,
+      500 // baseLambda = 500 nm (cyan/green)
+    );
+
+    expect(quads).toBe(1);
+    expect(packer.getVertexCount()).toBe(6);
+
+    const f32 = packer.getFloat32View();
+    // Far-field vertex (step 0): unshifted intensity ~ 1.0
+    expect(f32[2]).toBeCloseTo(1.0, 1);
+
+    // Deep potential well vertex (step 1, L1 is at vertex index 2):
+    // Dilation at r=42, rs=40 is ~ 1/sqrt(1 - 40/42) = sqrt(21) ≈ 4.58 -> shifted wl > 2000 nm -> extinguished intensity ~ 0
+    expect(f32[14]).toBeLessThan(0.01);
+  });
 });
