@@ -1,17 +1,17 @@
 # Implementation Plan: Comprehensive Physics Audit & Refactor
 
 ## Phase 1: Test Suite Enhancement (Physical Invariants)
-- [ ] Task: Scaffold Physical Property Tests
-    - [ ] Create test files for Black Hole Schwarzschild deflection invariants.
-    - [ ] Create test files for Cauchy angular dispersion invariants.
-    - [ ] Create test files for Concave Lens geometry bounds.
-    - [ ] Create test files for Energy scaling ($1/N$).
-- [ ] Task: Implement Failing Tests
-    - [ ] Write failing test for true biconcave geometry divergence.
-    - [ ] Write failing test for Cauchy angular spread magnitude.
-    - [ ] Write failing tests for secondary branch black hole integration.
-    - [ ] Write failing tests for bisection intersection splitting.
-- [ ] Task: Phase Verification & Checkpoint (Refer to workflow.md)
+- [x] Task: Scaffold Physical Property Tests bf42761
+    - [x] Create test files for Black Hole Schwarzschild deflection invariants.
+    - [x] Create test files for Cauchy angular dispersion invariants.
+    - [x] Create test files for Concave Lens geometry bounds.
+    - [x] Create test files for Energy scaling ($1/N$).
+- [x] Task: Implement Failing Tests bf42761
+    - [x] Write failing test for true biconcave geometry divergence.
+    - [x] Write failing test for Cauchy angular spread magnitude.
+    - [x] Write failing tests for secondary branch black hole integration.
+    - [x] Write failing tests for bisection intersection splitting.
+- [~] Task: Phase Verification & Checkpoint (Refer to workflow.md)
 
 ## Phase 2: Optics Core & Geometry Fixes
 - [ ] Task: Correct Cauchy Dispersion Presets
