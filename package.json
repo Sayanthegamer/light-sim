@@ -1,7 +1,27 @@
 {
   "name": "volumetric-optics-engine",
   "version": "0.1.0",
-  "private": true,
+  "description": "High-fidelity real-time 2D physical optics and curved spacetime relativistic simulation platform with continuous CIE 1931 color transport, Cauchy dispersion, Snell refraction, and multi-pass HDR atmospheric post-processing.",
+  "author": "Sayan (sayanthegamer) <sayanbnk2008@gmail.com>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Sayanthegamer/light-sim.git"
+  },
+  "homepage": "https://github.com/Sayanthegamer/light-sim",
+  "keywords": [
+    "optics",
+    "physics-engine",
+    "webgl2",
+    "volumetric-light",
+    "refraction",
+    "cauchy-dispersion",
+    "cie-1931",
+    "general-relativity",
+    "schwarzschild",
+    "svelte5",
+    "ray-tracing"
+  ],
   "type": "module",
   "scripts": {
     "dev": "vite",
