@@ -1,0 +1,7 @@
+Task: Analytic 2D Ray-Segment & Ray-Arc Quadratic Intersection Solvers
+
+Summary: Implemented zero-allocation analytic quadratic ray-to-circle/arc and ray-to-segment 2D intersection routines with outward surface normal calculation and multi-medium refractive index tracking.
+
+Files:
+- src/engine/geometry/intersections.ts
+- tests/geometry/intersections.test.ts
