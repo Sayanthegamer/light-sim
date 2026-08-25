@@ -1,5 +1,16 @@
-Task: 8-Frame Progressive EMA Temporal Accumulator & Idle Sleep
+Phase Verification Report: Phase 4 Atmospheric Post-Processing & Multi-Pass HDR Pipeline
 
-Summary: Implemented ping-pong progressive EMA temporal accumulation (max 8 frames) and dirty-state render coordinator with automatic idle sleep.
+Automated Verification:
+- Total Test Files: 17 passed
+- Total Tests: 93 passed
+- Coverage: >86% across all renderer modules and >91% overall
+- Production Build: Clean Vite bundle generated (dist/index.html)
+- Type Check: svelte-check found 0 errors and 0 warnings
 
-Files: src/shaders/temporalAccumulate.frag, src/engine/renderer/temporalAccumulator.ts, src/engine/renderer/renderLoop.ts, tests/renderer/temporalAccumulator.test.ts
+Deliverables:
+- WebGLContextManager with RGBA16F half-float HDR framebuffers and RGBM fallback
+- Pass 1 BeamPass forward beam quad rasterizer
+- Pass 2 MaskPass dedicated R8 obstacle geometry mask rasterizer
+- Pass 3 ScatterPass two-tier hybrid scatter filter (5-tap bilateral blur + 2-stage Dual Kawase bloom)
+- Pass 4 CompositePass Extended Reinhard tonemapper (L_white = 4.0) with sRGB gamma correction (gamma = 2.2)
+- Pass 5 TemporalAccumulator 8-frame progressive EMA accumulator and RenderCoordinator event loop with idle sleep
