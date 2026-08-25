@@ -68,10 +68,10 @@
 
 ## Phase 4: Atmospheric Post-Processing & Multi-Pass HDR Pipeline
 
-- [ ] Task: Extension-Guarded HDR Framebuffers & WebGL2 Pipeline
-  - [ ] Implement WebGL2 resource manager (`src/engine/renderer/webglContext.ts`) with `RGBA16F` half-float FBOs and `RGBM` 8-bit fallback
-  - [ ] Implement Pass 1 forward beam rasterizer with additive blending (`gl.SRC_ALPHA, gl.ONE`) and disabled backface culling
-  - [ ] Verify FBO creation, depth attachments, and context restoration
+- [x] Task: Extension-Guarded HDR Framebuffers & WebGL2 Pipeline [f75af8c]
+  - [x] Implement WebGL2 resource manager (`src/engine/renderer/webglContext.ts`) with `RGBA16F` half-float FBOs and `RGBM` 8-bit fallback
+  - [x] Implement Pass 1 forward beam rasterizer with additive blending (`gl.SRC_ALPHA, gl.ONE`) and disabled backface culling
+  - [x] Verify FBO creation, depth attachments, and context restoration
 - [ ] Task: Obstacle Geometry Mask Rasterization (Pass 2)
   - [ ] Create Pass 2 shaders and FBO for dedicated 1-byte `R8` obstacle geometry mask (`src/shaders/mask.vert`, `src/shaders/mask.frag`)
   - [ ] Implement obstacle mask renderer preventing light bleeding into solid glass/prisms (`src/engine/renderer/maskPass.ts`)
