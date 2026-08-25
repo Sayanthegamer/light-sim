@@ -1,6 +1,6 @@
 # Implementation Plan: Full Core Implementation: 2D Realistic Volumetric Optics Engine
 
-## Phase 1: Project Scaffolding & Mathematical Foundations (CIE 1931 & Refraction/Dispersion Math)
+## Phase 1: Project Scaffolding & Mathematical Foundations (CIE 1931 & Refraction/Dispersion Math) [checkpoint: c65f90d]
 
 - [x] Task: Project Scaffolding & Build Pipeline Setup [5f3c457]
   - [x] Initialize `package.json` with TypeScript, Vite, `vite-plugin-glsl`, Svelte 5, Tailwind CSS, Lucide-Svelte, `lz-string`, and Vitest
@@ -18,7 +18,7 @@
   - [x] Write unit tests for analytic CIE 1931 $\lambda \to \text{sRGB}$ conversion (`tests/optics/cie1931.test.ts`)
   - [x] Implement `cie1931.ts` analytic wavelength-to-sRGB matching
   - [x] Create modular GLSL shader includes for spectral wavelength evaluation (`src/shaders/includes/cie1931.glsl`)
-- [ ] Task: Phase Verification & Checkpoint (Refer to workflow.md)
+- [x] Task: Phase Verification & Checkpoint (Refer to workflow.md) [c65f90d]
 
 ---
 
