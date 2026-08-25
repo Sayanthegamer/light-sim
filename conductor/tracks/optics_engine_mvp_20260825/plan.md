@@ -72,9 +72,9 @@
   - [x] Implement WebGL2 resource manager (`src/engine/renderer/webglContext.ts`) with `RGBA16F` half-float FBOs and `RGBM` 8-bit fallback
   - [x] Implement Pass 1 forward beam rasterizer with additive blending (`gl.SRC_ALPHA, gl.ONE`) and disabled backface culling
   - [x] Verify FBO creation, depth attachments, and context restoration
-- [ ] Task: Obstacle Geometry Mask Rasterization (Pass 2)
-  - [ ] Create Pass 2 shaders and FBO for dedicated 1-byte `R8` obstacle geometry mask (`src/shaders/mask.vert`, `src/shaders/mask.frag`)
-  - [ ] Implement obstacle mask renderer preventing light bleeding into solid glass/prisms (`src/engine/renderer/maskPass.ts`)
+- [x] Task: Obstacle Geometry Mask Rasterization (Pass 2) [39a8ec1]
+  - [x] Create Pass 2 shaders and FBO for dedicated 1-byte `R8` obstacle geometry mask (`src/shaders/mask.vert`, `src/shaders/mask.frag`)
+  - [x] Implement obstacle mask renderer preventing light bleeding into solid glass/prisms (`src/engine/renderer/maskPass.ts`)
 - [ ] Task: Two-Tier Hybrid Scatter Filter (Pass 3)
   - [ ] Implement 1/2-res 5-tap depth-masked bilateral Gaussian blur shader (`src/shaders/bilateralScatter.frag`)
   - [ ] Implement 2-stage Dual Kawase downsampler/upsampler for ambient Mie/Rayleigh dust haze (`src/shaders/dualKawase.frag`, `src/engine/renderer/scatterPass.ts`)
