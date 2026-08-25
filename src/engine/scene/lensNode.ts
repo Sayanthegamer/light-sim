@@ -5,20 +5,20 @@
 import { type IVec2 } from '../math/vec2';
 import { type Segment2D, type Arc2D } from '../geometry/intersections';
 import { type CircleObstacle } from '../renderer/maskPass';
-import { SceneNode, DirtyFlag } from './sceneNode';
+import { SceneNode, DirtyFlag, hashString } from './sceneNode';
 
 export enum LensType {
   Biconvex = 'biconvex',
-  Biconcave = 'biconcave',
   Planoconvex = 'planoconvex',
+  Biconcave = 'biconcave',
   Planoconcave = 'planoconcave'
 }
 
 export interface LensOptions {
   lensType?: LensType;
-  radius1?: number; // Curvature radius of surface 1 (px)
-  radius2?: number; // Curvature radius of surface 2 (px)
-  height?: number;  // Full aperture height (px)
+  radius1?: number; // Front surface radius (px)
+  radius2?: number; // Back surface radius (px)
+  height?: number; // Total height (px)
   thickness?: number; // Center thickness (px)
   refractiveIndex?: number;
   cauchyA?: number;
@@ -38,21 +38,29 @@ export class LensNode extends SceneNode {
   constructor(id: string, position: IVec2, rotation = 0, options?: LensOptions) {
     super(id, 'lens', position, rotation);
     this.lensType = options?.lensType ?? LensType.Biconvex;
-    this.radius1 = options?.radius1 ?? 80;
-    this.radius2 = options?.radius2 ?? 80;
-    this.height = options?.height ?? 60;
+    this.radius1 = options?.radius1 ?? 100;
+    this.radius2 = options?.radius2 ?? 100;
+    this.height = options?.height ?? 80;
     this.thickness = options?.thickness ?? 20;
-    this.refractiveIndex = options?.refractiveIndex ?? 1.52;
+    this.refractiveIndex = options?.refractiveIndex ?? 1.517;
     this.cauchyA = options?.cauchyA ?? 1.5046;
     this.cauchyB = options?.cauchyB ?? 4200;
-    this.boundingRadius = Math.max(this.height * 0.6, this.thickness * 0.6) + 10;
+    this.updateBoundingRadius();
   }
 
-  setRefractiveIndex(n: number): void {
-    if (this.refractiveIndex !== n) {
-      this.refractiveIndex = n;
-      this.markDirty(DirtyFlag.Param);
-    }
+  private updateBoundingRadius(): void {
+    const halfH = this.height * 0.5;
+    const halfT = this.thickness * 0.5 + 4; // slight padding
+    this.boundingRadius = Math.sqrt(halfH * halfH + halfT * halfT) + 5;
+  }
+
+  setDimensions(radius1: number, radius2: number, height: number, thickness: number): void {
+    this.radius1 = radius1;
+    this.radius2 = radius2;
+    this.height = height;
+    this.thickness = thickness;
+    this.updateBoundingRadius();
+    this.markDirty(DirtyFlag.Transform);
   }
 
   setCurvature(r1: number, r2: number): void {
@@ -67,7 +75,21 @@ export class LensNode extends SceneNode {
     if (this.height !== height || this.thickness !== thickness) {
       this.height = height;
       this.thickness = thickness;
-      this.boundingRadius = Math.max(this.height * 0.6, this.thickness * 0.6) + 10;
+      this.updateBoundingRadius();
+      this.markDirty(DirtyFlag.Param);
+    }
+  }
+
+  setLensType(type: LensType): void {
+    if (this.lensType !== type) {
+      this.lensType = type;
+      this.markDirty(DirtyFlag.Transform);
+    }
+  }
+
+  setRefractiveIndex(n: number): void {
+    if (this.refractiveIndex !== n) {
+      this.refractiveIndex = n;
       this.markDirty(DirtyFlag.Param);
     }
   }
@@ -75,6 +97,7 @@ export class LensNode extends SceneNode {
   getBoundaryArcs(): Arc2D[] {
     const arcs: Arc2D[] = [];
     const hHalf = this.height * 0.5;
+    const baseId = hashString(this.id) % 1000000;
 
     if (this.lensType === LensType.Biconvex) {
       // Surface 1 (Left): Center is to the right at (+cx, 0)
@@ -91,7 +114,7 @@ export class LensNode extends SceneNode {
       const worldCenter2 = this.localToWorld({ x: cx2, y: 0 });
 
       arcs.push({
-        id: (this.id.charCodeAt(0) * 100 + 1) % 100000,
+        id: baseId + 1,
         center: worldCenter1,
         radius: r1,
         startAngle: Math.PI - angleHalf1 + this.rotation,
@@ -103,7 +126,7 @@ export class LensNode extends SceneNode {
       });
 
       arcs.push({
-        id: (this.id.charCodeAt(0) * 100 + 2) % 100000,
+        id: baseId + 2,
         center: worldCenter2,
         radius: r2,
         startAngle: -angleHalf2 + this.rotation,
@@ -128,7 +151,7 @@ export class LensNode extends SceneNode {
       const worldCenter2 = this.localToWorld({ x: cx2, y: 0 });
 
       arcs.push({
-        id: (this.id.charCodeAt(0) * 100 + 1) % 100000,
+        id: baseId + 1,
         center: worldCenter1,
         radius: r1,
         startAngle: -angleHalf1 + this.rotation,
@@ -140,7 +163,7 @@ export class LensNode extends SceneNode {
       });
 
       arcs.push({
-        id: (this.id.charCodeAt(0) * 100 + 2) % 100000,
+        id: baseId + 2,
         center: worldCenter2,
         radius: r2,
         startAngle: Math.PI - angleHalf2 + this.rotation,
@@ -157,7 +180,7 @@ export class LensNode extends SceneNode {
       const worldCenter1 = this.localToWorld({ x: cx1, y: 0 });
 
       arcs.push({
-        id: (this.id.charCodeAt(0) * 100 + 1) % 100000,
+        id: baseId + 1,
         center: worldCenter1,
         radius: r1,
         startAngle: -angleHalf1 + this.rotation,
@@ -175,7 +198,7 @@ export class LensNode extends SceneNode {
       const worldCenter1 = this.localToWorld({ x: cx1, y: 0 });
 
       arcs.push({
-        id: (this.id.charCodeAt(0) * 100 + 1) % 100000,
+        id: baseId + 1,
         center: worldCenter1,
         radius: r1,
         startAngle: -angleHalf1 + this.rotation,
@@ -193,6 +216,7 @@ export class LensNode extends SceneNode {
   getBoundarySegments(): Segment2D[] {
     const segments: Segment2D[] = [];
     const hHalf = this.height * 0.5;
+    const baseId = hashString(this.id) % 1000000;
 
     let leftEdgeX = -this.thickness * 0.5;
     let rightEdgeX = this.thickness * 0.5;
@@ -221,7 +245,7 @@ export class LensNode extends SceneNode {
       const p1 = this.localToWorld({ x: flatX, y: -hHalf });
       const p2 = this.localToWorld({ x: flatX, y: hHalf });
       segments.push({
-        id: (this.id.charCodeAt(0) * 100 + 3) % 100000,
+        id: baseId + 3,
         p1, p2, n1: 1.0, n2: this.refractiveIndex,
         cauchyA: this.cauchyA, cauchyB: this.cauchyB
       });
@@ -229,14 +253,14 @@ export class LensNode extends SceneNode {
 
     // Top edge
     segments.push({
-      id: (this.id.charCodeAt(0) * 100 + 4) % 100000,
+      id: baseId + 4,
       p1: this.localToWorld({ x: leftEdgeX, y: hHalf }),
       p2: this.localToWorld({ x: rightEdgeX, y: hHalf }),
       n1: 1.0, n2: 1.0, isBarrier: true
     });
     // Bottom edge
     segments.push({
-      id: (this.id.charCodeAt(0) * 100 + 5) % 100000,
+      id: baseId + 5,
       p1: this.localToWorld({ x: leftEdgeX, y: -hHalf }),
       p2: this.localToWorld({ x: rightEdgeX, y: -hHalf }),
       n1: 1.0, n2: 1.0, isBarrier: true
@@ -248,6 +272,7 @@ export class LensNode extends SceneNode {
   getCorners() {
     const corners = [];
     const hHalf = this.height * 0.5;
+    const baseId = hashString(this.id) % 1000000;
 
     let leftEdgeX = -this.thickness * 0.5;
     let rightEdgeX = this.thickness * 0.5;
@@ -266,8 +291,6 @@ export class LensNode extends SceneNode {
       leftEdgeX = cx1 + Math.sqrt(Math.max(0, r1 * r1 - hHalf * hHalf));
       rightEdgeX = this.thickness * 0.5;
     }
-
-    const baseId = (this.id.charCodeAt(0) * 100) % 100000;
     
     const pts = [
       { x: leftEdgeX, y: hHalf },

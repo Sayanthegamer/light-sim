@@ -286,7 +286,7 @@ export class OpticsEngine {
             rightRay: { origin: { ...rays.rightRay.origin }, dir: { ...rays.rightRay.dir } },
             leftHit: { x: 0, y: 0 },
             rightHit: { x: 0, y: 0 },
-            intensity: emitter.intensity / Math.sqrt(samples),
+            intensity: emitter.intensity / samples,
             dispersionU: u,
             tintRGB: [255, 255, 255],
             isDispersed: true

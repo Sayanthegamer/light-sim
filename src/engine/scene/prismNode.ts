@@ -5,7 +5,7 @@
 import { type IVec2 } from '../math/vec2';
 import { type Segment2D, type Arc2D } from '../geometry/intersections';
 import { type CircleObstacle } from '../renderer/maskPass';
-import { SceneNode, DirtyFlag } from './sceneNode';
+import { SceneNode, DirtyFlag, hashString } from './sceneNode';
 
 export interface PrismOptions {
   vertices?: IVec2[];
@@ -80,13 +80,14 @@ export class PrismNode extends SceneNode {
     const worldVerts = this.getObstaclePolygon();
     const segments: Segment2D[] = [];
     const n = worldVerts.length;
+    const baseId = hashString(this.id) % 1000000;
 
     for (let i = 0; i < n; i++) {
       const p1 = worldVerts[i];
       const p2 = worldVerts[(i + 1) % n];
 
       segments.push({
-        id: (this.id.charCodeAt(0) * 100 + i) % 100000,
+        id: baseId + i,
         p1,
         p2,
         n1: 1.0,
@@ -107,11 +108,13 @@ export class PrismNode extends SceneNode {
     const worldVerts = this.getObstaclePolygon();
     const corners = [];
     const n = worldVerts.length;
+    const baseId = hashString(this.id) % 1000000;
+    
     for (let i = 0; i < n; i++) {
       corners.push({
         x: worldVerts[i].x,
         y: worldVerts[i].y,
-        elementId: (this.id.charCodeAt(0) * 100 + i) % 100000
+        elementId: baseId + i
       });
     }
     return corners;

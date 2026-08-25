@@ -15,6 +15,15 @@ export enum DirtyFlag {
 
 export type NodeType = 'emitter' | 'prism' | 'lens' | 'black_hole' | 'barrier';
 
+export function hashString(str: string): number {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    hash = (hash << 5) - hash + str.charCodeAt(i);
+    hash |= 0;
+  }
+  return Math.abs(hash);
+}
+
 export abstract class SceneNode {
   readonly id: string;
   readonly type: NodeType;
