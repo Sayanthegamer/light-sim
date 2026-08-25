@@ -50,7 +50,7 @@
   - [ ] Write unit tests for distance-scaled midpoint integration within $R_{\text{influence}} = 12 r_s$ (`tests/physics/rk2Integrator.test.ts`)
   - [ ] Implement `rk2Integrator.ts` with step budget $N_{\text{max}} = 64$ and $\Delta t(r)$ scaling
   - [ ] Confirm RK2 numerical convergence tests pass
-- [ ] Task: 4-Condition Priority Termination & Boundary Splicing
+- [x] Task: 4-Condition Priority Termination & Boundary Splicing [c93257b]
   - [ ] Write unit tests for horizon capture $r \le r_s$, boundary exit $r \ge 12 r_s$, $2\pi$ winding cap, and smoothstep acceleration fade (`tests/physics/blackHoleBoundary.test.ts`)
   - [ ] Implement boundary handoff and priority loop exit logic in `blackHoleBoundary.ts`
   - [ ] Confirm termination conditions pass
