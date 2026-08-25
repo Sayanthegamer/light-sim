@@ -1,0 +1,2 @@
+Task: Correct Cauchy Dispersion Presets
+Fixed Cauchy B parameter from 0.0042 to 4200 to account for nanometer wavelength scaling.
