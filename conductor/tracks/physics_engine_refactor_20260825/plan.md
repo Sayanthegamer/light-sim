@@ -1,16 +1,16 @@
 # Implementation Plan: Physics Engine Architecture & Correctness Refactor
 
-## Phase 1: Test Suite & Regression Baseline (Red Phase)
+## Phase 1: Test Suite & Regression Baseline (Red Phase) [checkpoint: baeb3f6]
 
-- [ ] Task: Write failing unit tests for multi-spectral frustum independence
-  - [ ] Test that tracing multiple spectral samples preserves distinct frustums without mutating earlier samples
-  - [ ] Test that pool exhaustion degrades gracefully without returning aliased references
-- [ ] Task: Write failing unit tests for black hole geodesic unification and optical ray continuation
-  - [ ] Test that `traceGeodesicWithTermination` handles capture, escape, winding, and step budget
-  - [ ] Test that escaped black hole rays continue downstream to refract through prisms/lenses
-- [ ] Task: Write failing stress tests for deep optical branching scenes (>32 branches)
-  - [ ] Test `emitter → prism → mirror → lens → prism` optical chain
-- [ ] Task: Phase Verification & Checkpoint (Refer to workflow.md)
+- [x] Task: Write failing unit tests for multi-spectral frustum independence (baeb3f6)
+  - [x] Test that tracing multiple spectral samples preserves distinct frustums without mutating earlier samples
+  - [x] Test that pool exhaustion degrades gracefully without returning aliased references
+- [x] Task: Write failing unit tests for black hole geodesic unification and optical ray continuation (baeb3f6)
+  - [x] Test that `traceGeodesicWithTermination` handles capture, escape, winding, and step budget
+  - [x] Test that escaped black hole rays continue downstream to refract through prisms/lenses
+- [x] Task: Write failing stress tests for deep optical branching scenes (>32 branches) (baeb3f6)
+  - [x] Test `emitter → prism → mirror → lens → prism` optical chain
+- [x] Task: Phase Verification & Checkpoint (Refer to workflow.md) (baeb3f6)
 
 ## Phase 2: Frustum Pool Refactoring & Branch Budget Scaling (Green Phase)
 
