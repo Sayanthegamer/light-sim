@@ -1,0 +1,7 @@
+Task: Double-Sided Quad Ribbon Mesh & Caustic Concentration
+
+Summary: Implemented contiguous unbroken double-sided quad ribbon mesh generation with epsilon-clamped inverse-width caustic scaling (epsilon_pinch = 0.5 px) writing directly into 24-byte interleaved VBO buffers.
+
+Created files:
+- src/engine/physics/ribbonMesh.ts
+- tests/physics/ribbonMesh.test.ts
