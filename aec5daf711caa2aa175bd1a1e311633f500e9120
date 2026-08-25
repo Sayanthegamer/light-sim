@@ -1,0 +1,3 @@
+Task: Svelte 5 Flat Matte Dark UI & Properties Inspector
+Summary: Implemented master OpticsEngine coordinator, Svelte 5 Flat Matte Dark UI dock, context-sensitive properties inspector, SVG on-canvas gizmo overlay, and full app integration.
+Files: src/App.svelte, src/engine/engine.ts, src/ui/Dock.svelte, src/ui/Inspector.svelte, src/ui/GizmoOverlay.svelte, tests/engine/engine.test.ts
