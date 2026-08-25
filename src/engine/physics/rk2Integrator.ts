@@ -103,9 +103,15 @@ export function calculateGravitationalAcceleration(
   outAcc.y = ry * mag;
 }
 
+// Module-level scratch vectors for zero-GC single-threaded integration.
+// Note: Designed for synchronous main-thread rendering; not reentrant across concurrent worker threads.
 const scratchAcc1: IVec2 = { x: 0, y: 0 };
 const scratchMidPos: IVec2 = { x: 0, y: 0 };
 const scratchAcc2: IVec2 = { x: 0, y: 0 };
+const scratchNextPos: IVec2 = { x: 0, y: 0 };
+const scratchNextVel: IVec2 = { x: 0, y: 0 };
+const scratchCurPos: IVec2 = { x: 0, y: 0 };
+const scratchCurVel: IVec2 = { x: 0, y: 0 };
 
 /**
  * Advances photon state (position and velocity) by one adaptive RK2 midpoint step.
@@ -145,7 +151,8 @@ export function stepRK2(
 }
 
 /**
- * Integrates an entire geodesic photon trajectory through a black hole's gravity well.
+ * @deprecated Legacy standalone integrator. Production rendering routes through
+ * `traceGeodesicWithTermination()` in `blackHoleBoundary.ts` for unified 4-condition termination.
  */
 export function integrateGeodesic(
   trajectory: GeodesicTrajectory,
@@ -161,10 +168,10 @@ export function integrateGeodesic(
   let velX = ray.dir.x;
   let velY = ray.dir.y;
 
-  const nextPos: IVec2 = { x: 0, y: 0 };
-  const nextVel: IVec2 = { x: 0, y: 0 };
-  const curPos: IVec2 = { x: curX, y: curY };
-  const curVel: IVec2 = { x: velX, y: velY };
+  scratchCurPos.x = curX;
+  scratchCurPos.y = curY;
+  scratchCurVel.x = velX;
+  scratchCurVel.y = velY;
 
   // Push initial knot
   const dx0 = curX - blackHole.center.x;
@@ -195,17 +202,17 @@ export function integrateGeodesic(
     }
 
     const dt = calculateAdaptiveDt(r, blackHole.rs, blackHole.rInfluence);
-    curPos.x = curX;
-    curPos.y = curY;
-    curVel.x = velX;
-    curVel.y = velY;
+    scratchCurPos.x = curX;
+    scratchCurPos.y = curY;
+    scratchCurVel.x = velX;
+    scratchCurVel.y = velY;
 
-    stepRK2(nextPos, nextVel, curPos, curVel, blackHole, dt);
+    stepRK2(scratchNextPos, scratchNextVel, scratchCurPos, scratchCurVel, blackHole, dt);
 
-    curX = nextPos.x;
-    curY = nextPos.y;
-    velX = nextVel.x;
-    velY = nextVel.y;
+    curX = scratchNextPos.x;
+    curY = scratchNextPos.y;
+    velX = scratchNextVel.x;
+    velY = scratchNextVel.y;
 
     const nextRx = curX - blackHole.center.x;
     const nextRy = curY - blackHole.center.y;

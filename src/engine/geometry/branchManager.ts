@@ -39,7 +39,8 @@ import {
 
 export const MAX_BOUNCE_DEPTH = 8;
 export const MIN_ENERGY_THRESHOLD = 0.005;
-export const MAX_FRUSTUM_POOL = 1024;
+export const INITIAL_FRUSTUM_POOL_CAPACITY = 1024;
+export const MAX_FRUSTUM_POOL = INITIAL_FRUSTUM_POOL_CAPACITY; // Alias for backward compatibility
 
 export interface BeamFrustum {
   id: number;

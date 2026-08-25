@@ -141,7 +141,7 @@ describe('4-Condition Priority Termination and Boundary Splicing', () => {
       expect(trajectory.pointCount).toBeLessThanOrEqual(MAX_RK2_STEPS);
     });
 
-    it('Condition 4 (Failsafe Cap): Ensures step count never exceeds MAX_RK2_STEPS = 64', () => {
+    it('Condition 4 (Failsafe Cap): Ensures step count never exceeds MAX_RK2_STEPS', () => {
       const trajectory = createGeodesicTrajectory(MAX_RK2_STEPS);
       const arbitraryRay: Ray2D = {
         origin: { x: 500 - 100, y: 500 - 80 },
@@ -150,7 +150,7 @@ describe('4-Condition Priority Termination and Boundary Splicing', () => {
 
       traceGeodesicWithTermination(trajectory, arbitraryRay, blackHole);
 
-      expect(trajectory.pointCount).toBeLessThanOrEqual(64);
+      expect(trajectory.pointCount).toBeLessThanOrEqual(MAX_RK2_STEPS);
     });
   });
 });
