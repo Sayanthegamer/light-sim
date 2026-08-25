@@ -100,7 +100,7 @@
 - [x] Task: 32-Slot Snapshot Undo/Redo Engine [46ccf48]
   - [ ] Write unit tests for circular history buffer and deterministic undo/redo (`tests/state/historyManager.test.ts`)
   - [ ] Implement `historyManager.ts` committing immutable scene snapshots on pointer-up
-- [ ] Task: Canonical JSON Serialization, `lz-string` URL Hash & 5 Bundled Presets
+- [x] Task: Canonical JSON Serialization, `lz-string` URL Hash & 5 Bundled Presets [3e3e7ae]
   - [ ] Write unit tests for JSON serialization and `lz-string` compression/decompression (`tests/state/serializer.test.ts`)
   - [ ] Implement `serializer.ts` with URL hash fragment sync
   - [ ] Create 5 bundled presets: Newton's Prism, Convex/Concave Focus, Schwarzschild Relativistic Deflection, TIR Retroreflector, and Achromatic Doublet (`src/engine/presets/`)
