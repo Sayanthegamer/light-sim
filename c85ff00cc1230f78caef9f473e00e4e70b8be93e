@@ -1,0 +1,5 @@
+Task: 8-Frame Progressive EMA Temporal Accumulator & Idle Sleep
+
+Summary: Implemented ping-pong progressive EMA temporal accumulation (max 8 frames) and dirty-state render coordinator with automatic idle sleep.
+
+Files: src/shaders/temporalAccumulate.frag, src/engine/renderer/temporalAccumulator.ts, src/engine/renderer/renderLoop.ts, tests/renderer/temporalAccumulator.test.ts
