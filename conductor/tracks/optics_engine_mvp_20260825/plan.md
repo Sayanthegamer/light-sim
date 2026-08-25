@@ -104,7 +104,7 @@
   - [ ] Write unit tests for JSON serialization and `lz-string` compression/decompression (`tests/state/serializer.test.ts`)
   - [ ] Implement `serializer.ts` with URL hash fragment sync
   - [ ] Create 5 bundled presets: Newton's Prism, Convex/Concave Focus, Schwarzschild Relativistic Deflection, TIR Retroreflector, and Achromatic Doublet (`src/engine/presets/`)
-- [ ] Task: Svelte 5 Flat Matte Dark UI & Properties Inspector
+- [x] Task: Svelte 5 Flat Matte Dark UI & Properties Inspector [aec5daf]
   - [ ] Build top/bottom perimeter toolbars with preset selector, play/pause, reset, undo/redo, and add object menu (`src/ui/Dock.svelte`)
   - [ ] Build floating context-sensitive properties inspector for selected entities (`src/ui/Inspector.svelte`)
   - [ ] Apply Flat Matte Dark styling (solid slate/zinc, 1px `#27272a` borders, zero backdrop blur)
