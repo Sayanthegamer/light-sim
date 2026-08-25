@@ -1,0 +1,7 @@
+Task: 24-Byte Interleaved VBO Layout & Frustum Triangulation
+
+Summary: Implemented zero-allocation 24-byte interleaved VBO packer [Float32x2, Float32, Float32, Float32, Uint8x4] matching WebGL2 vertex format with caustic concentration scaling (w0/w(t)) and triangular fan dispersion generators.
+
+Files:
+- src/engine/geometry/vboPacker.ts
+- tests/geometry/vboPacker.test.ts
