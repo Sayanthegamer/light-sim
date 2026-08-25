@@ -1,0 +1,5 @@
+Task: Analytic CIE 1931 Color Matching & Spectral Shaders
+- Implemented analytic Gaussian CIE 1931 color matching functions (Wyman et al. 2013)
+- Implemented XYZ to linear sRGB and gamma correction
+- Implemented modular GLSL include cie1931.glsl with dispersionU mapping
+- 100% test coverage
