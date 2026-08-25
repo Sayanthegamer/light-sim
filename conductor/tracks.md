@@ -11,5 +11,5 @@
 - [x] **Track: Physics Engine Architecture & Correctness Refactor**
   *Link: [physics_engine_refactor_20260825](./tracks/physics_engine_refactor_20260825/index.md)*
 
-- [ ] **Track: Black Hole Frustum Intersection, Splitting & Growable Pool Refactor**
+- [x] **Track: Black Hole Frustum Intersection, Splitting & Growable Pool Refactor**
   *Link: [black_hole_frustum_splitting_growable_pool_20260825](./tracks/black_hole_frustum_splitting_growable_pool_20260825/index.md)*
