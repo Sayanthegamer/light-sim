@@ -1,0 +1,2 @@
+Phase 3: Spacetime & Black Hole Engine
+Wired black hole geodesics to process all optical branch frustums (lenses, prisms). Fixed RK2 acceleration scaling for accurate weak-field deflection (2rs/b). Passed metadata into ribbon generation for gravitational redshift.
