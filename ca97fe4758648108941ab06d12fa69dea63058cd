@@ -1,0 +1,5 @@
+Task: Two-Tier Hybrid Scatter Filter (Pass 3)
+
+Summary: Implemented 1/2-resolution 5-tap depth-masked bilateral Gaussian blur (Tier 1) and 2-stage Dual Kawase bloom (Tier 2) in ScatterPass.
+
+Files: src/shaders/screenQuad.vert, src/shaders/bilateralScatter.frag, src/shaders/dualKawaseDown.frag, src/shaders/dualKawaseUp.frag, src/shaders/scatterCombine.frag, src/engine/renderer/scatterPass.ts, tests/renderer/scatterPass.test.ts
