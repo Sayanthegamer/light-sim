@@ -24,10 +24,10 @@
 
 ## Phase 2: 2D Wavefront Geometry Engine & VBO Packing
 
-- [ ] Task: Analytic 2D Ray-Segment & Ray-Arc Quadratic Intersection Solvers
-  - [ ] Write unit tests for line-segment and circle/arc quadratic intersections (`tests/geometry/intersections.test.ts`)
-  - [ ] Implement `intersections.ts` quadratic arc/circle and segment solvers with normal vectors
-  - [ ] Confirm geometric intersection tests pass
+- [x] Task: Analytic 2D Ray-Segment & Ray-Arc Quadratic Intersection Solvers [10a6604]
+  - [x] Write unit tests for line-segment and circle/arc quadratic intersections (`tests/geometry/intersections.test.ts`)
+  - [x] Implement `intersections.ts` quadratic arc/circle and segment solvers with normal vectors
+  - [x] Confirm geometric intersection tests pass
 - [ ] Task: 5-Step Adaptive Bisection Corner Snapping
   - [ ] Write unit tests for boundary discontinuity detection and 5-step bisection corner snapping (`tests/geometry/bisection.test.ts`)
   - [ ] Implement `bisection.ts` with $\epsilon < 0.5\text{ px}$ vertex snapping to prevent light leakage
