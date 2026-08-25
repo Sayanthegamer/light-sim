@@ -10,7 +10,7 @@ describe('Cauchy Angular Dispersion Invariants', () => {
     // Wait, the preset just creates objects with default values if not provided.
     // Let's just use the default values defined in prismNode or we can hardcode the expected N-BK7 values.
     const A = 1.5046;
-    const B = 0.0042;
+    const B = 4200;
 
     const nRed = cauchyIndex(WAVELENGTH_RED, A, B);
     const nViolet = cauchyIndex(WAVELENGTH_VIOLET, A, B);

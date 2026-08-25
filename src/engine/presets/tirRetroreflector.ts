@@ -30,7 +30,7 @@ export const tirRetroreflectorPreset: SerializedScene = {
         ],
         refractiveIndex: 1.52, // Critical angle ~41.14° < 45°
         cauchyA: 1.5046,
-        cauchyB: 0.0042,
+        cauchyB: 4200,
         isDispersive: false
       }
     }

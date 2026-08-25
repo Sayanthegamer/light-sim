@@ -44,7 +44,7 @@ export class LensNode extends SceneNode {
     this.thickness = options?.thickness ?? 20;
     this.refractiveIndex = options?.refractiveIndex ?? 1.52;
     this.cauchyA = options?.cauchyA ?? 1.5046;
-    this.cauchyB = options?.cauchyB ?? 0.0042;
+    this.cauchyB = options?.cauchyB ?? 4200;
     this.boundingRadius = Math.max(this.height * 0.6, this.thickness * 0.6) + 10;
   }
 

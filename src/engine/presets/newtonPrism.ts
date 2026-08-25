@@ -31,7 +31,7 @@ export const newtonPrismPreset: SerializedScene = {
         ],
         refractiveIndex: 1.517, // Crown glass N-BK7
         cauchyA: 1.5046,
-        cauchyB: 0.0042,
+        cauchyB: 4200,
         isDispersive: true
       }
     }

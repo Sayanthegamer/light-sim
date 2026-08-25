@@ -32,7 +32,7 @@ export class PrismNode extends SceneNode {
     ];
     this.refractiveIndex = options?.refractiveIndex ?? 1.517; // Crown Glass
     this.cauchyA = options?.cauchyA ?? 1.5046;
-    this.cauchyB = options?.cauchyB ?? 0.0042;
+    this.cauchyB = options?.cauchyB ?? 4200;
     this.isDispersive = options?.isDispersive ?? true;
     this.updateBoundingRadius();
   }

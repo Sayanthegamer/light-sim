@@ -14,7 +14,7 @@
 - [x] Task: Phase Verification & Checkpoint (Refer to workflow.md) 1b252a5
 
 ## Phase 2: Optics Core & Geometry Fixes
-- [ ] Task: Correct Cauchy Dispersion Presets
+- [~] Task: Correct Cauchy Dispersion Presets
     - [ ] Update `A` and `B` presets for Crown/Flint glasses.
     - [ ] Validate tests pass.
 - [ ] Task: Fix Lens Implementations

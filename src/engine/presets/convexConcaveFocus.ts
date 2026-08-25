@@ -31,7 +31,7 @@ export const convexConcaveFocusPreset: SerializedScene = {
         thickness: 24,
         refractiveIndex: 1.52,
         cauchyA: 1.5046,
-        cauchyB: 0.0042
+        cauchyB: 4200
       }
     }
   ]

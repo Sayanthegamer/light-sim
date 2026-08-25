@@ -32,7 +32,7 @@ export const achromaticDoubletPreset: SerializedScene = {
         thickness: 20,
         refractiveIndex: 1.517, // N-BK7 Crown Glass
         cauchyA: 1.5046,
-        cauchyB: 0.0042
+        cauchyB: 4200
       }
     },
     {
@@ -48,7 +48,7 @@ export const achromaticDoubletPreset: SerializedScene = {
         thickness: 16,
         refractiveIndex: 1.62, // Flint Glass F2
         cauchyA: 1.5892,
-        cauchyB: 0.0098
+        cauchyB: 9800
       }
     }
   ]
