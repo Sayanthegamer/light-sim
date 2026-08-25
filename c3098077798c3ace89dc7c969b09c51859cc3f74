@@ -1,0 +1,3 @@
+Task: Polymorphic Scene Graph & Flat Boundary Cache
+Summary: Implemented high-level polymorphic SceneNode hierarchy (EmitterNode, PrismNode, LensNode, BlackHoleNode, BarrierNode) with dirty-flag state machine and contiguous flat geometry caching for zero-allocation ray solver performance.
+Files: src/engine/scene/sceneNode.ts, src/engine/scene/emitterNode.ts, src/engine/scene/prismNode.ts, src/engine/scene/lensNode.ts, src/engine/scene/blackHoleNode.ts, src/engine/scene/barrierNode.ts, src/engine/scene/sceneGraph.ts, src/engine/scene/index.ts, tests/scene/sceneGraph.test.ts
