@@ -40,10 +40,13 @@
     - [x] Pass `blackHole` and `baseLambda` to `generateRibbonMesh` to wire redshift into the pipeline.
 - [x] Task: Phase Verification & Checkpoint (Refer to workflow.md)
 
-## Phase 4: Render Pipeline & Post-Processing
-- [ ] Task: Temporal Accumulation Fix
-    - [ ] Connect the output of the 8-frame EMA accumulator to the final screen composite.
-- [ ] Task: HDR & Fallback Improvements
-    - [ ] Implement true RGBM encoding/decoding in `RGBA8` fallback.
-    - [ ] Handle missing `OES_texture_half_float_linear` properly by falling back to `NEAREST` filtering.
-- [ ] Task: Phase Verification & Checkpoint (Refer to workflow.md)
+## Phase 4: Render Pipeline & Post-Processing [checkpoint: 2e251b8]
+- [x] Task: Temporal Accumulation Fix
+    - [x] Connect the output of the 8-frame EMA accumulator to the final screen composite.
+- [x] Task: HDR & Fallback Improvements
+    - [x] Implement true RGBM encoding/decoding in `RGBA8` fallback.
+    - [x] Handle missing `OES_texture_half_float_linear` properly by falling back to `NEAREST` filtering.
+- [x] Task: Phase Verification & Checkpoint (Refer to workflow.md)
+
+## Phase: Review Fixes
+- [x] Task: Apply review suggestions (No fixes needed)
