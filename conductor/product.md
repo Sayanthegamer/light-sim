@@ -16,14 +16,14 @@ Unlike conventional 2D raytracers that depict light as discrete 1D laser needles
 ### 2. High-Performance 2D Geometry Engine
 - **Pre-Allocated CPU Triangulation:** CPU solves analytic geometric intersections (line segments and circular/parabolic arcs) and writes directly into fixed typed arrays.
 - **5-Step Bisection Corner Snapping:** Resolves geometric discontinuities at obstacle vertices with sub-pixel precision ($\epsilon < 0.5\text{ px}$), preventing light leakage.
-- **Branch Pruning & TIR Cap:** Terminates low-energy reflections ($I < 0.005$) and caps total internal reflection loops at a hard depth limit of 8 bounces.
+- **1024-Frustum Frame Pool & TIR Cap:** Frame-level pre-allocated pool (1024 slots) with sub-threshold energy pruning ($I < 0.005$), zero cross-sample mutation, and hard TIR bounce limit of 8 bounces.
 - **24-Byte Interleaved VBO Layout:** `[Float32x2: a_Position (x,y), Float32: a_Intensity, Float32: a_DispersionU, Float32: a_EdgeV, Uint8x4: a_ParentColorRGB]`.
 
 ### 3. Non-Euclidean Spacetime & Curvature Engine
-- **Distance-Mapped Adaptive RK2 Geodesic Integrator:** Localized field marching inside $R_{\text{influence}} = 12 r_s$ with a fixed step budget ($N_{\text{max}} = 64$) and smoothstep boundary transition over $[10 r_s, 12 r_s]$.
+- **Distance-Mapped Adaptive RK2 Geodesic Integrator:** Localized field marching inside $R_{\text{influence}} = 12 r_s$ with a 256-step budget ($N_{\text{max}} = 256$) and smoothstep boundary transition over $[10 r_s, 12 r_s]$.
 - **Contiguous Ribbon Meshes:** Quad strips rendered double-sided with additive blending, using $\epsilon_{\text{pinch}} = 0.5\text{ px}$ to focus caustic energy spikes.
 - **Relativistic Redshift & Dilation:** Vertex-stage Schwarzschild wavelength scaling $(1+z) = (1 - r_s/r)^{-1/2}$ and smooth extinction damping beyond 780 nm.
-- **4-Condition Loop Termination:** Immediate capture at $r \le r_s$, boundary exit handoff at $r \ge 12 r_s$, $2\pi$ angular winding cap, and 64-step failsafe.
+- **4-Condition Loop Termination & Splicing:** Immediate capture at $r \le r_s$, boundary exit handoff at $r \ge 12 r_s$ with optical continuation into downstream optical elements, $2\pi$ angular winding cap, and 256-step failsafe.
 
 ### 4. Atmospheric Post-Processing & HDR Pipeline
 - **Extension-Guarded Half-Float HDR:** Half-resolution `RGBA16F` offscreen framebuffer with `RGBM` 8-bit fallback.
