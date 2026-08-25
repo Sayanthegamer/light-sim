@@ -1,0 +1,2 @@
+Phase 4: Render Pipeline & Post-Processing
+Wired 8-frame progressive EMA temporal accumulator to the main render pipeline for TAA. Added RGBM format encoding/decoding and NEAREST filtering fallback for browsers lacking OES_texture_half_float_linear.
