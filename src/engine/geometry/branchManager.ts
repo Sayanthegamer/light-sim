@@ -103,17 +103,17 @@ export type RibbonCallback = (
 ) => void;
 
 /**
- * Binary bisection to find the exact boundary parameter u in [0, 1]
+ * Binary bisection to find the boundary parameter u in [0, 1]
  * where a grazing beam intersects the black hole influence boundary.
+ * Strictly converges to the entering side of the boundary so that
+ * intersectRayInfluenceBoundary is mathematically guaranteed to succeed.
  */
 export function bisectBlackHoleSplit(
   leftRay: Ray2D,
   rightRay: Ray2D,
   blackHole: BlackHole,
-  iterations = 6
+  iterations = 10
 ): number {
-  let uLow = 0.0;
-  let uHigh = 1.0;
   const tempRay: Ray2D = { origin: { x: 0, y: 0 }, dir: { x: 0, y: 0 } };
   const tempHandOff: BoundaryRayHandOff = {
     hasIntersection: false,
@@ -124,9 +124,11 @@ export function bisectBlackHoleSplit(
   };
 
   const leftEnters = intersectRayInfluenceBoundary(tempHandOff, leftRay, blackHole);
+  let uEntering = leftEnters ? 0.0 : 1.0;
+  let uMissing = leftEnters ? 1.0 : 0.0;
 
   for (let i = 0; i < iterations; i++) {
-    const uMid = 0.5 * (uLow + uHigh);
+    const uMid = 0.5 * (uEntering + uMissing);
     tempRay.origin.x = (1.0 - uMid) * leftRay.origin.x + uMid * rightRay.origin.x;
     tempRay.origin.y = (1.0 - uMid) * leftRay.origin.y + uMid * rightRay.origin.y;
     const dx = (1.0 - uMid) * leftRay.dir.x + uMid * rightRay.dir.x;
@@ -136,14 +138,14 @@ export function bisectBlackHoleSplit(
     tempRay.dir.y = dy / len;
 
     const midEnters = intersectRayInfluenceBoundary(tempHandOff, tempRay, blackHole);
-    if (midEnters === leftEnters) {
-      uLow = uMid;
+    if (midEnters) {
+      uEntering = uMid;
     } else {
-      uHigh = uMid;
+      uMissing = uMid;
     }
   }
 
-  return 0.5 * (uLow + uHigh);
+  return uEntering;
 }
 
 export class BranchManager {
@@ -360,16 +362,12 @@ export class BranchManager {
             };
 
             const splitHasEntry = intersectRayInfluenceBoundary(this.reusableHandOffSplit, splitRay, closestBH);
-            let splitEntryX = 0;
-            let splitEntryY = 0;
-            if (splitHasEntry) {
-              splitEntryX = this.reusableHandOffSplit.entryPoint.x;
-              splitEntryY = this.reusableHandOffSplit.entryPoint.y;
-            } else {
-              const tClosest = (closestBH.center.x - splitOriginX) * normDirX + (closestBH.center.y - splitOriginY) * normDirY;
-              splitEntryX = splitOriginX + Math.max(0, tClosest) * normDirX;
-              splitEntryY = splitOriginY + Math.max(0, tClosest) * normDirY;
+            if (!splitHasEntry) {
+              continue;
             }
+
+            const splitEntryX = this.reusableHandOffSplit.entryPoint.x;
+            const splitEntryY = this.reusableHandOffSplit.entryPoint.y;
 
             if (splitType === 'left_only') {
               // 1. Unaffected Right Sub-Frustum [uSplit, 1] continues through Euclidean space
