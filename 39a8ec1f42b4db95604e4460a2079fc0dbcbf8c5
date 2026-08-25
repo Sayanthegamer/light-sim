@@ -1,0 +1,5 @@
+Task: Obstacle Geometry Mask Rasterization (Pass 2)
+
+Summary: Created Pass 2 mask shaders (mask.vert, mask.frag) and MaskPass renderer for solid scene elements into single-channel R8 mask buffer to prevent bilateral light bleeding.
+
+Files: src/shaders/mask.vert, src/shaders/mask.frag, src/engine/renderer/maskPass.ts, tests/renderer/maskPass.test.ts
