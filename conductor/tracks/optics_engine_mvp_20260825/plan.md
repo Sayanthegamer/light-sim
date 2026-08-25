@@ -88,28 +88,28 @@
 
 ---
 
-## Phase 5: Interactive Scene Graph, Preset Library & Svelte 5 Flat Matte UI
+## Phase 5: Interactive Scene Graph, Preset Library & Svelte 5 Flat Matte UI [checkpoint: bc815e6]
 
 - [x] Task: Polymorphic Scene Graph & Flat Boundary Cache [c309807]
-  - [ ] Write unit tests for SceneNode hierarchy and flat boundary cache flattening (`tests/scene/sceneGraph.test.ts`)
-  - [ ] Implement `SceneNode`, `EmitterNode`, `PrismNode`, `LensNode`, `BlackHoleNode`, and `BarrierNode` (`src/engine/scene/`)
-  - [ ] Confirm cache invalidation on `TRANSFORM_DIRTY` and `PARAM_DIRTY` flags
+  - [x] Write unit tests for SceneNode hierarchy and flat boundary cache flattening (`tests/scene/sceneGraph.test.ts`)
+  - [x] Implement `SceneNode`, `EmitterNode`, `PrismNode`, `LensNode`, `BlackHoleNode`, and `BarrierNode` (`src/engine/scene/`)
+  - [x] Confirm cache invalidation on `TRANSFORM_DIRTY` and `PARAM_DIRTY` flags
 - [x] Task: Direct 2D Canvas Vector Hit-Testing & Gizmo Manipulation [daaf14e]
-  - [ ] Implement canvas pointer event raycasting (point-in-polygon, circle distance, transform handles) (`src/engine/interaction/hitTester.ts`, `src/engine/interaction/gizmoController.ts`)
-  - [ ] Implement smooth translation, rotation pivots, and aperture/radius resize handles
+  - [x] Implement canvas pointer event raycasting (point-in-polygon, circle distance, transform handles) (`src/engine/interaction/hitTester.ts`, `src/engine/interaction/gizmoController.ts`)
+  - [x] Implement smooth translation, rotation pivots, and aperture/radius resize handles
 - [x] Task: 32-Slot Snapshot Undo/Redo Engine [46ccf48]
-  - [ ] Write unit tests for circular history buffer and deterministic undo/redo (`tests/state/historyManager.test.ts`)
-  - [ ] Implement `historyManager.ts` committing immutable scene snapshots on pointer-up
+  - [x] Write unit tests for circular history buffer and deterministic undo/redo (`tests/state/historyManager.test.ts`)
+  - [x] Implement `historyManager.ts` committing immutable scene snapshots on pointer-up
 - [x] Task: Canonical JSON Serialization, `lz-string` URL Hash & 5 Bundled Presets [3e3e7ae]
-  - [ ] Write unit tests for JSON serialization and `lz-string` compression/decompression (`tests/state/serializer.test.ts`)
-  - [ ] Implement `serializer.ts` with URL hash fragment sync
-  - [ ] Create 5 bundled presets: Newton's Prism, Convex/Concave Focus, Schwarzschild Relativistic Deflection, TIR Retroreflector, and Achromatic Doublet (`src/engine/presets/`)
+  - [x] Write unit tests for JSON serialization and `lz-string` compression/decompression (`tests/state/serializer.test.ts`)
+  - [x] Implement `serializer.ts` with URL hash fragment sync
+  - [x] Create 5 bundled presets: Newton's Prism, Convex/Concave Focus, Schwarzschild Relativistic Deflection, TIR Retroreflector, and Achromatic Doublet (`src/engine/presets/`)
 - [x] Task: Svelte 5 Flat Matte Dark UI & Properties Inspector [aec5daf]
-  - [ ] Build top/bottom perimeter toolbars with preset selector, play/pause, reset, undo/redo, and add object menu (`src/ui/Dock.svelte`)
-  - [ ] Build floating context-sensitive properties inspector for selected entities (`src/ui/Inspector.svelte`)
-  - [ ] Apply Flat Matte Dark styling (solid slate/zinc, 1px `#27272a` borders, zero backdrop blur)
-  - [ ] Integrate master application root (`src/App.svelte`, `src/main.ts`)
-- [ ] Task: Phase Verification & Checkpoint (Refer to workflow.md)
+  - [x] Build top/bottom perimeter toolbars with preset selector, play/pause, reset, undo/redo, and add object menu (`src/ui/Dock.svelte`)
+  - [x] Build floating context-sensitive properties inspector for selected entities (`src/ui/Inspector.svelte`)
+  - [x] Apply Flat Matte Dark styling (solid slate/zinc, 1px `#27272a` borders, zero backdrop blur)
+  - [x] Integrate master application root (`src/App.svelte`, `src/main.ts`)
+- [x] Task: Phase Verification & Checkpoint (Refer to workflow.md) [bc815e6]
 
 ---
 
