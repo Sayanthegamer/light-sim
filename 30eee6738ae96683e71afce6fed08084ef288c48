@@ -1,0 +1,7 @@
+Task: Vertex-Stage Gravitational Redshift & Extinction Damping
+
+Summary: Implemented Schwarzschild gravitational time dilation (1+z) = (1 - rs/r)^(-1/2), wavelength shifting across visible spectrum to dispersion coordinate u, and photopic extinction damping beyond 780 nm into infrared.
+
+Created files:
+- src/engine/physics/redshift.ts
+- tests/physics/redshift.test.ts
