@@ -3,3 +3,4 @@
  */
 
 export * from './historyManager';
+export * from './serializer';
