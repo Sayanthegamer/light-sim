@@ -17,18 +17,18 @@
 - [x] Task: Verify Phase 1 pool expansion test passes (63f5dc2)
 - [x] Task: Phase Verification & Checkpoint (Refer to workflow.md) (63f5dc2)
 
-## Phase 3: Symmetric Black Hole Entry, Partial Grazing & Frustum Partitioning
-- [ ] Task: Implement symmetric and order-agnostic black hole entry detection
-  - [ ] Remove asymmetric left-first ordering check (`tEntryL < tEntryR`)
-  - [ ] Determine closest black hole using `min(tEntryL, tEntryR)`
-  - [ ] Clamp endpoints $(x_L, y_L)$ and $(x_R, y_R)$ to their respective entry points
-- [ ] Task: Implement partial beam grazing and frustum partitioning
-  - [ ] Detect single-edge boundary entry (`hasLeftEntry !== hasRightEntry`)
-  - [ ] Form geodesic ribbon for the entering energy fraction
-  - [ ] Partition unaffected outer beam portion into continuing Euclidean sub-frustum
-  - [ ] Verify explicit frustum partition correctness test passes
-- [ ] Task: Verify all Phase 1 regression tests pass
-- [ ] Task: Phase Verification & Checkpoint (Refer to workflow.md)
+## Phase 3: Symmetric Black Hole Entry, Partial Grazing & Frustum Partitioning [checkpoint: 977330f]
+- [x] Task: Implement symmetric and order-agnostic black hole entry detection (977330f)
+  - [x] Remove asymmetric left-first ordering check (`tEntryL < tEntryR`)
+  - [x] Determine closest black hole using `min(tEntryL, tEntryR)`
+  - [x] Clamp endpoints $(x_L, y_L)$ and $(x_R, y_R)$ to their respective entry points
+- [x] Task: Implement partial beam grazing and frustum partitioning (977330f)
+  - [x] Detect single-edge boundary entry (`hasLeftEntry !== hasRightEntry`)
+  - [x] Form geodesic ribbon for the entering energy fraction
+  - [x] Partition unaffected outer beam portion into continuing Euclidean sub-frustum
+  - [x] Verify explicit frustum partition correctness test passes
+- [x] Task: Verify all Phase 1 regression tests pass (977330f)
+- [x] Task: Phase Verification & Checkpoint (Refer to workflow.md) (977330f)
 
 ## Phase 4: Full System Verification, Performance & Coverage Validation
 - [ ] Task: Comprehensive test suite execution and coverage check
