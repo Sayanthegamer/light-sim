@@ -1,0 +1,1 @@
+Task Summary: Created comprehensive regression test suite in tests/engine/blackHoleSplittingRegression.test.ts covering right-ray-first entry, partial beam grazing with explicit frustum partition correctness, and auto-expanding frustum pool scaling.
