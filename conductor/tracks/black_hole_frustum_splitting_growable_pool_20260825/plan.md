@@ -9,13 +9,13 @@
 - [x] Task: Verify Phase 1 tests fail on baseline (Red Phase) (f4c4677)
 - [x] Task: Phase Verification & Checkpoint (Refer to workflow.md) (f4c4677)
 
-## Phase 2: Auto-Expanding Frustum Pool & Memory Architecture
-- [ ] Task: Refactor `BranchManager.allocateFrustum()` to dynamically expand pool
-  - [ ] Remove hard `null` returns when `poolCount >= frustumPool.length`
-  - [ ] Push newly allocated `BeamFrustum` objects to dynamically grow the pool on demand
-  - [ ] Ensure frame-level `resetPool()` preserves expanded capacity across frames
-- [ ] Task: Verify Phase 1 pool expansion test passes
-- [ ] Task: Phase Verification & Checkpoint (Refer to workflow.md)
+## Phase 2: Auto-Expanding Frustum Pool & Memory Architecture [checkpoint: 63f5dc2]
+- [x] Task: Refactor `BranchManager.allocateFrustum()` to dynamically expand pool (63f5dc2)
+  - [x] Remove hard `null` returns when `poolCount >= frustumPool.length`
+  - [x] Push newly allocated `BeamFrustum` objects to dynamically grow the pool on demand
+  - [x] Ensure frame-level `resetPool()` preserves expanded capacity across frames
+- [x] Task: Verify Phase 1 pool expansion test passes (63f5dc2)
+- [x] Task: Phase Verification & Checkpoint (Refer to workflow.md) (63f5dc2)
 
 ## Phase 3: Symmetric Black Hole Entry, Partial Grazing & Frustum Partitioning
 - [ ] Task: Implement symmetric and order-agnostic black hole entry detection
