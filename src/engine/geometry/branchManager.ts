@@ -171,6 +171,13 @@ export class BranchManager {
     tEntry: 0,
     tExit: 0
   };
+  private readonly reusableHandOffSplit: BoundaryRayHandOff = {
+    hasIntersection: false,
+    entryPoint: { x: 0, y: 0 },
+    exitPoint: { x: 0, y: 0 },
+    tEntry: 0,
+    tExit: 0
+  };
 
   constructor(poolCapacity = MAX_FRUSTUM_POOL) {
     this.frustumPool = [];
@@ -333,7 +340,7 @@ export class BranchManager {
       }
 
       if (closestBH !== null) {
-        // Case A: Partial beam grazing -> split into entering and unaffected sub-frustums
+        // Case A: Partial beam grazing -> split into entering portion and unaffected sub-frustum
         if (
           (splitType === 'left_only' || splitType === 'right_only') &&
           current.depth < MAX_BOUNCE_DEPTH
@@ -347,19 +354,25 @@ export class BranchManager {
             const splitLen = Math.hypot(splitDirX, splitDirY) || 1.0;
             const normDirX = splitDirX / splitLen;
             const normDirY = splitDirY / splitLen;
+            const splitRay: Ray2D = {
+              origin: { x: splitOriginX, y: splitOriginY },
+              dir: { x: normDirX, y: normDirY }
+            };
+
+            const splitHasEntry = intersectRayInfluenceBoundary(this.reusableHandOffSplit, splitRay, closestBH);
+            let splitEntryX = 0;
+            let splitEntryY = 0;
+            if (splitHasEntry) {
+              splitEntryX = this.reusableHandOffSplit.entryPoint.x;
+              splitEntryY = this.reusableHandOffSplit.entryPoint.y;
+            } else {
+              const tClosest = (closestBH.center.x - splitOriginX) * normDirX + (closestBH.center.y - splitOriginY) * normDirY;
+              splitEntryX = splitOriginX + Math.max(0, tClosest) * normDirX;
+              splitEntryY = splitOriginY + Math.max(0, tClosest) * normDirY;
+            }
 
             if (splitType === 'left_only') {
-              // Left sub-frustum [0, uSplit] enters the black hole
-              const enteredChild = this.allocateFrustum();
-              copyBeamFrustum(enteredChild, current);
-              enteredChild.intensity = current.intensity * uSplit;
-              enteredChild.rightRay.origin.x = splitOriginX;
-              enteredChild.rightRay.origin.y = splitOriginY;
-              enteredChild.rightRay.dir.x = normDirX;
-              enteredChild.rightRay.dir.y = normDirY;
-              queue.unshift(enteredChild);
-
-              // Right sub-frustum [uSplit, 1] continues unaffected through Euclidean space
+              // 1. Unaffected Right Sub-Frustum [uSplit, 1] continues through Euclidean space
               const unaffectedChild = this.allocateFrustum();
               copyBeamFrustum(unaffectedChild, current);
               unaffectedChild.intensity = current.intensity * (1.0 - uSplit);
@@ -369,19 +382,70 @@ export class BranchManager {
               unaffectedChild.leftRay.dir.y = normDirY;
               queue.push(unaffectedChild);
 
+              // 2. Entered Left Sub-Frustum [0, uSplit]
+              current.intensity = current.intensity * uSplit;
+              current.rightRay.origin.x = splitOriginX;
+              current.rightRay.origin.y = splitOriginY;
+              current.rightRay.dir.x = normDirX;
+              current.rightRay.dir.y = normDirY;
+
+              intersectRayInfluenceBoundary(this.reusableHandOffL, current.leftRay, closestBH);
+              current.leftHit.x = this.reusableHandOffL.entryPoint.x;
+              current.leftHit.y = this.reusableHandOffL.entryPoint.y;
+              current.rightHit.x = splitEntryX;
+              current.rightHit.y = splitEntryY;
+
+              activeFrustums.push(current);
+
+              // Geodesic integration directly from boundary entry points
+              const resL = traceGeodesicWithTermination(
+                this.reusableTrajL,
+                { origin: current.leftHit, dir: current.leftRay.dir },
+                closestBH
+              );
+              const resR = traceGeodesicWithTermination(
+                this.reusableTrajR,
+                { origin: current.rightHit, dir: current.rightRay.dir },
+                closestBH
+              );
+
+              if (onRibbon && this.reusableTrajL.pointCount >= 2 && this.reusableTrajR.pointCount >= 2) {
+                onRibbon(this.reusableTrajL, this.reusableTrajR, current, closestBH);
+              }
+
+              if (
+                resL.reason === TerminationReason.Escaped &&
+                resR.reason === TerminationReason.Escaped &&
+                resL.exitRay &&
+                resR.exitRay &&
+                current.depth + 1 < MAX_BOUNCE_DEPTH
+              ) {
+                const escapedChild = this.allocateFrustum();
+                escapedChild.depth = current.depth + 1;
+                escapedChild.intensity = current.intensity;
+                escapedChild.dispersionU = current.dispersionU;
+                escapedChild.tintRGB[0] = current.tintRGB[0];
+                escapedChild.tintRGB[1] = current.tintRGB[1];
+                escapedChild.tintRGB[2] = current.tintRGB[2];
+                escapedChild.isDispersed = current.isDispersed;
+
+                escapedChild.leftRay.origin.x = resL.exitRay.origin.x;
+                escapedChild.leftRay.origin.y = resL.exitRay.origin.y;
+                escapedChild.leftRay.dir.x = resL.exitRay.dir.x;
+                escapedChild.leftRay.dir.y = resL.exitRay.dir.y;
+
+                escapedChild.rightRay.origin.x = resR.exitRay.origin.x;
+                escapedChild.rightRay.origin.y = resR.exitRay.origin.y;
+                escapedChild.rightRay.dir.x = resR.exitRay.dir.x;
+                escapedChild.rightRay.dir.y = resR.exitRay.dir.y;
+
+                queue.push(escapedChild);
+              }
+
               continue;
             } else {
-              // Right sub-frustum [uSplit, 1] enters the black hole
-              const enteredChild = this.allocateFrustum();
-              copyBeamFrustum(enteredChild, current);
-              enteredChild.intensity = current.intensity * (1.0 - uSplit);
-              enteredChild.leftRay.origin.x = splitOriginX;
-              enteredChild.leftRay.origin.y = splitOriginY;
-              enteredChild.leftRay.dir.x = normDirX;
-              enteredChild.leftRay.dir.y = normDirY;
-              queue.unshift(enteredChild);
-
-              // Left sub-frustum [0, uSplit] continues unaffected through Euclidean space
+              // splitType === 'right_only'
+              // 1. Unaffected Left Sub-Frustum [0, uSplit] continues through Euclidean space
               const unaffectedChild = this.allocateFrustum();
               copyBeamFrustum(unaffectedChild, current);
               unaffectedChild.intensity = current.intensity * uSplit;
@@ -390,6 +454,66 @@ export class BranchManager {
               unaffectedChild.rightRay.dir.x = normDirX;
               unaffectedChild.rightRay.dir.y = normDirY;
               queue.push(unaffectedChild);
+
+              // 2. Entered Right Sub-Frustum [uSplit, 1]
+              current.intensity = current.intensity * (1.0 - uSplit);
+              current.leftRay.origin.x = splitOriginX;
+              current.leftRay.origin.y = splitOriginY;
+              current.leftRay.dir.x = normDirX;
+              current.leftRay.dir.y = normDirY;
+
+              intersectRayInfluenceBoundary(this.reusableHandOffR, current.rightRay, closestBH);
+              current.leftHit.x = splitEntryX;
+              current.leftHit.y = splitEntryY;
+              current.rightHit.x = this.reusableHandOffR.entryPoint.x;
+              current.rightHit.y = this.reusableHandOffR.entryPoint.y;
+
+              activeFrustums.push(current);
+
+              // Geodesic integration directly from boundary entry points
+              const resL = traceGeodesicWithTermination(
+                this.reusableTrajL,
+                { origin: current.leftHit, dir: current.leftRay.dir },
+                closestBH
+              );
+              const resR = traceGeodesicWithTermination(
+                this.reusableTrajR,
+                { origin: current.rightHit, dir: current.rightRay.dir },
+                closestBH
+              );
+
+              if (onRibbon && this.reusableTrajL.pointCount >= 2 && this.reusableTrajR.pointCount >= 2) {
+                onRibbon(this.reusableTrajL, this.reusableTrajR, current, closestBH);
+              }
+
+              if (
+                resL.reason === TerminationReason.Escaped &&
+                resR.reason === TerminationReason.Escaped &&
+                resL.exitRay &&
+                resR.exitRay &&
+                current.depth + 1 < MAX_BOUNCE_DEPTH
+              ) {
+                const escapedChild = this.allocateFrustum();
+                escapedChild.depth = current.depth + 1;
+                escapedChild.intensity = current.intensity;
+                escapedChild.dispersionU = current.dispersionU;
+                escapedChild.tintRGB[0] = current.tintRGB[0];
+                escapedChild.tintRGB[1] = current.tintRGB[1];
+                escapedChild.tintRGB[2] = current.tintRGB[2];
+                escapedChild.isDispersed = current.isDispersed;
+
+                escapedChild.leftRay.origin.x = resL.exitRay.origin.x;
+                escapedChild.leftRay.origin.y = resL.exitRay.origin.y;
+                escapedChild.leftRay.dir.x = resL.exitRay.dir.x;
+                escapedChild.leftRay.dir.y = resL.exitRay.dir.y;
+
+                escapedChild.rightRay.origin.x = resR.exitRay.origin.x;
+                escapedChild.rightRay.origin.y = resR.exitRay.origin.y;
+                escapedChild.rightRay.dir.x = resR.exitRay.dir.x;
+                escapedChild.rightRay.dir.y = resR.exitRay.dir.y;
+
+                queue.push(escapedChild);
+              }
 
               continue;
             }
@@ -420,7 +544,7 @@ export class BranchManager {
         );
 
         // Emit curved ribbon mesh
-        if (onRibbon && this.reusableTrajL.pointCount > 2 && this.reusableTrajR.pointCount > 2) {
+        if (onRibbon && this.reusableTrajL.pointCount >= 2 && this.reusableTrajR.pointCount >= 2) {
           onRibbon(this.reusableTrajL, this.reusableTrajR, current, closestBH);
         }
 
