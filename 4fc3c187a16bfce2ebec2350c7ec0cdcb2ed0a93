@@ -1,0 +1,7 @@
+Task: Distance-Mapped Adaptive RK2 Geodesic Integrator
+
+Summary: Implemented second-order Runge-Kutta (midpoint method) numerical geodesic integration for light paths around Schwarzschild black holes with distance-scaled adaptive step sizing dt(r) and smoothstep boundary acceleration fading over [10 rs, 12 rs].
+
+Created files:
+- src/engine/physics/rk2Integrator.ts
+- tests/physics/rk2Integrator.test.ts
