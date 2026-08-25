@@ -1,0 +1,1 @@
+Task Summary: Refactored partial black hole grazing to immediately clamp the entered sub-frustum boundaries to the influence sphere, trace geodesics directly from exact entry coordinates without re-queuing, and propagate the unaffected outer beam straight through Euclidean space.
