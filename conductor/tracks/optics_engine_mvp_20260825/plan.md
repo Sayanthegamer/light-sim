@@ -10,10 +10,10 @@
   - [x] Write unit tests for 2D vector and scalar inlined math operations (`tests/math/vec2.test.ts`)
   - [x] Implement zero-allocation static vector and geometry utility module (`src/engine/math/vec2.ts`)
   - [x] Confirm all vector tests pass with 100% coverage
-- [ ] Task: Snell's Law, Cauchy Dispersion & Fresnel Energy Conservation Solvers
-  - [ ] Write unit tests for refraction, Cauchy wavelength dispersion, and Fresnel coefficients (`tests/optics/refraction.test.ts`)
-  - [ ] Implement `refraction.ts` with Cauchy formula $n(\lambda) = A + B/\lambda^2$, Snell's vector refraction, and Fresnel $R+T=1$
-  - [ ] Confirm all optical refraction tests pass
+- [x] Task: Snell's Law, Cauchy Dispersion & Fresnel Energy Conservation Solvers [726c650]
+  - [x] Write unit tests for refraction, Cauchy wavelength dispersion, and Fresnel coefficients (`tests/optics/refraction.test.ts`)
+  - [x] Implement `refraction.ts` with Cauchy formula $n(\lambda) = A + B/\lambda^2$, Snell's vector refraction, and Fresnel $R+T=1$
+  - [x] Confirm all optical refraction tests pass
 - [ ] Task: Analytic CIE 1931 Color Matching & Spectral Shaders
   - [ ] Write unit tests for analytic CIE 1931 $\lambda \to \text{sRGB}$ conversion (`tests/optics/cie1931.test.ts`)
   - [ ] Implement `cie1931.ts` analytic wavelength-to-sRGB matching
