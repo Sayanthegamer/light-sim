@@ -1,0 +1,1 @@
+Task Summary: Expanded BranchManager pool to 1024 frustums, removed in-trace reset, added resetPool at start of frame solve in OpticsEngine, and prevented reference aliasing on pool exhaustion.
