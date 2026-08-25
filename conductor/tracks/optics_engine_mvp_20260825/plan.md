@@ -6,10 +6,10 @@
   - [x] Initialize `package.json` with TypeScript, Vite, `vite-plugin-glsl`, Svelte 5, Tailwind CSS, Lucide-Svelte, `lz-string`, and Vitest
   - [x] Configure `vite.config.ts`, `tsconfig.json`, and Tailwind CSS with Flat Matte Dark palette
   - [x] Verify test runner and build pipeline execution
-- [ ] Task: Zero-Allocation Inlined Math Module
-  - [ ] Write unit tests for 2D vector and scalar inlined math operations (`tests/math/vec2.test.ts`)
-  - [ ] Implement zero-allocation static vector and geometry utility module (`src/engine/math/vec2.ts`)
-  - [ ] Confirm all vector tests pass with 100% coverage
+- [x] Task: Zero-Allocation Inlined Math Module [32c6bc9]
+  - [x] Write unit tests for 2D vector and scalar inlined math operations (`tests/math/vec2.test.ts`)
+  - [x] Implement zero-allocation static vector and geometry utility module (`src/engine/math/vec2.ts`)
+  - [x] Confirm all vector tests pass with 100% coverage
 - [ ] Task: Snell's Law, Cauchy Dispersion & Fresnel Energy Conservation Solvers
   - [ ] Write unit tests for refraction, Cauchy wavelength dispersion, and Fresnel coefficients (`tests/optics/refraction.test.ts`)
   - [ ] Implement `refraction.ts` with Cauchy formula $n(\lambda) = A + B/\lambda^2$, Snell's vector refraction, and Fresnel $R+T=1$
