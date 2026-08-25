@@ -22,7 +22,7 @@
 
 ---
 
-## Phase 2: 2D Wavefront Geometry Engine & VBO Packing
+## Phase 2: 2D Wavefront Geometry Engine & VBO Packing [checkpoint: e0dbe2a]
 
 - [x] Task: Analytic 2D Ray-Segment & Ray-Arc Quadratic Intersection Solvers [10a6604]
   - [x] Write unit tests for line-segment and circle/arc quadratic intersections (`tests/geometry/intersections.test.ts`)
@@ -40,7 +40,7 @@
   - [x] Write unit tests for 24-byte interleaved packing `[Float32x2, Float32, Float32, Float32, Uint8x4]` (`tests/geometry/vboPacker.test.ts`)
   - [x] Implement `vboPacker.ts` with zero-allocation pre-allocated buffer writing
   - [x] Implement quad frustum and triangle fan mesh generators (`src/engine/geometry/frustumMesh.ts`)
-- [ ] Task: Phase Verification & Checkpoint (Refer to workflow.md)
+- [x] Task: Phase Verification & Checkpoint (Refer to workflow.md) [e0dbe2a]
 
 ---
 
