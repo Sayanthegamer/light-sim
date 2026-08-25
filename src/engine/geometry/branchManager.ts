@@ -13,8 +13,17 @@ import {
   createHitResult,
   findClosestIntersection
 } from './intersections';
-import { solveRefraction, type RefractionResult } from '../optics/refraction';
-import { type CornerVertex } from './bisection';
+import {
+  solveRefraction,
+  type RefractionResult,
+  cauchyIndex,
+  dispersionUToWavelength
+} from '../optics/refraction';
+import {
+  type CornerVertex,
+  hasDiscontinuity,
+  bisectBoundaryDiscontinuity
+} from './bisection';
 
 export const MAX_BOUNCE_DEPTH = 8;
 export const MIN_ENERGY_THRESHOLD = 0.005;
@@ -38,7 +47,8 @@ export class BranchManager {
   private poolCount = 0;
   private readonly leftHitResult: HitResult;
   private readonly rightHitResult: HitResult;
-  private readonly refractionResult: RefractionResult;
+  private readonly leftRefractionResult: RefractionResult;
+  private readonly rightRefractionResult: RefractionResult;
 
   constructor() {
     this.frustumPool = [];
@@ -59,7 +69,14 @@ export class BranchManager {
 
     this.leftHitResult = createHitResult();
     this.rightHitResult = createHitResult();
-    this.refractionResult = {
+    this.leftRefractionResult = {
+      refractedDir: { x: 0, y: 0 },
+      reflectedDir: { x: 0, y: 0 },
+      R: 0,
+      T: 0,
+      isTIR: false
+    };
+    this.rightRefractionResult = {
       refractedDir: { x: 0, y: 0 },
       reflectedDir: { x: 0, y: 0 },
       R: 0,
@@ -90,7 +107,7 @@ export class BranchManager {
     initial: BeamFrustum,
     segments: readonly Segment2D[],
     arcs: readonly Arc2D[],
-    _corners: readonly CornerVertex[],
+    corners: readonly CornerVertex[] = [],
     maxDistance = 2000
   ): BeamFrustum[] {
     this.poolCount = 0;
@@ -111,8 +128,6 @@ export class BranchManager {
         continue;
       }
 
-      activeFrustums.push(current);
-
       // Raycast left and right boundary rays
       const hasLeftHit = findClosestIntersection(
         this.leftHitResult,
@@ -126,6 +141,48 @@ export class BranchManager {
         segments,
         arcs
       );
+
+      // Check for geometric/corner discontinuity between boundary rays
+      if (
+        hasDiscontinuity(this.leftHitResult, this.rightHitResult) &&
+        corners.length > 0 &&
+        current.depth < MAX_BOUNCE_DEPTH &&
+        this.poolCount + 1 < MAX_FRUSTUM_POOL
+      ) {
+        const split = bisectBoundaryDiscontinuity(
+          { u: 0.0, ray: current.leftRay },
+          { u: 1.0, ray: current.rightRay },
+          segments,
+          arcs,
+          corners,
+          5,
+          0.5
+        );
+
+        if (split.uSplit > 0.02 && split.uSplit < 0.98) {
+          // Spawn Left Sub-Frustum [leftRay -> splitRay]
+          const leftChild = this.allocateFrustum();
+          this.copyFrustum(leftChild, current);
+          leftChild.rightRay.origin.x = split.splitRay.origin.x;
+          leftChild.rightRay.origin.y = split.splitRay.origin.y;
+          leftChild.rightRay.dir.x = split.splitRay.dir.x;
+          leftChild.rightRay.dir.y = split.splitRay.dir.y;
+          queue.push(leftChild);
+
+          // Spawn Right Sub-Frustum [splitRay -> rightRay]
+          const rightChild = this.allocateFrustum();
+          this.copyFrustum(rightChild, current);
+          rightChild.leftRay.origin.x = split.splitRay.origin.x;
+          rightChild.leftRay.origin.y = split.splitRay.origin.y;
+          rightChild.leftRay.dir.x = split.splitRay.dir.x;
+          rightChild.leftRay.dir.y = split.splitRay.dir.y;
+          queue.push(rightChild);
+
+          continue;
+        }
+      }
+
+      activeFrustums.push(current);
 
       // Set boundary hit endpoints
       if (hasLeftHit) {
@@ -157,19 +214,53 @@ export class BranchManager {
         continue;
       }
 
-      // Calculate optical interface interaction (using primary hit data)
+      // Calculate refractive indices (with Cauchy dispersion if spectral)
+      let leftN1 = hasLeftHit ? this.leftHitResult.n1 : 1.0;
+      let leftN2 = hasLeftHit ? this.leftHitResult.n2 : 1.0;
+      let rightN1 = hasRightHit ? this.rightHitResult.n1 : 1.0;
+      let rightN2 = hasRightHit ? this.rightHitResult.n2 : 1.0;
+
+      if (current.dispersionU >= 0) {
+        const wl = dispersionUToWavelength(current.dispersionU);
+        if (hasLeftHit && this.leftHitResult.cauchyB > 0) {
+          leftN2 = cauchyIndex(wl, this.leftHitResult.cauchyA, this.leftHitResult.cauchyB);
+        }
+        if (hasRightHit && this.rightHitResult.cauchyB > 0) {
+          rightN2 = cauchyIndex(wl, this.rightHitResult.cauchyA, this.rightHitResult.cauchyB);
+        }
+      }
+
       const primaryHit = hasLeftHit ? this.leftHitResult : this.rightHitResult;
 
       if (primaryHit.isMirror) {
-        // Ideal specular mirror: 100% reflection
+        // Ideal specular mirror: 100% reflection with independent left/right normals
         if (current.depth + 1 < MAX_BOUNCE_DEPTH && this.poolCount < MAX_FRUSTUM_POOL) {
-          solveRefraction(
-            this.refractionResult,
-            current.leftRay.dir,
-            primaryHit.normal,
-            1.0,
-            1.0
-          );
+          if (hasLeftHit) {
+            solveRefraction(
+              this.leftRefractionResult,
+              current.leftRay.dir,
+              this.leftHitResult.normal,
+              1.0,
+              1.0
+            );
+          }
+          if (hasRightHit) {
+            solveRefraction(
+              this.rightRefractionResult,
+              current.rightRay.dir,
+              this.rightHitResult.normal,
+              1.0,
+              1.0
+            );
+          } else {
+            this.rightRefractionResult.reflectedDir.x = this.leftRefractionResult.reflectedDir.x;
+            this.rightRefractionResult.reflectedDir.y = this.leftRefractionResult.reflectedDir.y;
+          }
+          if (!hasLeftHit) {
+            this.leftRefractionResult.reflectedDir.x = this.rightRefractionResult.reflectedDir.x;
+            this.leftRefractionResult.reflectedDir.y = this.rightRefractionResult.reflectedDir.y;
+          }
+
           const mirrorChild = this.allocateFrustum();
           mirrorChild.depth = current.depth + 1;
           mirrorChild.intensity = current.intensity;
@@ -177,83 +268,111 @@ export class BranchManager {
           mirrorChild.tintRGB = [...current.tintRGB];
           mirrorChild.isDispersed = current.isDispersed;
 
-          // Set origin at hit points and direction along reflected vector
           mirrorChild.leftRay.origin.x = current.leftHit.x;
           mirrorChild.leftRay.origin.y = current.leftHit.y;
-          mirrorChild.leftRay.dir.x = this.refractionResult.reflectedDir.x;
-          mirrorChild.leftRay.dir.y = this.refractionResult.reflectedDir.y;
+          mirrorChild.leftRay.dir.x = this.leftRefractionResult.reflectedDir.x;
+          mirrorChild.leftRay.dir.y = this.leftRefractionResult.reflectedDir.y;
 
           mirrorChild.rightRay.origin.x = current.rightHit.x;
           mirrorChild.rightRay.origin.y = current.rightHit.y;
-          mirrorChild.rightRay.dir.x = this.refractionResult.reflectedDir.x;
-          mirrorChild.rightRay.dir.y = this.refractionResult.reflectedDir.y;
+          mirrorChild.rightRay.dir.x = this.rightRefractionResult.reflectedDir.x;
+          mirrorChild.rightRay.dir.y = this.rightRefractionResult.reflectedDir.y;
 
           queue.push(mirrorChild);
         }
         continue;
       }
 
-      // Dielectric interface (e.g. Glass, Lens, Prism)
-      solveRefraction(
-        this.refractionResult,
-        current.leftRay.dir,
-        primaryHit.normal,
-        primaryHit.n1,
-        primaryHit.n2
-      );
+      // Dielectric interface (e.g. Glass, Lens, Prism) - independent refraction on both sides
+      if (hasLeftHit) {
+        solveRefraction(
+          this.leftRefractionResult,
+          current.leftRay.dir,
+          this.leftHitResult.normal,
+          leftN1,
+          leftN2
+        );
+      }
+      if (hasRightHit) {
+        solveRefraction(
+          this.rightRefractionResult,
+          current.rightRay.dir,
+          this.rightHitResult.normal,
+          rightN1,
+          rightN2
+        );
+      } else {
+        this.rightRefractionResult.refractedDir.x = this.leftRefractionResult.refractedDir.x;
+        this.rightRefractionResult.refractedDir.y = this.leftRefractionResult.refractedDir.y;
+        this.rightRefractionResult.reflectedDir.x = this.leftRefractionResult.reflectedDir.x;
+        this.rightRefractionResult.reflectedDir.y = this.leftRefractionResult.reflectedDir.y;
+        this.rightRefractionResult.R = this.leftRefractionResult.R;
+        this.rightRefractionResult.T = this.leftRefractionResult.T;
+        this.rightRefractionResult.isTIR = this.leftRefractionResult.isTIR;
+      }
+      if (!hasLeftHit) {
+        this.leftRefractionResult.refractedDir.x = this.rightRefractionResult.refractedDir.x;
+        this.leftRefractionResult.refractedDir.y = this.rightRefractionResult.refractedDir.y;
+        this.leftRefractionResult.reflectedDir.x = this.rightRefractionResult.reflectedDir.x;
+        this.leftRefractionResult.reflectedDir.y = this.rightRefractionResult.reflectedDir.y;
+        this.leftRefractionResult.R = this.rightRefractionResult.R;
+        this.leftRefractionResult.T = this.rightRefractionResult.T;
+        this.leftRefractionResult.isTIR = this.rightRefractionResult.isTIR;
+      }
 
-      const R = this.refractionResult.R;
-      const T = this.refractionResult.T;
+      const avgR = 0.5 * (this.leftRefractionResult.R + this.rightRefractionResult.R);
+      const avgT = 0.5 * (this.leftRefractionResult.T + this.rightRefractionResult.T);
+      const isTIR = this.leftRefractionResult.isTIR && this.rightRefractionResult.isTIR;
 
       // 1. Reflected Child (Fresnel reflection)
       if (
-        R * current.intensity >= MIN_ENERGY_THRESHOLD &&
+        avgR * current.intensity >= MIN_ENERGY_THRESHOLD &&
         current.depth + 1 < MAX_BOUNCE_DEPTH &&
         this.poolCount < MAX_FRUSTUM_POOL
       ) {
         const reflectedChild = this.allocateFrustum();
         reflectedChild.depth = current.depth + 1;
-        reflectedChild.intensity = current.intensity * R;
+        reflectedChild.intensity = current.intensity * avgR;
         reflectedChild.dispersionU = current.dispersionU;
         reflectedChild.tintRGB = [...current.tintRGB];
         reflectedChild.isDispersed = current.isDispersed;
 
         reflectedChild.leftRay.origin.x = current.leftHit.x;
         reflectedChild.leftRay.origin.y = current.leftHit.y;
-        reflectedChild.leftRay.dir.x = this.refractionResult.reflectedDir.x;
-        reflectedChild.leftRay.dir.y = this.refractionResult.reflectedDir.y;
+        reflectedChild.leftRay.dir.x = this.leftRefractionResult.reflectedDir.x;
+        reflectedChild.leftRay.dir.y = this.leftRefractionResult.reflectedDir.y;
 
         reflectedChild.rightRay.origin.x = current.rightHit.x;
         reflectedChild.rightRay.origin.y = current.rightHit.y;
-        reflectedChild.rightRay.dir.x = this.refractionResult.reflectedDir.x;
-        reflectedChild.rightRay.dir.y = this.refractionResult.reflectedDir.y;
+        reflectedChild.rightRay.dir.x = this.rightRefractionResult.reflectedDir.x;
+        reflectedChild.rightRay.dir.y = this.rightRefractionResult.reflectedDir.y;
 
         queue.push(reflectedChild);
       }
 
       // 2. Transmitted Child (Snell refraction, if not Total Internal Reflection)
       if (
-        !this.refractionResult.isTIR &&
-        T * current.intensity >= MIN_ENERGY_THRESHOLD &&
+        !isTIR &&
+        avgT * current.intensity >= MIN_ENERGY_THRESHOLD &&
         current.depth + 1 < MAX_BOUNCE_DEPTH &&
         this.poolCount < MAX_FRUSTUM_POOL
       ) {
         const transmittedChild = this.allocateFrustum();
         transmittedChild.depth = current.depth + 1;
-        transmittedChild.intensity = current.intensity * T;
+        transmittedChild.intensity = current.intensity * avgT;
         transmittedChild.dispersionU = current.dispersionU;
         transmittedChild.tintRGB = [...current.tintRGB];
         transmittedChild.isDispersed = current.isDispersed;
 
         transmittedChild.leftRay.origin.x = current.leftHit.x;
         transmittedChild.leftRay.origin.y = current.leftHit.y;
-        transmittedChild.leftRay.dir.x = this.refractionResult.refractedDir.x;
-        transmittedChild.leftRay.dir.y = this.refractionResult.refractedDir.y;
+        transmittedChild.leftRay.dir.x = this.leftRefractionResult.refractedDir.x;
+        transmittedChild.leftRay.dir.y = this.leftRefractionResult.refractedDir.y;
 
         transmittedChild.rightRay.origin.x = current.rightHit.x;
         transmittedChild.rightRay.origin.y = current.rightHit.y;
-        transmittedChild.rightRay.dir.x = this.refractionResult.refractedDir.x;
-        transmittedChild.rightRay.dir.y = this.refractionResult.refractedDir.y;
+        transmittedChild.rightRay.dir.x = this.rightRefractionResult.refractedDir.x;
+        transmittedChild.rightRay.dir.y = this.rightRefractionResult.refractedDir.y;
 
         queue.push(transmittedChild);
       }
