@@ -1,13 +1,13 @@
 # Implementation Plan: Black Hole Frustum Intersection, Splitting & Growable Pool Refactor
 
-## Phase 1: Test Suite & Regression Baseline (Red Phase)
-- [ ] Task: Create regression test suite for asymmetric entry, partial grazing, and pool expansion
-  - [ ] Write test for right-ray-first black hole entry deflection
-  - [ ] Write test for left-ray-only partial grazing with explicit frustum partition correctness
-  - [ ] Write test for right-ray-only partial grazing with explicit frustum partition correctness
-  - [ ] Write test for auto-expanding frustum pool beyond 1024 without branch dropping
-- [ ] Task: Verify Phase 1 tests fail on baseline (Red Phase)
-- [ ] Task: Phase Verification & Checkpoint (Refer to workflow.md)
+## Phase 1: Test Suite & Regression Baseline (Red Phase) [checkpoint: f4c4677]
+- [x] Task: Create regression test suite for asymmetric entry, partial grazing, and pool expansion (f4c4677)
+  - [x] Write test for right-ray-first black hole entry deflection
+  - [x] Write test for left-ray-only partial grazing with explicit frustum partition correctness
+  - [x] Write test for right-ray-only partial grazing with explicit frustum partition correctness
+  - [x] Write test for auto-expanding frustum pool beyond 1024 without branch dropping
+- [x] Task: Verify Phase 1 tests fail on baseline (Red Phase) (f4c4677)
+- [x] Task: Phase Verification & Checkpoint (Refer to workflow.md) (f4c4677)
 
 ## Phase 2: Auto-Expanding Frustum Pool & Memory Architecture
 - [ ] Task: Refactor `BranchManager.allocateFrustum()` to dynamically expand pool
