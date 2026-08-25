@@ -110,3 +110,9 @@
   - [ ] Apply Flat Matte Dark styling (solid slate/zinc, 1px `#27272a` borders, zero backdrop blur)
   - [ ] Integrate master application root (`src/App.svelte`, `src/main.ts`)
 - [ ] Task: Phase Verification & Checkpoint (Refer to workflow.md)
+
+---
+
+## Phase: Review Fixes
+
+- [x] Task: Apply review suggestions [62b9ed3]
