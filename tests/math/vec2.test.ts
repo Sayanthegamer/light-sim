@@ -42,6 +42,12 @@ describe('Zero-Allocation Vec2 Math Module', () => {
     expect(out.x).toBe(3);
     expect(out.y).toBe(6);
 
+    // In-place scaling test
+    const inPlaceVec: IVec2 = { x: 4, y: 5 };
+    Vec2.scale(inPlaceVec, inPlaceVec, 2);
+    expect(inPlaceVec.x).toBe(8);
+    expect(inPlaceVec.y).toBe(10);
+
     Vec2.scaleAndAdd(out, a, b, 2);
     expect(out.x).toBe(7); // 1 + 3*2
     expect(out.y).toBe(10); // 2 + 4*2

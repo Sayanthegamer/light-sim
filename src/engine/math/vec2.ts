@@ -46,7 +46,7 @@ export class Vec2 {
   static scale(out: IVec2, a: IVec2, s: number): IVec2 {
     out.x = a.x * s;
     out.y = a.y * s;
-    return truck_scale(out, a, s);
+    return out;
   }
 
   /** Scale and add: out = a + b * s */
@@ -153,12 +153,6 @@ export class Vec2 {
     out.y = eta * incident.y + factor * normal.y;
     return true;
   }
-}
-
-function truck_scale(out: IVec2, a: IVec2, s: number): IVec2 {
-  out.x = a.x * s;
-  out.y = a.y * s;
-  return out;
 }
 
 /** Clamps value between min and max */
