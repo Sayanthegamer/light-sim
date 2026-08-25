@@ -1,0 +1,1 @@
+Task Summary: Eliminated intermediate object allocations in traceGeodesicWithTermination() via module scratch vectors and pre-allocated trajectory.exitRay, eliminated bisection allocations via scratch structures, and corrected step budget docstring to N = 256.
