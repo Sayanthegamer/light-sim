@@ -13,7 +13,7 @@ describe('Branch Management and Fresnel Energy Culling Engine', () => {
   it('initializes with constants conforming to architectural specifications', () => {
     expect(MAX_BOUNCE_DEPTH).toBe(8);
     expect(MIN_ENERGY_THRESHOLD).toBe(0.005);
-    expect(MAX_FRUSTUM_POOL).toBe(32);
+    expect(MAX_FRUSTUM_POOL).toBe(1024);
   });
 
   it('prunes branches when intensity drops below 0.005 threshold', () => {

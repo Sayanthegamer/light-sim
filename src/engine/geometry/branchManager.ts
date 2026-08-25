@@ -1,7 +1,7 @@
 /**
  * Branch Management & Fresnel Energy Culling Engine
  * Manages parent-child beam frustum trees, recursive dielectric splits,
- * TIR bounds, and sub-threshold energy pruning (I < 0.005, depth <= 8, pool <= 32).
+ * TIR bounds, and sub-threshold energy pruning (I < 0.005, depth <= 8, pool <= 1024).
  */
 
 import { type IVec2 } from '../math/vec2';
@@ -27,7 +27,7 @@ import {
 
 export const MAX_BOUNCE_DEPTH = 8;
 export const MIN_ENERGY_THRESHOLD = 0.005;
-export const MAX_FRUSTUM_POOL = 32;
+export const MAX_FRUSTUM_POOL = 1024;
 
 export interface BeamFrustum {
   id: number;
@@ -42,6 +42,47 @@ export interface BeamFrustum {
   isDispersed: boolean;
 }
 
+export function createBeamFrustum(): BeamFrustum {
+  return {
+    id: 0,
+    depth: 0,
+    leftRay: { origin: { x: 0, y: 0 }, dir: { x: 0, y: 0 } },
+    rightRay: { origin: { x: 0, y: 0 }, dir: { x: 0, y: 0 } },
+    leftHit: { x: 0, y: 0 },
+    rightHit: { x: 0, y: 0 },
+    intensity: 1.0,
+    dispersionU: -1.0,
+    tintRGB: [255, 255, 255],
+    isDispersed: false
+  };
+}
+
+export function copyBeamFrustum(dest: BeamFrustum, src: BeamFrustum): void {
+  dest.id = src.id;
+  dest.depth = src.depth;
+  dest.leftRay.origin.x = src.leftRay.origin.x;
+  dest.leftRay.origin.y = src.leftRay.origin.y;
+  dest.leftRay.dir.x = src.leftRay.dir.x;
+  dest.leftRay.dir.y = src.leftRay.dir.y;
+
+  dest.rightRay.origin.x = src.rightRay.origin.x;
+  dest.rightRay.origin.y = src.rightRay.origin.y;
+  dest.rightRay.dir.x = src.rightRay.dir.x;
+  dest.rightRay.dir.y = src.rightRay.dir.y;
+
+  dest.leftHit.x = src.leftHit.x;
+  dest.leftHit.y = src.leftHit.y;
+  dest.rightHit.x = src.rightHit.x;
+  dest.rightHit.y = src.rightHit.y;
+
+  dest.intensity = src.intensity;
+  dest.dispersionU = src.dispersionU;
+  dest.tintRGB[0] = src.tintRGB[0];
+  dest.tintRGB[1] = src.tintRGB[1];
+  dest.tintRGB[2] = src.tintRGB[2];
+  dest.isDispersed = src.isDispersed;
+}
+
 export class BranchManager {
   private readonly frustumPool: BeamFrustum[];
   private poolCount = 0;
@@ -50,21 +91,10 @@ export class BranchManager {
   private readonly leftRefractionResult: RefractionResult;
   private readonly rightRefractionResult: RefractionResult;
 
-  constructor() {
+  constructor(poolCapacity = MAX_FRUSTUM_POOL) {
     this.frustumPool = [];
-    for (let i = 0; i < MAX_FRUSTUM_POOL; i++) {
-      this.frustumPool.push({
-        id: i,
-        depth: 0,
-        leftRay: { origin: { x: 0, y: 0 }, dir: { x: 0, y: 0 } },
-        rightRay: { origin: { x: 0, y: 0 }, dir: { x: 0, y: 0 } },
-        leftHit: { x: 0, y: 0 },
-        rightHit: { x: 0, y: 0 },
-        intensity: 1.0,
-        dispersionU: -1.0,
-        tintRGB: [255, 255, 255],
-        isDispersed: false
-      });
+    for (let i = 0; i < poolCapacity; i++) {
+      this.frustumPool.push(createBeamFrustum());
     }
 
     this.leftHitResult = createHitResult();
@@ -83,6 +113,34 @@ export class BranchManager {
       T: 0,
       isTIR: false
     };
+  }
+
+  /**
+   * Resets pool allocation counter. Called once per frame solve.
+   */
+  resetPool(): void {
+    this.poolCount = 0;
+  }
+
+  /**
+   * Gets current count of allocated frustums in the pool.
+   */
+  getPoolCount(): number {
+    return this.poolCount;
+  }
+
+  /**
+   * Allocates a pre-allocated frustum from the pool without GC.
+   * Returns null if pool capacity is exhausted, gracefully dropping sub-branches.
+   */
+  allocateFrustum(): BeamFrustum | null {
+    if (this.poolCount >= this.frustumPool.length) {
+      return null;
+    }
+    const frustum = this.frustumPool[this.poolCount];
+    frustum.id = this.poolCount;
+    this.poolCount++;
+    return frustum;
   }
 
   /**
@@ -110,7 +168,6 @@ export class BranchManager {
     corners: readonly CornerVertex[] = [],
     maxDistance = 2000
   ): BeamFrustum[] {
-    this.poolCount = 0;
     const activeFrustums: BeamFrustum[] = [];
 
     // Queue of frustums to process
@@ -118,8 +175,10 @@ export class BranchManager {
 
     // Allocate root from pool
     const root = this.allocateFrustum();
-    this.copyFrustum(root, initial);
-    root.id = 0;
+    if (!root) {
+      return activeFrustums;
+    }
+    copyBeamFrustum(root, initial);
     queue.push(root);
 
     while (queue.length > 0) {
@@ -147,7 +206,7 @@ export class BranchManager {
         hasDiscontinuity(this.leftHitResult, this.rightHitResult) &&
         corners.length > 0 &&
         current.depth < MAX_BOUNCE_DEPTH &&
-        this.poolCount + 1 < MAX_FRUSTUM_POOL
+        this.poolCount + 2 <= this.frustumPool.length
       ) {
         const split = bisectBoundaryDiscontinuity(
           { u: 0.0, ray: current.leftRay },
@@ -160,25 +219,28 @@ export class BranchManager {
         );
 
         if (split.uSplit > 0.02 && split.uSplit < 0.98) {
-          // Spawn Left Sub-Frustum [leftRay -> splitRay]
           const leftChild = this.allocateFrustum();
-          this.copyFrustum(leftChild, current);
-          leftChild.rightRay.origin.x = split.splitRay.origin.x;
-          leftChild.rightRay.origin.y = split.splitRay.origin.y;
-          leftChild.rightRay.dir.x = split.splitRay.dir.x;
-          leftChild.rightRay.dir.y = split.splitRay.dir.y;
-          queue.push(leftChild);
-
-          // Spawn Right Sub-Frustum [splitRay -> rightRay]
           const rightChild = this.allocateFrustum();
-          this.copyFrustum(rightChild, current);
-          rightChild.leftRay.origin.x = split.splitRay.origin.x;
-          rightChild.leftRay.origin.y = split.splitRay.origin.y;
-          rightChild.leftRay.dir.x = split.splitRay.dir.x;
-          rightChild.leftRay.dir.y = split.splitRay.dir.y;
-          queue.push(rightChild);
 
-          continue;
+          if (leftChild && rightChild) {
+            // Spawn Left Sub-Frustum [leftRay -> splitRay]
+            copyBeamFrustum(leftChild, current);
+            leftChild.rightRay.origin.x = split.splitRay.origin.x;
+            leftChild.rightRay.origin.y = split.splitRay.origin.y;
+            leftChild.rightRay.dir.x = split.splitRay.dir.x;
+            leftChild.rightRay.dir.y = split.splitRay.dir.y;
+            queue.push(leftChild);
+
+            // Spawn Right Sub-Frustum [splitRay -> rightRay]
+            copyBeamFrustum(rightChild, current);
+            rightChild.leftRay.origin.x = split.splitRay.origin.x;
+            rightChild.leftRay.origin.y = split.splitRay.origin.y;
+            rightChild.leftRay.dir.x = split.splitRay.dir.x;
+            rightChild.leftRay.dir.y = split.splitRay.dir.y;
+            queue.push(rightChild);
+
+            continue;
+          }
         }
       }
 
@@ -234,7 +296,7 @@ export class BranchManager {
 
       if (primaryHit.isMirror) {
         // Ideal specular mirror: 100% reflection with independent left/right normals
-        if (current.depth + 1 < MAX_BOUNCE_DEPTH && this.poolCount < MAX_FRUSTUM_POOL) {
+        if (current.depth + 1 < MAX_BOUNCE_DEPTH && this.poolCount < this.frustumPool.length) {
           if (hasLeftHit) {
             solveRefraction(
               this.leftRefractionResult,
@@ -262,23 +324,27 @@ export class BranchManager {
           }
 
           const mirrorChild = this.allocateFrustum();
-          mirrorChild.depth = current.depth + 1;
-          mirrorChild.intensity = current.intensity;
-          mirrorChild.dispersionU = current.dispersionU;
-          mirrorChild.tintRGB = [...current.tintRGB];
-          mirrorChild.isDispersed = current.isDispersed;
+          if (mirrorChild) {
+            mirrorChild.depth = current.depth + 1;
+            mirrorChild.intensity = current.intensity;
+            mirrorChild.dispersionU = current.dispersionU;
+            mirrorChild.tintRGB[0] = current.tintRGB[0];
+            mirrorChild.tintRGB[1] = current.tintRGB[1];
+            mirrorChild.tintRGB[2] = current.tintRGB[2];
+            mirrorChild.isDispersed = current.isDispersed;
 
-          mirrorChild.leftRay.origin.x = current.leftHit.x;
-          mirrorChild.leftRay.origin.y = current.leftHit.y;
-          mirrorChild.leftRay.dir.x = this.leftRefractionResult.reflectedDir.x;
-          mirrorChild.leftRay.dir.y = this.leftRefractionResult.reflectedDir.y;
+            mirrorChild.leftRay.origin.x = current.leftHit.x;
+            mirrorChild.leftRay.origin.y = current.leftHit.y;
+            mirrorChild.leftRay.dir.x = this.leftRefractionResult.reflectedDir.x;
+            mirrorChild.leftRay.dir.y = this.leftRefractionResult.reflectedDir.y;
 
-          mirrorChild.rightRay.origin.x = current.rightHit.x;
-          mirrorChild.rightRay.origin.y = current.rightHit.y;
-          mirrorChild.rightRay.dir.x = this.rightRefractionResult.reflectedDir.x;
-          mirrorChild.rightRay.dir.y = this.rightRefractionResult.reflectedDir.y;
+            mirrorChild.rightRay.origin.x = current.rightHit.x;
+            mirrorChild.rightRay.origin.y = current.rightHit.y;
+            mirrorChild.rightRay.dir.x = this.rightRefractionResult.reflectedDir.x;
+            mirrorChild.rightRay.dir.y = this.rightRefractionResult.reflectedDir.y;
 
-          queue.push(mirrorChild);
+            queue.push(mirrorChild);
+          }
         }
         continue;
       }
@@ -328,26 +394,30 @@ export class BranchManager {
       if (
         avgR * current.intensity >= MIN_ENERGY_THRESHOLD &&
         current.depth + 1 < MAX_BOUNCE_DEPTH &&
-        this.poolCount < MAX_FRUSTUM_POOL
+        this.poolCount < this.frustumPool.length
       ) {
         const reflectedChild = this.allocateFrustum();
-        reflectedChild.depth = current.depth + 1;
-        reflectedChild.intensity = current.intensity * avgR;
-        reflectedChild.dispersionU = current.dispersionU;
-        reflectedChild.tintRGB = [...current.tintRGB];
-        reflectedChild.isDispersed = current.isDispersed;
+        if (reflectedChild) {
+          reflectedChild.depth = current.depth + 1;
+          reflectedChild.intensity = current.intensity * avgR;
+          reflectedChild.dispersionU = current.dispersionU;
+          reflectedChild.tintRGB[0] = current.tintRGB[0];
+          reflectedChild.tintRGB[1] = current.tintRGB[1];
+          reflectedChild.tintRGB[2] = current.tintRGB[2];
+          reflectedChild.isDispersed = current.isDispersed;
 
-        reflectedChild.leftRay.origin.x = current.leftHit.x;
-        reflectedChild.leftRay.origin.y = current.leftHit.y;
-        reflectedChild.leftRay.dir.x = this.leftRefractionResult.reflectedDir.x;
-        reflectedChild.leftRay.dir.y = this.leftRefractionResult.reflectedDir.y;
+          reflectedChild.leftRay.origin.x = current.leftHit.x;
+          reflectedChild.leftRay.origin.y = current.leftHit.y;
+          reflectedChild.leftRay.dir.x = this.leftRefractionResult.reflectedDir.x;
+          reflectedChild.leftRay.dir.y = this.leftRefractionResult.reflectedDir.y;
 
-        reflectedChild.rightRay.origin.x = current.rightHit.x;
-        reflectedChild.rightRay.origin.y = current.rightHit.y;
-        reflectedChild.rightRay.dir.x = this.rightRefractionResult.reflectedDir.x;
-        reflectedChild.rightRay.dir.y = this.rightRefractionResult.reflectedDir.y;
+          reflectedChild.rightRay.origin.x = current.rightHit.x;
+          reflectedChild.rightRay.origin.y = current.rightHit.y;
+          reflectedChild.rightRay.dir.x = this.rightRefractionResult.reflectedDir.x;
+          reflectedChild.rightRay.dir.y = this.rightRefractionResult.reflectedDir.y;
 
-        queue.push(reflectedChild);
+          queue.push(reflectedChild);
+        }
       }
 
       // 2. Transmitted Child (Snell refraction, if not Total Internal Reflection)
@@ -355,64 +425,33 @@ export class BranchManager {
         !isTIR &&
         avgT * current.intensity >= MIN_ENERGY_THRESHOLD &&
         current.depth + 1 < MAX_BOUNCE_DEPTH &&
-        this.poolCount < MAX_FRUSTUM_POOL
+        this.poolCount < this.frustumPool.length
       ) {
         const transmittedChild = this.allocateFrustum();
-        transmittedChild.depth = current.depth + 1;
-        transmittedChild.intensity = current.intensity * avgT;
-        transmittedChild.dispersionU = current.dispersionU;
-        transmittedChild.tintRGB = [...current.tintRGB];
-        transmittedChild.isDispersed = current.isDispersed;
+        if (transmittedChild) {
+          transmittedChild.depth = current.depth + 1;
+          transmittedChild.intensity = current.intensity * avgT;
+          transmittedChild.dispersionU = current.dispersionU;
+          transmittedChild.tintRGB[0] = current.tintRGB[0];
+          transmittedChild.tintRGB[1] = current.tintRGB[1];
+          transmittedChild.tintRGB[2] = current.tintRGB[2];
+          transmittedChild.isDispersed = current.isDispersed;
 
-        transmittedChild.leftRay.origin.x = current.leftHit.x;
-        transmittedChild.leftRay.origin.y = current.leftHit.y;
-        transmittedChild.leftRay.dir.x = this.leftRefractionResult.refractedDir.x;
-        transmittedChild.leftRay.dir.y = this.leftRefractionResult.refractedDir.y;
+          transmittedChild.leftRay.origin.x = current.leftHit.x;
+          transmittedChild.leftRay.origin.y = current.leftHit.y;
+          transmittedChild.leftRay.dir.x = this.leftRefractionResult.refractedDir.x;
+          transmittedChild.leftRay.dir.y = this.leftRefractionResult.refractedDir.y;
 
-        transmittedChild.rightRay.origin.x = current.rightHit.x;
-        transmittedChild.rightRay.origin.y = current.rightHit.y;
-        transmittedChild.rightRay.dir.x = this.rightRefractionResult.refractedDir.x;
-        transmittedChild.rightRay.dir.y = this.rightRefractionResult.refractedDir.y;
+          transmittedChild.rightRay.origin.x = current.rightHit.x;
+          transmittedChild.rightRay.origin.y = current.rightHit.y;
+          transmittedChild.rightRay.dir.x = this.rightRefractionResult.refractedDir.x;
+          transmittedChild.rightRay.dir.y = this.rightRefractionResult.refractedDir.y;
 
-        queue.push(transmittedChild);
+          queue.push(transmittedChild);
+        }
       }
     }
 
     return activeFrustums;
-  }
-
-  private allocateFrustum(): BeamFrustum {
-    if (this.poolCount >= MAX_FRUSTUM_POOL) {
-      return this.frustumPool[MAX_FRUSTUM_POOL - 1];
-    }
-    const frustum = this.frustumPool[this.poolCount];
-    frustum.id = this.poolCount;
-    this.poolCount++;
-    return frustum;
-  }
-
-  private copyFrustum(dest: BeamFrustum, src: BeamFrustum): void {
-    dest.depth = src.depth;
-    dest.leftRay.origin.x = src.leftRay.origin.x;
-    dest.leftRay.origin.y = src.leftRay.origin.y;
-    dest.leftRay.dir.x = src.leftRay.dir.x;
-    dest.leftRay.dir.y = src.leftRay.dir.y;
-
-    dest.rightRay.origin.x = src.rightRay.origin.x;
-    dest.rightRay.origin.y = src.rightRay.origin.y;
-    dest.rightRay.dir.x = src.rightRay.dir.x;
-    dest.rightRay.dir.y = src.rightRay.dir.y;
-
-    dest.leftHit.x = src.leftHit.x;
-    dest.leftHit.y = src.leftHit.y;
-    dest.rightHit.x = src.rightHit.x;
-    dest.rightHit.y = src.rightHit.y;
-
-    dest.intensity = src.intensity;
-    dest.dispersionU = src.dispersionU;
-    dest.tintRGB[0] = src.tintRGB[0];
-    dest.tintRGB[1] = src.tintRGB[1];
-    dest.tintRGB[2] = src.tintRGB[2];
-    dest.isDispersed = src.isDispersed;
   }
 }

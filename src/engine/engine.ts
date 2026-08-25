@@ -261,6 +261,7 @@ export class OpticsEngine {
     const t0 = performance.now();
     this.scene.updateFlatCache();
     this.vboPacker.reset();
+    this.branchManager.resetPool();
 
     const segments = this.scene.getCachedSegments();
     const arcs = this.scene.getCachedArcs();
