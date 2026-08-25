@@ -97,7 +97,7 @@
 - [x] Task: Direct 2D Canvas Vector Hit-Testing & Gizmo Manipulation [daaf14e]
   - [ ] Implement canvas pointer event raycasting (point-in-polygon, circle distance, transform handles) (`src/engine/interaction/hitTester.ts`, `src/engine/interaction/gizmoController.ts`)
   - [ ] Implement smooth translation, rotation pivots, and aperture/radius resize handles
-- [ ] Task: 32-Slot Snapshot Undo/Redo Engine
+- [x] Task: 32-Slot Snapshot Undo/Redo Engine [46ccf48]
   - [ ] Write unit tests for circular history buffer and deterministic undo/redo (`tests/state/historyManager.test.ts`)
   - [ ] Implement `historyManager.ts` committing immutable scene snapshots on pointer-up
 - [ ] Task: Canonical JSON Serialization, `lz-string` URL Hash & 5 Bundled Presets
