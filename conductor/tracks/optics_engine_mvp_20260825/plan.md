@@ -14,10 +14,10 @@
   - [x] Write unit tests for refraction, Cauchy wavelength dispersion, and Fresnel coefficients (`tests/optics/refraction.test.ts`)
   - [x] Implement `refraction.ts` with Cauchy formula $n(\lambda) = A + B/\lambda^2$, Snell's vector refraction, and Fresnel $R+T=1$
   - [x] Confirm all optical refraction tests pass
-- [ ] Task: Analytic CIE 1931 Color Matching & Spectral Shaders
-  - [ ] Write unit tests for analytic CIE 1931 $\lambda \to \text{sRGB}$ conversion (`tests/optics/cie1931.test.ts`)
-  - [ ] Implement `cie1931.ts` analytic wavelength-to-sRGB matching
-  - [ ] Create modular GLSL shader includes for spectral wavelength evaluation (`src/shaders/includes/cie1931.glsl`)
+- [x] Task: Analytic CIE 1931 Color Matching & Spectral Shaders [c65f90d]
+  - [x] Write unit tests for analytic CIE 1931 $\lambda \to \text{sRGB}$ conversion (`tests/optics/cie1931.test.ts`)
+  - [x] Implement `cie1931.ts` analytic wavelength-to-sRGB matching
+  - [x] Create modular GLSL shader includes for spectral wavelength evaluation (`src/shaders/includes/cie1931.glsl`)
 - [ ] Task: Phase Verification & Checkpoint (Refer to workflow.md)
 
 ---
