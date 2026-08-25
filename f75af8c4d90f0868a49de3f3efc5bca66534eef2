@@ -1,0 +1,5 @@
+Task: Extension-Guarded HDR Framebuffers & WebGL2 Pipeline
+
+Summary: Implemented WebGLContextManager with RGBA16F half-float HDR framebuffers and RGBM 8-bit fallback, alongside Pass 1 forward beam rasterizer (BeamPass) with additive blending and CIE 1931 shaders.
+
+Files: src/engine/renderer/webglContext.ts, src/engine/renderer/beamPass.ts, src/shaders/beam.vert, src/shaders/beam.frag, tests/renderer/webglContext.test.ts
