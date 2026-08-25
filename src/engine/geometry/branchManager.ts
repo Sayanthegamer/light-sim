@@ -102,6 +102,50 @@ export type RibbonCallback = (
   bh: BlackHole
 ) => void;
 
+/**
+ * Binary bisection to find the exact boundary parameter u in [0, 1]
+ * where a grazing beam intersects the black hole influence boundary.
+ */
+export function bisectBlackHoleSplit(
+  leftRay: Ray2D,
+  rightRay: Ray2D,
+  blackHole: BlackHole,
+  iterations = 6
+): number {
+  let uLow = 0.0;
+  let uHigh = 1.0;
+  const tempRay: Ray2D = { origin: { x: 0, y: 0 }, dir: { x: 0, y: 0 } };
+  const tempHandOff: BoundaryRayHandOff = {
+    hasIntersection: false,
+    entryPoint: { x: 0, y: 0 },
+    exitPoint: { x: 0, y: 0 },
+    tEntry: 0,
+    tExit: 0
+  };
+
+  const leftEnters = intersectRayInfluenceBoundary(tempHandOff, leftRay, blackHole);
+
+  for (let i = 0; i < iterations; i++) {
+    const uMid = 0.5 * (uLow + uHigh);
+    tempRay.origin.x = (1.0 - uMid) * leftRay.origin.x + uMid * rightRay.origin.x;
+    tempRay.origin.y = (1.0 - uMid) * leftRay.origin.y + uMid * rightRay.origin.y;
+    const dx = (1.0 - uMid) * leftRay.dir.x + uMid * rightRay.dir.x;
+    const dy = (1.0 - uMid) * leftRay.dir.y + uMid * rightRay.dir.y;
+    const len = Math.hypot(dx, dy) || 1.0;
+    tempRay.dir.x = dx / len;
+    tempRay.dir.y = dy / len;
+
+    const midEnters = intersectRayInfluenceBoundary(tempHandOff, tempRay, blackHole);
+    if (midEnters === leftEnters) {
+      uLow = uMid;
+    } else {
+      uHigh = uMid;
+    }
+  }
+
+  return 0.5 * (uLow + uHigh);
+}
+
 export class BranchManager {
   private readonly frustumPool: BeamFrustum[];
   private poolCount = 0;
@@ -253,8 +297,7 @@ export class BranchManager {
       // Check if frustum enters a black hole BEFORE reaching the obstacles
       let closestBH: BlackHole | null = null;
       let closestEntryDist = Infinity;
-      let bhLeftEntry = { x: 0, y: 0 };
-      let bhRightEntry = { x: 0, y: 0 };
+      let splitType: 'both' | 'left_only' | 'right_only' | 'none' = 'none';
 
       for (let b = 0; b < blackHoles.length; b++) {
         const bh = blackHoles[b];
@@ -262,39 +305,117 @@ export class BranchManager {
         const hasRightEntry = intersectRayInfluenceBoundary(this.reusableHandOffR, current.rightRay, bh);
 
         if (hasLeftEntry && hasRightEntry) {
-          if (
-            this.reusableHandOffL.tEntry < distL &&
-            this.reusableHandOffR.tEntry < distR &&
-            this.reusableHandOffL.tEntry < closestEntryDist
-          ) {
+          const tL = this.reusableHandOffL.tEntry;
+          const tR = this.reusableHandOffR.tEntry;
+          if (tL < distL && tR < distR) {
+            const minEntry = Math.min(tL, tR);
+            if (minEntry < closestEntryDist) {
+              closestBH = bh;
+              closestEntryDist = minEntry;
+              splitType = 'both';
+            }
+          }
+        } else if (hasLeftEntry && !hasRightEntry) {
+          const tL = this.reusableHandOffL.tEntry;
+          if (tL < distL && tL < closestEntryDist) {
             closestBH = bh;
-            closestEntryDist = this.reusableHandOffL.tEntry;
-            bhLeftEntry.x = this.reusableHandOffL.entryPoint.x;
-            bhLeftEntry.y = this.reusableHandOffL.entryPoint.y;
-            bhRightEntry.x = this.reusableHandOffR.entryPoint.x;
-            bhRightEntry.y = this.reusableHandOffR.entryPoint.y;
+            closestEntryDist = tL;
+            splitType = 'left_only';
+          }
+        } else if (!hasLeftEntry && hasRightEntry) {
+          const tR = this.reusableHandOffR.tEntry;
+          if (tR < distR && tR < closestEntryDist) {
+            closestBH = bh;
+            closestEntryDist = tR;
+            splitType = 'right_only';
           }
         }
       }
 
       if (closestBH !== null) {
-        // Light enters black hole influence boundary: clip the incoming straight beam
-        current.leftHit.x = bhLeftEntry.x;
-        current.leftHit.y = bhLeftEntry.y;
-        current.rightHit.x = bhRightEntry.x;
-        current.rightHit.y = bhRightEntry.y;
+        // Case A: Partial beam grazing -> split into entering and unaffected sub-frustums
+        if (
+          (splitType === 'left_only' || splitType === 'right_only') &&
+          current.depth < MAX_BOUNCE_DEPTH
+        ) {
+          const uSplit = bisectBlackHoleSplit(current.leftRay, current.rightRay, closestBH);
+          if (uSplit > 0.02 && uSplit < 0.98) {
+            const splitOriginX = (1.0 - uSplit) * current.leftRay.origin.x + uSplit * current.rightRay.origin.x;
+            const splitOriginY = (1.0 - uSplit) * current.leftRay.origin.y + uSplit * current.rightRay.origin.y;
+            const splitDirX = (1.0 - uSplit) * current.leftRay.dir.x + uSplit * current.rightRay.dir.x;
+            const splitDirY = (1.0 - uSplit) * current.leftRay.dir.y + uSplit * current.rightRay.dir.y;
+            const splitLen = Math.hypot(splitDirX, splitDirY) || 1.0;
+            const normDirX = splitDirX / splitLen;
+            const normDirY = splitDirY / splitLen;
+
+            if (splitType === 'left_only') {
+              // Left sub-frustum [0, uSplit] enters the black hole
+              const enteredChild = this.allocateFrustum();
+              copyBeamFrustum(enteredChild, current);
+              enteredChild.intensity = current.intensity * uSplit;
+              enteredChild.rightRay.origin.x = splitOriginX;
+              enteredChild.rightRay.origin.y = splitOriginY;
+              enteredChild.rightRay.dir.x = normDirX;
+              enteredChild.rightRay.dir.y = normDirY;
+              queue.unshift(enteredChild);
+
+              // Right sub-frustum [uSplit, 1] continues unaffected through Euclidean space
+              const unaffectedChild = this.allocateFrustum();
+              copyBeamFrustum(unaffectedChild, current);
+              unaffectedChild.intensity = current.intensity * (1.0 - uSplit);
+              unaffectedChild.leftRay.origin.x = splitOriginX;
+              unaffectedChild.leftRay.origin.y = splitOriginY;
+              unaffectedChild.leftRay.dir.x = normDirX;
+              unaffectedChild.leftRay.dir.y = normDirY;
+              queue.push(unaffectedChild);
+
+              continue;
+            } else {
+              // Right sub-frustum [uSplit, 1] enters the black hole
+              const enteredChild = this.allocateFrustum();
+              copyBeamFrustum(enteredChild, current);
+              enteredChild.intensity = current.intensity * (1.0 - uSplit);
+              enteredChild.leftRay.origin.x = splitOriginX;
+              enteredChild.leftRay.origin.y = splitOriginY;
+              enteredChild.leftRay.dir.x = normDirX;
+              enteredChild.leftRay.dir.y = normDirY;
+              queue.unshift(enteredChild);
+
+              // Left sub-frustum [0, uSplit] continues unaffected through Euclidean space
+              const unaffectedChild = this.allocateFrustum();
+              copyBeamFrustum(unaffectedChild, current);
+              unaffectedChild.intensity = current.intensity * uSplit;
+              unaffectedChild.rightRay.origin.x = splitOriginX;
+              unaffectedChild.rightRay.origin.y = splitOriginY;
+              unaffectedChild.rightRay.dir.x = normDirX;
+              unaffectedChild.rightRay.dir.y = normDirY;
+              queue.push(unaffectedChild);
+
+              continue;
+            }
+          }
+        }
+
+        // Case B: Both boundary rays enter the black hole
+        intersectRayInfluenceBoundary(this.reusableHandOffL, current.leftRay, closestBH);
+        intersectRayInfluenceBoundary(this.reusableHandOffR, current.rightRay, closestBH);
+
+        current.leftHit.x = this.reusableHandOffL.entryPoint.x;
+        current.leftHit.y = this.reusableHandOffL.entryPoint.y;
+        current.rightHit.x = this.reusableHandOffR.entryPoint.x;
+        current.rightHit.y = this.reusableHandOffR.entryPoint.y;
 
         activeFrustums.push(current);
 
         // Trace left and right geodesics using unified traceGeodesicWithTermination
         const resL = traceGeodesicWithTermination(
           this.reusableTrajL,
-          { origin: bhLeftEntry, dir: current.leftRay.dir },
+          { origin: current.leftHit, dir: current.leftRay.dir },
           closestBH
         );
         const resR = traceGeodesicWithTermination(
           this.reusableTrajR,
-          { origin: bhRightEntry, dir: current.rightRay.dir },
+          { origin: current.rightHit, dir: current.rightRay.dir },
           closestBH
         );
 

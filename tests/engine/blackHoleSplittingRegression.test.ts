@@ -140,10 +140,10 @@ describe('Black Hole Frustum Intersection, Splitting & Pool Scaling', () => {
       });
       scene.addNode(emitter);
 
-      // Black hole positioned below beam at (300, 470), rs=15, rInfluence=180
-      // Right ray (y=415) is closer to center (y=470, dy=55) than left ray (y=385, dy=85)
-      // Therefore, the right ray enters the influence circle earlier (tEntryR < tEntryL)
-      const bh = new BlackHoleNode('bh-1', { x: 300, y: 470 }, 15);
+      // Black hole positioned below beam at (300, 520), rs=15, rInfluence=180
+      // Right ray (y=415) is closer to center (y=520, dy=105) than left ray (y=385, dy=135)
+      // Therefore, the right ray enters the influence circle earlier (tEntryR < tEntryL) and both escape
+      const bh = new BlackHoleNode('bh-1', { x: 300, y: 520 }, 15);
       scene.addNode(bh);
 
       engine.solveLightField();
