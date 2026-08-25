@@ -101,7 +101,7 @@ export class TemporalAccumulator {
     gl.activeTexture(gl.TEXTURE1);
     gl.bindTexture(gl.TEXTURE_2D, sourceAccFbo.texture);
 
-    gl.drawArrays(gl.TRIANGLES, 0, 3);
+    this.context.renderScreenQuad();
 
     this.currentPingPong = 1 - this.currentPingPong;
 

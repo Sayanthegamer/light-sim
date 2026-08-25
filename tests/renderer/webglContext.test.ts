@@ -47,10 +47,10 @@ function createMockWebGL2Context(hasHalfFloatExt = true, fboStatusComplete = tru
 
     // Methods
     getExtension: vi.fn((name: string) => {
-      if (name === 'EXT_color_buffer_half_float' && hasHalfFloatExt) {
+      if ((name === 'EXT_color_buffer_float' || name === 'EXT_color_buffer_half_float') && hasHalfFloatExt) {
         return {};
       }
-      if (name === 'OES_texture_half_float_linear' && hasHalfFloatExt) {
+      if ((name === 'OES_texture_float_linear' || name === 'OES_texture_half_float_linear') && hasHalfFloatExt) {
         return {};
       }
       return null;

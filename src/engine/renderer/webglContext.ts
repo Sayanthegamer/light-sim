@@ -28,6 +28,9 @@ export class WebGLContextManager {
   private readonly halfFloatExt: unknown | null;
   private readonly halfFloatLinearExt: unknown | null;
 
+  readonly screenQuadVao: WebGLVertexArrayObject | null = null;
+  readonly screenQuadVbo: WebGLBuffer | null = null;
+
   constructor(glOrCanvas: WebGL2RenderingContext | HTMLCanvasElement, options?: WebGLContextOptions) {
     if ('getContext' in glOrCanvas) {
       const gl = glOrCanvas.getContext('webgl2', {
@@ -45,8 +48,39 @@ export class WebGLContextManager {
       this.gl = glOrCanvas;
     }
 
-    this.halfFloatExt = this.gl.getExtension('EXT_color_buffer_half_float');
-    this.halfFloatLinearExt = this.gl.getExtension('OES_texture_half_float_linear');
+    this.halfFloatExt =
+      this.gl.getExtension('EXT_color_buffer_float') ||
+      this.gl.getExtension('EXT_color_buffer_half_float');
+    this.halfFloatLinearExt =
+      this.gl.getExtension('OES_texture_float_linear') ||
+      this.gl.getExtension('OES_texture_half_float_linear');
+
+    // Create shared Fullscreen Triangle VAO and VBO
+    this.screenQuadVao = this.gl.createVertexArray();
+    this.screenQuadVbo = this.gl.createBuffer();
+    if (this.screenQuadVao && this.screenQuadVbo) {
+      this.gl.bindVertexArray(this.screenQuadVao);
+      this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.screenQuadVbo);
+      const quad = new Float32Array([
+        -1.0, -1.0,
+         3.0, -1.0,
+        -1.0,  3.0
+      ]);
+      this.gl.bufferData(this.gl.ARRAY_BUFFER, quad, this.gl.STATIC_DRAW);
+      this.gl.enableVertexAttribArray(0);
+      this.gl.vertexAttribPointer(0, 2, this.gl.FLOAT, false, 0, 0);
+      this.gl.bindVertexArray(null);
+      this.gl.bindBuffer(this.gl.ARRAY_BUFFER, null);
+    }
+  }
+
+  renderScreenQuad(): void {
+    const gl = this.gl;
+    if (this.screenQuadVao) {
+      gl.bindVertexArray(this.screenQuadVao);
+      gl.drawArrays(gl.TRIANGLES, 0, 3);
+      gl.bindVertexArray(null);
+    }
   }
 
   isHalfFloatSupported(): boolean {
@@ -214,5 +248,11 @@ export class WebGLContextManager {
     }
 
     return program;
+  }
+
+  dispose(): void {
+    const gl = this.gl;
+    if (this.screenQuadVao) gl.deleteVertexArray(this.screenQuadVao);
+    if (this.screenQuadVbo) gl.deleteBuffer(this.screenQuadVbo);
   }
 }

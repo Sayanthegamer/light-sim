@@ -74,6 +74,10 @@ export class BeamPass {
     gl.bindFramebuffer(gl.FRAMEBUFFER, targetFbo.framebuffer);
     gl.viewport(0, 0, width, height);
 
+    // Clear previous frame beam energy
+    gl.clearColor(0.0, 0.0, 0.0, 0.0);
+    gl.clear(gl.COLOR_BUFFER_BIT);
+
     // Additive blending for volumetric energy accumulation
     gl.enable(gl.BLEND);
     gl.blendFunc(gl.SRC_ALPHA, gl.ONE);

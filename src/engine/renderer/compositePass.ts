@@ -91,7 +91,7 @@ export class CompositePass {
     gl.activeTexture(gl.TEXTURE2);
     gl.bindTexture(gl.TEXTURE_2D, maskFbo.texture);
 
-    gl.drawArrays(gl.TRIANGLES, 0, 3);
+    this.context.renderScreenQuad();
   }
 
   dispose(): void {

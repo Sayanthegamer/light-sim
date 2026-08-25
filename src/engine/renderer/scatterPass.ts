@@ -120,7 +120,7 @@ export class ScatterPass {
     gl.bindTexture(gl.TEXTURE_2D, maskFbo.texture);
 
     if (uDir) gl.uniform2f(uDir, 1.0 / width, 0.0);
-    gl.drawArrays(gl.TRIANGLES, 0, 3);
+    this.context.renderScreenQuad();
 
     // 2. Vertical Bilateral: fboHalfB -> fboHalfA
     gl.bindFramebuffer(gl.FRAMEBUFFER, this.fboHalfA.framebuffer);
@@ -130,7 +130,7 @@ export class ScatterPass {
     gl.bindTexture(gl.TEXTURE_2D, this.fboHalfB.texture);
 
     if (uDir) gl.uniform2f(uDir, 0.0, 1.0 / height);
-    gl.drawArrays(gl.TRIANGLES, 0, 3);
+    this.context.renderScreenQuad();
 
     // ==========================================
     // Tier 2: 2-Stage Dual Kawase Bloom
@@ -149,7 +149,7 @@ export class ScatterPass {
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, this.fboHalfA.texture);
     if (uDownTexel) gl.uniform2f(uDownTexel, 1.0 / this.halfW, 1.0 / this.halfH);
-    gl.drawArrays(gl.TRIANGLES, 0, 3);
+    this.context.renderScreenQuad();
 
     // Downsample 2: fboQuarter -> fboEighth
     gl.bindFramebuffer(gl.FRAMEBUFFER, this.fboEighth.framebuffer);
@@ -157,7 +157,7 @@ export class ScatterPass {
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, this.fboQuarter.texture);
     if (uDownTexel) gl.uniform2f(uDownTexel, 1.0 / this.quarterW, 1.0 / this.quarterH);
-    gl.drawArrays(gl.TRIANGLES, 0, 3);
+    this.context.renderScreenQuad();
 
     // Upsample 1: fboEighth -> fboQuarter
     gl.useProgram(this.kawaseUpProg);
@@ -173,7 +173,7 @@ export class ScatterPass {
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, this.fboEighth.texture);
     if (uUpTexel) gl.uniform2f(uUpTexel, 1.0 / this.eighthW, 1.0 / this.eighthH);
-    gl.drawArrays(gl.TRIANGLES, 0, 3);
+    this.context.renderScreenQuad();
 
     // Upsample 2: fboQuarter -> fboHalfB (Bloom target)
     gl.bindFramebuffer(gl.FRAMEBUFFER, this.fboHalfB.framebuffer);
@@ -181,7 +181,7 @@ export class ScatterPass {
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, this.fboQuarter.texture);
     if (uUpTexel) gl.uniform2f(uUpTexel, 1.0 / this.quarterW, 1.0 / this.quarterH);
-    gl.drawArrays(gl.TRIANGLES, 0, 3);
+    this.context.renderScreenQuad();
 
     // ==========================================
     // Combine: Tier 1 (fboHalfA) + Tier 2 (fboHalfB) -> fboHalfCombine
@@ -202,7 +202,7 @@ export class ScatterPass {
     gl.activeTexture(gl.TEXTURE1);
     gl.bindTexture(gl.TEXTURE_2D, this.fboHalfB.texture);
 
-    gl.drawArrays(gl.TRIANGLES, 0, 3);
+    this.context.renderScreenQuad();
 
     return this.fboHalfCombine;
   }
