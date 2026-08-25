@@ -28,10 +28,10 @@
   - [x] Write unit tests for line-segment and circle/arc quadratic intersections (`tests/geometry/intersections.test.ts`)
   - [x] Implement `intersections.ts` quadratic arc/circle and segment solvers with normal vectors
   - [x] Confirm geometric intersection tests pass
-- [ ] Task: 5-Step Adaptive Bisection Corner Snapping
-  - [ ] Write unit tests for boundary discontinuity detection and 5-step bisection corner snapping (`tests/geometry/bisection.test.ts`)
-  - [ ] Implement `bisection.ts` with $\epsilon < 0.5\text{ px}$ vertex snapping to prevent light leakage
-  - [ ] Confirm corner subdivision tests pass
+- [x] Task: 5-Step Adaptive Bisection Corner Snapping [d37d931]
+  - [x] Write unit tests for boundary discontinuity detection and 5-step bisection corner snapping (`tests/geometry/bisection.test.ts`)
+  - [x] Implement `bisection.ts` with $\epsilon < 0.5\text{ px}$ vertex snapping to prevent light leakage
+  - [x] Confirm corner subdivision tests pass
 - [ ] Task: Branch Management & Energy Culling
   - [ ] Write unit tests for Fresnel tree recursion, $I < 0.005$ energy culling, and TIR max bounce depth $\le 8$ (`tests/geometry/branches.test.ts`)
   - [ ] Implement branch traversal and recursive beam splitting manager (`src/engine/geometry/branchManager.ts`)
