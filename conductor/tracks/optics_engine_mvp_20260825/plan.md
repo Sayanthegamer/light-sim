@@ -78,9 +78,9 @@
 - [x] Task: Two-Tier Hybrid Scatter Filter (Pass 3) [ca97fe4]
   - [x] Implement 1/2-res 5-tap depth-masked bilateral Gaussian blur shader (`src/shaders/bilateralScatter.frag`)
   - [x] Implement 2-stage Dual Kawase downsampler/upsampler for ambient Mie/Rayleigh dust haze (`src/shaders/dualKawase.frag`, `src/engine/renderer/scatterPass.ts`)
-- [ ] Task: Extended Reinhard Tonemapping & Composite (Pass 4)
-  - [ ] Implement linear luminance-weighted Extended Reinhard tonemapper shader ($L_{\text{white}} = 4.0$) + sRGB gamma correction ($\gamma = 2.2$) (`src/shaders/compositeTonemap.frag`)
-  - [ ] Implement final screen blit pass (`src/engine/renderer/compositePass.ts`)
+- [x] Task: Extended Reinhard Tonemapping & Composite (Pass 4) [853e92e]
+  - [x] Implement linear luminance-weighted Extended Reinhard tonemapper shader ($L_{\text{white}} = 4.0$) + sRGB gamma correction ($\gamma = 2.2$) (`src/shaders/compositeTonemap.frag`)
+  - [x] Implement final screen blit pass (`src/engine/renderer/compositePass.ts`)
 - [ ] Task: 8-Frame Progressive EMA Temporal Accumulator & Idle Sleep
   - [ ] Implement ping-pong accumulation buffer manager with exponential moving average (`src/engine/renderer/temporalAccumulator.ts`)
   - [ ] Implement dirty-state event-driven render coordinator with idle sleep state (`src/engine/renderer/renderLoop.ts`)
