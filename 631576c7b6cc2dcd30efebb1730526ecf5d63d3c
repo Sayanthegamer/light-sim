@@ -1,0 +1,1 @@
+Task Summary: Increased MAX_RK2_STEPS to 256, unified black hole geodesic solving with traceGeodesicWithTermination, and implemented optical ray continuation / downstream splicing for escaped black hole rays in BranchManager and OpticsEngine.
