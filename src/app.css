@@ -1,0 +1,10 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-matte-950 text-zinc-100 antialiased overflow-hidden select-none m-0 p-0;
+    font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+  }
+}
