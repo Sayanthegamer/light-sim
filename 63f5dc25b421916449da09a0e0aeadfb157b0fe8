@@ -1,0 +1,1 @@
+Task Summary: Refactored BranchManager.allocateFrustum() to dynamically grow the pool on demand, removing artificial hard ceilings and branch-dropping across all reflection, refraction, and geodesic paths.
