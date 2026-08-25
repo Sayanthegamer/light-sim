@@ -1,0 +1,2 @@
+Task: Resolve Minor Physics Scaling Issues
+Updated white-light intensity scaling to follow 1/N. Fixed object ID generation to prevent collisions by hashing string IDs.
