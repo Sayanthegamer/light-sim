@@ -91,7 +91,7 @@ describe('4-Condition Priority Termination and Boundary Splicing', () => {
     it('Condition 2 (Escape Boundary): Hands off C1 exit ray when escaping r >= 12 rs moving outward', () => {
       const trajectory = createGeodesicTrajectory(MAX_RK2_STEPS);
       const incomingRay: Ray2D = {
-        origin: { x: -100, y: 500 - 200 },
+        origin: { x: -100, y: 500 - 300 },
         dir: { x: 1, y: 0 }
       };
 

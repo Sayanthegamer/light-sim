@@ -94,7 +94,9 @@ export function calculateGravitationalAcceleration(
   }
 
   // Relativistic photon geodesic acceleration factor in 2D
-  const mag = -(1.5 * rs * fade) / (rSq * r);
+  // Using k = 2.25 * rs gives the correct 2 * rs / b weak-field deflection
+  // after accounting for the finite influence radius and smoothstep fade.
+  const mag = -(2.25 * rs * fade) / (rSq * r);
   outAcc.x = rx * mag;
   outAcc.y = ry * mag;
 }
