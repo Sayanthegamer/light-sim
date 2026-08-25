@@ -44,25 +44,25 @@
 
 ---
 
-## Phase 3: Curvature Engine (Relativity, Geodesics & Black Holes)
+## Phase 3: Curvature Engine (Relativity, Geodesics & Black Holes) [checkpoint: 30eee67]
 
 - [x] Task: Distance-Mapped Adaptive RK2 Geodesic Integrator [4fc3c18]
-  - [ ] Write unit tests for distance-scaled midpoint integration within $R_{\text{influence}} = 12 r_s$ (`tests/physics/rk2Integrator.test.ts`)
-  - [ ] Implement `rk2Integrator.ts` with step budget $N_{\text{max}} = 64$ and $\Delta t(r)$ scaling
-  - [ ] Confirm RK2 numerical convergence tests pass
+  - [x] Write unit tests for distance-scaled midpoint integration within $R_{\text{influence}} = 12 r_s$ (`tests/physics/rk2Integrator.test.ts`)
+  - [x] Implement `rk2Integrator.ts` with step budget $N_{\text{max}} = 64$ and $\Delta t(r)$ scaling
+  - [x] Confirm RK2 numerical convergence tests pass
 - [x] Task: 4-Condition Priority Termination & Boundary Splicing [c93257b]
-  - [ ] Write unit tests for horizon capture $r \le r_s$, boundary exit $r \ge 12 r_s$, $2\pi$ winding cap, and smoothstep acceleration fade (`tests/physics/blackHoleBoundary.test.ts`)
-  - [ ] Implement boundary handoff and priority loop exit logic in `blackHoleBoundary.ts`
-  - [ ] Confirm termination conditions pass
+  - [x] Write unit tests for horizon capture $r \le r_s$, boundary exit $r \ge 12 r_s$, $2\pi$ winding cap, and smoothstep acceleration fade (`tests/physics/blackHoleBoundary.test.ts`)
+  - [x] Implement boundary handoff and priority loop exit logic in `blackHoleBoundary.ts`
+  - [x] Confirm termination conditions pass
 - [x] Task: Double-Sided Quad Ribbon Mesh & Caustic Concentration [fc07f56]
-  - [ ] Write unit tests for ribbon quad strip generation and $\epsilon_{\text{pinch}} = 0.5\text{ px}$ inverse-width caustic scaling (`tests/physics/ribbonMesh.test.ts`)
-  - [ ] Implement `ribbonMesh.ts` generating unbroken contiguous quad strips
-  - [ ] Confirm ribbon mesh generation tests pass
+  - [x] Write unit tests for ribbon quad strip generation and $\epsilon_{\text{pinch}} = 0.5\text{ px}$ inverse-width caustic scaling (`tests/physics/ribbonMesh.test.ts`)
+  - [x] Implement `ribbonMesh.ts` generating unbroken contiguous quad strips
+  - [x] Confirm ribbon mesh generation tests pass
 - [x] Task: Vertex-Stage Gravitational Redshift & Extinction Damping [30eee67]
-  - [ ] Write unit tests for Schwarzschild dilation $(1+z) = (1 - r_s/r)^{-1/2}$ and $>780\text{ nm}$ extinction damping (`tests/physics/redshift.test.ts`)
-  - [ ] Implement `redshift.ts` vertex wavelength remapping and photopic luminance damping
-  - [ ] Confirm redshift tests pass
-- [ ] Task: Phase Verification & Checkpoint (Refer to workflow.md)
+  - [x] Write unit tests for Schwarzschild dilation $(1+z) = (1 - r_s/r)^{-1/2}$ and $>780\text{ nm}$ extinction damping (`tests/physics/redshift.test.ts`)
+  - [x] Implement `redshift.ts` vertex wavelength remapping and photopic luminance damping
+  - [x] Confirm redshift tests pass
+- [x] Task: Phase Verification & Checkpoint (Refer to workflow.md) [30eee67]
 
 ---
 
