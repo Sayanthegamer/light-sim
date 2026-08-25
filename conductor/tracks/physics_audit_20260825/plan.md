@@ -14,23 +14,23 @@
 - [x] Task: Phase Verification & Checkpoint (Refer to workflow.md) 1b252a5
 
 ## Phase 2: Optics Core & Geometry Fixes
-- [~] Task: Correct Cauchy Dispersion Presets
-    - [ ] Update `A` and `B` presets for Crown/Flint glasses.
-    - [ ] Validate tests pass.
-- [ ] Task: Fix Lens Implementations
-    - [ ] Add `Biconcave` and `Planoconcave` geometry logic in `LensNode`.
-    - [ ] Update collision algorithms for concave boundaries.
-    - [ ] Validate tests pass.
-- [ ] Task: Corner Bisection & Intersection Overhaul
-    - [ ] Wire bisection engine into `BranchManager.traceLightTree`.
-    - [ ] Implement partial frustum splitting logic for edge discontinuities.
-    - [ ] Add guards for zero-length segments and zero-radius arcs.
-    - [ ] Validate tests pass.
-- [ ] Task: Resolve Minor Physics Scaling Issues
-    - [ ] Update white-light intensity scaling to follow `1/N`.
-    - [ ] Fix object ID generation to prevent collisions.
-    - [ ] Validate tests pass.
-- [ ] Task: Phase Verification & Checkpoint (Refer to workflow.md)
+- [x] Task: Correct Cauchy Dispersion Presets 45aad8e
+    - [x] Update `A` and `B` presets for Crown/Flint glasses.
+    - [x] Validate tests pass.
+- [x] Task: Fix Lens Implementations ebad698
+    - [x] Add `Biconcave` and `Planoconcave` geometry logic in `LensNode`.
+    - [x] Update collision algorithms for concave boundaries.
+    - [x] Validate tests pass.
+- [x] Task: Corner Bisection & Intersection Overhaul 20dc151
+    - [x] Wire bisection engine into `BranchManager.traceLightTree`.
+    - [x] Implement partial frustum splitting logic for edge discontinuities.
+    - [x] Add guards for zero-length segments and zero-radius arcs.
+    - [x] Validate tests pass.
+- [x] Task: Resolve Minor Physics Scaling Issues 2b69e3d
+    - [x] Update white-light intensity scaling to follow `1/N`.
+    - [x] Fix object ID generation to prevent collisions.
+    - [x] Validate tests pass.
+- [x] Task: Phase Verification & Checkpoint (Refer to workflow.md)
 
 ## Phase 3: Spacetime & Black Hole Engine
 - [ ] Task: Ray Tree Integration
