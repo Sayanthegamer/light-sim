@@ -24,19 +24,19 @@
 - [x] Task: Verify Phase 1 tests for frustum independence and branch limits pass (fbadb3c)
 - [x] Task: Phase Verification & Checkpoint (Refer to workflow.md) (fbadb3c)
 
-## Phase 3: Unified Geodesic Integration & Outgoing Ray Optical Splicing
+## Phase 3: Unified Geodesic Integration & Outgoing Ray Optical Splicing [checkpoint: 631576c]
 
-- [ ] Task: Upgrade RK2 step budget and trajectory capacity
-  - [ ] Increase `MAX_RK2_STEPS` / trajectory buffer capacity to 256
-  - [ ] Ensure configurable max steps in `traceGeodesicWithTermination`
-- [ ] Task: Unify `OpticsEngine` black hole solving with `traceGeodesicWithTermination`
-  - [ ] Remove duplicated RK2 step loops from `OpticsEngine.solveLightField()`
-  - [ ] Use `traceGeodesicWithTermination` for both left and right boundary rays
-- [ ] Task: Implement downstream optical ray splicing for escaped geodesics
-  - [ ] Construct child beam frustums from escaped left/right rays ($r \ge R_{\text{influence}}$)
-  - [ ] Feed escaped frustums back into the optical intersection solver to hit downstream elements
-- [ ] Task: Verify Phase 1 black hole tests pass
-- [ ] Task: Phase Verification & Checkpoint (Refer to workflow.md)
+- [x] Task: Upgrade RK2 step budget and trajectory capacity (631576c)
+  - [x] Increase `MAX_RK2_STEPS` / trajectory buffer capacity to 256
+  - [x] Ensure configurable max steps in `traceGeodesicWithTermination`
+- [x] Task: Unify `OpticsEngine` black hole solving with `traceGeodesicWithTermination` (631576c)
+  - [x] Remove duplicated RK2 step loops from `OpticsEngine.solveLightField()`
+  - [x] Use `traceGeodesicWithTermination` for both left and right boundary rays
+- [x] Task: Implement downstream optical ray splicing for escaped geodesics (631576c)
+  - [x] Construct child beam frustums from escaped left/right rays ($r \ge R_{\text{influence}}$)
+  - [x] Feed escaped frustums back into the optical intersection solver to hit downstream elements
+- [x] Task: Verify Phase 1 black hole tests pass (631576c)
+- [x] Task: Phase Verification & Checkpoint (Refer to workflow.md) (631576c)
 
 ## Phase 4: Full System Verification, Performance & Coverage Validation
 
