@@ -18,5 +18,14 @@ export default defineConfig({
   server: {
     port: 5173,
     host: true
+  },
+  // @ts-expect-error vitest config
+  test: {
+    globals: true,
+    environment: 'node',
+    coverage: {
+      provider: 'v8',
+      include: ['src/engine/**/*.ts', 'src/shaders/**/*.ts']
+    }
   }
 });
