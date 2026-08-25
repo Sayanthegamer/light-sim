@@ -1,0 +1,7 @@
+Task: 5-Step Adaptive Bisection Corner Snapping
+
+Summary: Implemented fixed 5-step binary search bisection for wavefront boundary discontinuities with sub-pixel vertex snapping (<0.5 px) against obstacle corners to eliminate light-leak gaps and precision tearing.
+
+Files:
+- src/engine/geometry/bisection.ts
+- tests/geometry/bisection.test.ts
