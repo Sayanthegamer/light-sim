@@ -30,12 +30,12 @@
 - [x] Task: Verify all Phase 1 regression tests pass (977330f)
 - [x] Task: Phase Verification & Checkpoint (Refer to workflow.md) (977330f)
 
-## Phase 4: Full System Verification, Performance & Coverage Validation
-- [ ] Task: Comprehensive test suite execution and coverage check
-  - [ ] Run `npx vitest run` across all test files
-  - [ ] Run type checking with `npm run check`
-  - [ ] Run production build with `npm run build`
-- [ ] Task: Real-time performance and rendering verification
-  - [ ] Verify 60 FPS performance in grazing black hole scenes
-  - [ ] Confirm amortized zero-GC memory allocation during continuous rendering
-- [ ] Task: Phase Verification & Checkpoint (Refer to workflow.md)
+## Phase 4: Full System Verification, Performance & Coverage Validation [checkpoint: 977330f]
+- [x] Task: Comprehensive test suite execution and coverage check (977330f)
+  - [x] Run `npx vitest run` across all test files
+  - [x] Run type checking with `npm run check`
+  - [x] Run production build with `npm run build`
+- [x] Task: Real-time performance and rendering verification (977330f)
+  - [x] Verify 60 FPS performance in grazing black hole scenes
+  - [x] Confirm amortized zero-GC memory allocation during continuous rendering
+- [x] Task: Phase Verification & Checkpoint (Refer to workflow.md) (977330f)
