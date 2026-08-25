@@ -235,16 +235,15 @@ describe('Physics Refactor & Regression Tests', () => {
       scene.clear();
 
       // 1. Emitter shooting right
-      const emitter = new EmitterNode('emitter-1', { x: 50, y: 300 }, 0, 20, 1.0, 550, false);
+      const emitter = new EmitterNode('emitter-1', { x: 50, y: 120 }, 0, 20, 1.0, 550, false);
       scene.addNode(emitter);
 
-      // 2. Black hole deflecting light slightly
-      const bh = new BlackHoleNode('bh-1', { x: 300, y: 220 }, 15);
+      // 2. Black hole deflecting light downwards (impact parameter b ~ 140 px, both rays escape)
+      const bh = new BlackHoleNode('bh-1', { x: 300, y: 260 }, 15);
       scene.addNode(bh);
 
-      // 3. Downstream mirror placed at (550, 420) specifically in the deflected beam's path
-      // Note: The un-deflected straight ray stays at y=300 and completely misses this mirror!
-      const mirror = new BarrierNode('mirror-1', { x: 550, y: 420 }, Math.PI / 4, { isMirror: true, length: 120 });
+      // 3. Downstream mirror placed at (600, 300) spanning y in [100, 500] to catch deflected escaped beam
+      const mirror = new BarrierNode('mirror-1', { x: 600, y: 300 }, 0, { isMirror: true, length: 400 });
       scene.addNode(mirror);
 
       engine.solveLightField();

@@ -25,8 +25,8 @@ describe('Distance-Mapped Adaptive RK2 Geodesic Integrator', () => {
     trajectory = createGeodesicTrajectory(MAX_RK2_STEPS);
   });
 
-  it('verifies max RK2 step budget constant is 64', () => {
-    expect(MAX_RK2_STEPS).toBe(64);
+  it('verifies max RK2 step budget constant is 256', () => {
+    expect(MAX_RK2_STEPS).toBe(256);
   });
 
   it('scales adaptive step size dt smoothly with distance from singularity', () => {

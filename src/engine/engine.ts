@@ -15,8 +15,7 @@ import { HistoryManager } from './state/historyManager';
 import { serializeToJSON, deserializeFromJSON, type SerializedScene } from './state/serializer';
 import { BranchManager, type BeamFrustum } from './geometry/branchManager';
 import { VboPacker, generateQuadFrustumMesh } from './geometry/vboPacker';
-import { calculateAdaptiveDt, stepRK2, createGeodesicTrajectory } from './physics/rk2Integrator';
-import { intersectRayInfluenceBoundary, type BoundaryRayHandOff } from './physics/blackHoleBoundary';
+import { type BlackHole, type GeodesicTrajectory } from './physics/rk2Integrator';
 import { generateRibbonMesh } from './physics/ribbonMesh';
 import { newtonPrismPreset } from './presets/newtonPrism';
 
@@ -75,27 +74,6 @@ export class OpticsEngine {
   private lastFrameTime = performance.now();
   private frameCount = 0;
   private options: EngineOptions;
-
-  // Reusable solver containers (zero GC)
-  private readonly reusableTrajectoryLeft = createGeodesicTrajectory();
-  private readonly reusableTrajectoryRight = createGeodesicTrajectory();
-  private readonly reusableHandOffLeft: BoundaryRayHandOff = {
-    hasIntersection: false,
-    entryPoint: { x: 0, y: 0 },
-    exitPoint: { x: 0, y: 0 },
-    tEntry: 0,
-    tExit: 0
-  };
-  private readonly reusableHandOffRight: BoundaryRayHandOff = {
-    hasIntersection: false,
-    entryPoint: { x: 0, y: 0 },
-    exitPoint: { x: 0, y: 0 },
-    tEntry: 0,
-    tExit: 0
-  };
-
-  private readonly scratchPos: { x: number; y: number } = { x: 0, y: 0 };
-  private readonly scratchVel: { x: number; y: number } = { x: 0, y: 0 };
 
   constructor(canvas: HTMLCanvasElement, options?: EngineOptions) {
     this.canvas = canvas;
@@ -271,12 +249,30 @@ export class OpticsEngine {
 
     let activeFrustums = 0;
 
-    const allFrustums: BeamFrustum[] = [];
+    const onRibbon = (
+      trajL: GeodesicTrajectory,
+      trajR: GeodesicTrajectory,
+      frustum: BeamFrustum,
+      bh: BlackHole
+    ) => {
+      const baseLambda = frustum.isDispersed ? 380 + frustum.dispersionU * 400 : 550;
+      generateRibbonMesh(
+        this.vboPacker,
+        trajL,
+        trajR,
+        frustum.intensity,
+        frustum.dispersionU,
+        frustum.tintRGB,
+        0.5,
+        bh,
+        baseLambda
+      );
+    };
 
     for (let i = 0; i < emitters.length; i++) {
       const emitter = emitters[i];
       const rays = emitter.generateInitialRays();
-      
+
       if (emitter.isWhiteLight) {
         const samples = emitter.spectralSamples || 16;
         for (let s = 0; s < samples; s++) {
@@ -293,9 +289,17 @@ export class OpticsEngine {
             tintRGB: [255, 255, 255],
             isDispersed: true
           };
-          const frustums = this.branchManager.traceLightTree(initialFrustum, segments, arcs, corners);
+          const frustums = this.branchManager.traceLightTree(
+            initialFrustum,
+            segments,
+            arcs,
+            corners,
+            blackHoles,
+            onRibbon
+          );
           for (let f = 0; f < frustums.length; f++) {
-            allFrustums.push(frustums[f]);
+            generateQuadFrustumMesh(this.vboPacker, frustums[f]);
+            activeFrustums++;
           }
         }
       } else {
@@ -312,111 +316,19 @@ export class OpticsEngine {
           tintRGB: [255, 255, 255],
           isDispersed: false
         };
-        const frustums = this.branchManager.traceLightTree(initialFrustum, segments, arcs, corners);
+        const frustums = this.branchManager.traceLightTree(
+          initialFrustum,
+          segments,
+          arcs,
+          corners,
+          blackHoles,
+          onRibbon
+        );
         for (let f = 0; f < frustums.length; f++) {
-          allFrustums.push(frustums[f]);
+          generateQuadFrustumMesh(this.vboPacker, frustums[f]);
+          activeFrustums++;
         }
       }
-    }
-
-    // Process Black Holes against all frustums
-    for (let f = 0; f < allFrustums.length; f++) {
-      const frustum = allFrustums[f];
-      let hitBH = false;
-
-      for (let b = 0; b < blackHoles.length; b++) {
-        const bh = blackHoles[b];
-        const hasLeftEntry = intersectRayInfluenceBoundary(this.reusableHandOffLeft, frustum.leftRay, bh);
-        const hasRightEntry = intersectRayInfluenceBoundary(this.reusableHandOffRight, frustum.rightRay, bh);
-
-        if (hasLeftEntry && hasRightEntry) {
-          const distL = Math.hypot(frustum.leftHit.x - frustum.leftRay.origin.x, frustum.leftHit.y - frustum.leftRay.origin.y);
-          const distR = Math.hypot(frustum.rightHit.x - frustum.rightRay.origin.x, frustum.rightHit.y - frustum.rightRay.origin.y);
-
-          // Only enter black hole if it's closer than the next obstacle
-          // Or if the ray didn't hit any obstacle (distL is very large)
-          if (this.reusableHandOffLeft.tEntry < distL && this.reusableHandOffRight.tEntry < distR) {
-            hitBH = true;
-            
-            // Clip straight frustum to the black hole boundary
-            frustum.leftHit.x = this.reusableHandOffLeft.entryPoint.x;
-            frustum.leftHit.y = this.reusableHandOffLeft.entryPoint.y;
-            frustum.rightHit.x = this.reusableHandOffRight.entryPoint.x;
-            frustum.rightHit.y = this.reusableHandOffRight.entryPoint.y;
-
-            // Left trajectory
-            const trajL = this.reusableTrajectoryLeft;
-            trajL.pointCount = 0;
-            let curPosL = { ...this.reusableHandOffLeft.entryPoint };
-            let curVelL = { ...frustum.leftRay.dir };
-
-            for (let step = 0; step < 64; step++) {
-              const rx = curPosL.x - bh.center.x;
-              const ry = curPosL.y - bh.center.y;
-              const r = Math.sqrt(rx * rx + ry * ry);
-              if (r <= bh.rs || (step > 1 && r >= bh.rInfluence && rx * curVelL.x + ry * curVelL.y > 0)) break;
-
-              const dt = calculateAdaptiveDt(r, bh.rs, bh.rInfluence);
-              stepRK2(this.scratchPos, this.scratchVel, curPosL, curVelL, bh, dt);
-              curPosL.x = this.scratchPos.x;
-              curPosL.y = this.scratchPos.y;
-              curVelL.x = this.scratchVel.x;
-              curVelL.y = this.scratchVel.y;
-
-              trajL.pointsX[step] = curPosL.x;
-              trajL.pointsY[step] = curPosL.y;
-              trajL.radii[step] = r;
-              trajL.pointCount++;
-            }
-
-            // Right trajectory
-            const trajR = this.reusableTrajectoryRight;
-            trajR.pointCount = 0;
-            let curPosR = { ...this.reusableHandOffRight.entryPoint };
-            let curVelR = { ...frustum.rightRay.dir };
-
-            for (let step = 0; step < 64; step++) {
-              const rx = curPosR.x - bh.center.x;
-              const ry = curPosR.y - bh.center.y;
-              const r = Math.sqrt(rx * rx + ry * ry);
-              if (r <= bh.rs || (step > 1 && r >= bh.rInfluence && rx * curVelR.x + ry * curVelR.y > 0)) break;
-
-              const dt = calculateAdaptiveDt(r, bh.rs, bh.rInfluence);
-              stepRK2(this.scratchPos, this.scratchVel, curPosR, curVelR, bh, dt);
-              curPosR.x = this.scratchPos.x;
-              curPosR.y = this.scratchPos.y;
-              curVelR.x = this.scratchVel.x;
-              curVelR.y = this.scratchVel.y;
-
-              trajR.pointsX[step] = curPosR.x;
-              trajR.pointsY[step] = curPosR.y;
-              trajR.radii[step] = r;
-              trajR.pointCount++;
-            }
-
-            if (trajL.pointCount > 2 && trajR.pointCount > 2) {
-              const baseLambda = frustum.isDispersed ? 380 + frustum.dispersionU * 400 : 550;
-              generateRibbonMesh(
-                this.vboPacker, 
-                trajL, 
-                trajR, 
-                frustum.intensity, 
-                frustum.dispersionU, 
-                frustum.tintRGB, 
-                0.5, 
-                bh, 
-                baseLambda
-              );
-            }
-            
-            // A frustum can only enter one black hole cleanly in this simple model
-            break; 
-          }
-        }
-      }
-
-      generateQuadFrustumMesh(this.vboPacker, frustum);
-      activeFrustums++;
     }
 
     this.stats.solveTimeMs = performance.now() - t0;

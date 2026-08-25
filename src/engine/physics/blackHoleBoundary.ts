@@ -71,26 +71,32 @@ export function intersectRayInfluenceBoundary(
   const t1 = (-b - sqrtDisc) * 0.5;
   const t2 = (-b + sqrtDisc) * 0.5;
 
-  // If both intersection roots are behind the ray origin, there is no forward hit
-  if (t2 < EPSILON) {
-    out.hasIntersection = false;
-    return false;
+  // Forward entry from outside the influence sphere
+  if (t1 > EPSILON) {
+    out.hasIntersection = true;
+    out.tEntry = t1;
+    out.tExit = t2;
+    out.entryPoint.x = ray.origin.x + t1 * dx;
+    out.entryPoint.y = ray.origin.y + t1 * dy;
+    out.exitPoint.x = ray.origin.x + t2 * dx;
+    out.exitPoint.y = ray.origin.y + t2 * dy;
+    return true;
   }
 
-  const tEntry = t1 > EPSILON ? t1 : 0.0;
-  const tExit = t2;
+  // Ray starts strictly inside influence sphere and moves inward
+  if (c < -EPSILON && b < 0 && t2 > EPSILON) {
+    out.hasIntersection = true;
+    out.tEntry = 0.0;
+    out.tExit = t2;
+    out.entryPoint.x = ray.origin.x;
+    out.entryPoint.y = ray.origin.y;
+    out.exitPoint.x = ray.origin.x + t2 * dx;
+    out.exitPoint.y = ray.origin.y + t2 * dy;
+    return true;
+  }
 
-  out.hasIntersection = true;
-  out.tEntry = tEntry;
-  out.tExit = tExit;
-
-  out.entryPoint.x = ray.origin.x + tEntry * dx;
-  out.entryPoint.y = ray.origin.y + tEntry * dy;
-
-  out.exitPoint.x = ray.origin.x + tExit * dx;
-  out.exitPoint.y = ray.origin.y + tExit * dy;
-
-  return true;
+  out.hasIntersection = false;
+  return false;
 }
 
 /**

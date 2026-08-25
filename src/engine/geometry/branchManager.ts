@@ -1,7 +1,7 @@
 /**
  * Branch Management & Fresnel Energy Culling Engine
  * Manages parent-child beam frustum trees, recursive dielectric splits,
- * TIR bounds, and sub-threshold energy pruning (I < 0.005, depth <= 8, pool <= 1024).
+ * relativistic curved spacetime geodesics, TIR bounds, and sub-threshold energy pruning.
  */
 
 import { type IVec2 } from '../math/vec2';
@@ -24,6 +24,18 @@ import {
   hasDiscontinuity,
   bisectBoundaryDiscontinuity
 } from './bisection';
+import {
+  type BlackHole,
+  type GeodesicTrajectory,
+  createGeodesicTrajectory,
+  MAX_RK2_STEPS
+} from '../physics/rk2Integrator';
+import {
+  intersectRayInfluenceBoundary,
+  type BoundaryRayHandOff,
+  traceGeodesicWithTermination,
+  TerminationReason
+} from '../physics/blackHoleBoundary';
 
 export const MAX_BOUNCE_DEPTH = 8;
 export const MIN_ENERGY_THRESHOLD = 0.005;
@@ -83,6 +95,13 @@ export function copyBeamFrustum(dest: BeamFrustum, src: BeamFrustum): void {
   dest.isDispersed = src.isDispersed;
 }
 
+export type RibbonCallback = (
+  trajL: GeodesicTrajectory,
+  trajR: GeodesicTrajectory,
+  frustum: BeamFrustum,
+  bh: BlackHole
+) => void;
+
 export class BranchManager {
   private readonly frustumPool: BeamFrustum[];
   private poolCount = 0;
@@ -90,6 +109,24 @@ export class BranchManager {
   private readonly rightHitResult: HitResult;
   private readonly leftRefractionResult: RefractionResult;
   private readonly rightRefractionResult: RefractionResult;
+
+  // Reusable black hole integration structures (zero GC)
+  private readonly reusableTrajL = createGeodesicTrajectory(MAX_RK2_STEPS);
+  private readonly reusableTrajR = createGeodesicTrajectory(MAX_RK2_STEPS);
+  private readonly reusableHandOffL: BoundaryRayHandOff = {
+    hasIntersection: false,
+    entryPoint: { x: 0, y: 0 },
+    exitPoint: { x: 0, y: 0 },
+    tEntry: 0,
+    tExit: 0
+  };
+  private readonly reusableHandOffR: BoundaryRayHandOff = {
+    hasIntersection: false,
+    entryPoint: { x: 0, y: 0 },
+    exitPoint: { x: 0, y: 0 },
+    tEntry: 0,
+    tExit: 0
+  };
 
   constructor(poolCapacity = MAX_FRUSTUM_POOL) {
     this.frustumPool = [];
@@ -158,14 +195,16 @@ export class BranchManager {
   }
 
   /**
-   * Traces an entire light tree starting from an initial beam frustum across scene obstacles.
-   * Mutates pre-allocated pool items and returns active frustums array.
+   * Traces an entire light tree starting from an initial beam frustum across scene obstacles and black holes.
+   * Handles non-Euclidean geodesic integration, curved ribbon meshes, and downstream ray continuation.
    */
   traceLightTree(
     initial: BeamFrustum,
     segments: readonly Segment2D[],
     arcs: readonly Arc2D[],
     corners: readonly CornerVertex[] = [],
+    blackHoles: readonly BlackHole[] = [],
+    onRibbon?: RibbonCallback,
     maxDistance = 2000
   ): BeamFrustum[] {
     const activeFrustums: BeamFrustum[] = [];
@@ -200,6 +239,99 @@ export class BranchManager {
         segments,
         arcs
       );
+
+      const distL = hasLeftHit ? this.leftHitResult.distance : maxDistance;
+      const distR = hasRightHit ? this.rightHitResult.distance : maxDistance;
+
+      // Check if frustum enters a black hole BEFORE reaching the obstacles
+      let closestBH: BlackHole | null = null;
+      let closestEntryDist = Infinity;
+      let bhLeftEntry = { x: 0, y: 0 };
+      let bhRightEntry = { x: 0, y: 0 };
+
+      for (let b = 0; b < blackHoles.length; b++) {
+        const bh = blackHoles[b];
+        const hasLeftEntry = intersectRayInfluenceBoundary(this.reusableHandOffL, current.leftRay, bh);
+        const hasRightEntry = intersectRayInfluenceBoundary(this.reusableHandOffR, current.rightRay, bh);
+
+        if (hasLeftEntry && hasRightEntry) {
+          if (
+            this.reusableHandOffL.tEntry < distL &&
+            this.reusableHandOffR.tEntry < distR &&
+            this.reusableHandOffL.tEntry < closestEntryDist
+          ) {
+            closestBH = bh;
+            closestEntryDist = this.reusableHandOffL.tEntry;
+            bhLeftEntry.x = this.reusableHandOffL.entryPoint.x;
+            bhLeftEntry.y = this.reusableHandOffL.entryPoint.y;
+            bhRightEntry.x = this.reusableHandOffR.entryPoint.x;
+            bhRightEntry.y = this.reusableHandOffR.entryPoint.y;
+          }
+        }
+      }
+
+      if (closestBH !== null) {
+        // Light enters black hole influence boundary: clip the incoming straight beam
+        current.leftHit.x = bhLeftEntry.x;
+        current.leftHit.y = bhLeftEntry.y;
+        current.rightHit.x = bhRightEntry.x;
+        current.rightHit.y = bhRightEntry.y;
+
+        activeFrustums.push(current);
+
+        // Trace left and right geodesics using unified traceGeodesicWithTermination
+        const resL = traceGeodesicWithTermination(
+          this.reusableTrajL,
+          { origin: bhLeftEntry, dir: current.leftRay.dir },
+          closestBH
+        );
+        const resR = traceGeodesicWithTermination(
+          this.reusableTrajR,
+          { origin: bhRightEntry, dir: current.rightRay.dir },
+          closestBH
+        );
+
+        // Emit curved ribbon mesh
+        if (onRibbon && this.reusableTrajL.pointCount > 2 && this.reusableTrajR.pointCount > 2) {
+          onRibbon(this.reusableTrajL, this.reusableTrajR, current, closestBH);
+        }
+
+        // Ray continuation: if both rays escape the gravity well, spawn an escaped downstream frustum
+        if (
+          resL.reason === TerminationReason.Escaped &&
+          resR.reason === TerminationReason.Escaped &&
+          resL.exitRay &&
+          resR.exitRay &&
+          current.depth + 1 < MAX_BOUNCE_DEPTH &&
+          this.poolCount < this.frustumPool.length
+        ) {
+          const escapedChild = this.allocateFrustum();
+          if (escapedChild) {
+            escapedChild.depth = current.depth + 1;
+            escapedChild.intensity = current.intensity;
+            escapedChild.dispersionU = current.dispersionU;
+            escapedChild.tintRGB[0] = current.tintRGB[0];
+            escapedChild.tintRGB[1] = current.tintRGB[1];
+            escapedChild.tintRGB[2] = current.tintRGB[2];
+            escapedChild.isDispersed = current.isDispersed;
+
+            escapedChild.leftRay.origin.x = resL.exitRay.origin.x;
+            escapedChild.leftRay.origin.y = resL.exitRay.origin.y;
+            escapedChild.leftRay.dir.x = resL.exitRay.dir.x;
+            escapedChild.leftRay.dir.y = resL.exitRay.dir.y;
+
+            escapedChild.rightRay.origin.x = resR.exitRay.origin.x;
+            escapedChild.rightRay.origin.y = resR.exitRay.origin.y;
+            escapedChild.rightRay.dir.x = resR.exitRay.dir.x;
+            escapedChild.rightRay.dir.y = resR.exitRay.dir.y;
+
+            queue.push(escapedChild);
+          }
+        }
+
+        // Black hole absorbed/deflected the beam; do not continue straight into occluded obstacle
+        continue;
+      }
 
       // Check for geometric/corner discontinuity between boundary rays
       if (
