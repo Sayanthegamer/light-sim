@@ -46,7 +46,7 @@
 
 ## Phase 3: Curvature Engine (Relativity, Geodesics & Black Holes)
 
-- [ ] Task: Distance-Mapped Adaptive RK2 Geodesic Integrator
+- [x] Task: Distance-Mapped Adaptive RK2 Geodesic Integrator [4fc3c18]
   - [ ] Write unit tests for distance-scaled midpoint integration within $R_{\text{influence}} = 12 r_s$ (`tests/physics/rk2Integrator.test.ts`)
   - [ ] Implement `rk2Integrator.ts` with step budget $N_{\text{max}} = 64$ and $\Delta t(r)$ scaling
   - [ ] Confirm RK2 numerical convergence tests pass
