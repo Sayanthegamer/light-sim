@@ -1,0 +1,5 @@
+Task: Extended Reinhard Tonemapping & Composite (Pass 4)
+
+Summary: Implemented linear luminance-weighted Extended Reinhard tonemapper (L_white = 4.0) with sRGB gamma correction (gamma = 2.2) and composite screen blit pass.
+
+Files: src/shaders/compositeTonemap.frag, src/engine/renderer/compositePass.ts, tests/renderer/compositePass.test.ts
