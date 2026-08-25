@@ -12,17 +12,17 @@
   - [x] Test `emitter → prism → mirror → lens → prism` optical chain
 - [x] Task: Phase Verification & Checkpoint (Refer to workflow.md) (baeb3f6)
 
-## Phase 2: Frustum Pool Refactoring & Branch Budget Scaling (Green Phase)
+## Phase 2: Frustum Pool Refactoring & Branch Budget Scaling (Green Phase) [checkpoint: fbadb3c]
 
-- [ ] Task: Refactor `BranchManager` memory management
-  - [ ] Expand `MAX_FRUSTUM_POOL` to 1024 and provide `resetPool()` method called once per frame solve
-  - [ ] Eliminate reference aliasing when pool limit is reached by culling/dropping rather than returning duplicate mutable slots
-  - [ ] Update `BeamFrustum` clone/copy utilities to guarantee immutability across spectral passes
-- [ ] Task: Update `OpticsEngine.solveLightField` for frame-level pool management
-  - [ ] Reset pool once per frame at beginning of `solveLightField()`
-  - [ ] Collect independent frustums across all spectral samples and emitters
-- [ ] Task: Verify Phase 1 tests for frustum independence and branch limits pass
-- [ ] Task: Phase Verification & Checkpoint (Refer to workflow.md)
+- [x] Task: Refactor `BranchManager` memory management (fbadb3c)
+  - [x] Expand `MAX_FRUSTUM_POOL` to 1024 and provide `resetPool()` method called once per frame solve
+  - [x] Eliminate reference aliasing when pool limit is reached by culling/dropping rather than returning duplicate mutable slots
+  - [x] Update `BeamFrustum` clone/copy utilities to guarantee immutability across spectral passes
+- [x] Task: Update `OpticsEngine.solveLightField` for frame-level pool management (fbadb3c)
+  - [x] Reset pool once per frame at beginning of `solveLightField()`
+  - [x] Collect independent frustums across all spectral samples and emitters
+- [x] Task: Verify Phase 1 tests for frustum independence and branch limits pass (fbadb3c)
+- [x] Task: Phase Verification & Checkpoint (Refer to workflow.md) (fbadb3c)
 
 ## Phase 3: Unified Geodesic Integration & Outgoing Ray Optical Splicing
 
