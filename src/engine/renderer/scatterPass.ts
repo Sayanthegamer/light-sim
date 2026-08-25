@@ -26,6 +26,7 @@ export class ScatterPass {
   // Hierarchical Multi-Resolution FBOs
   private fboHalfA: FramebufferResource;
   private fboHalfB: FramebufferResource;
+  private fboHalfCombine: FramebufferResource;
   private fboQuarter: FramebufferResource;
   private fboEighth: FramebufferResource;
 
@@ -53,6 +54,7 @@ export class ScatterPass {
 
     this.fboHalfA = context.createHDRFramebuffer(this.halfW, this.halfH);
     this.fboHalfB = context.createHDRFramebuffer(this.halfW, this.halfH);
+    this.fboHalfCombine = context.createHDRFramebuffer(this.halfW, this.halfH);
     this.fboQuarter = context.createHDRFramebuffer(this.quarterW, this.quarterH);
     this.fboEighth = context.createHDRFramebuffer(this.eighthW, this.eighthH);
   }
@@ -74,6 +76,7 @@ export class ScatterPass {
 
     this.context.resizeFramebuffer(this.fboHalfA, this.halfW, this.halfH);
     this.context.resizeFramebuffer(this.fboHalfB, this.halfW, this.halfH);
+    this.context.resizeFramebuffer(this.fboHalfCombine, this.halfW, this.halfH);
     this.context.resizeFramebuffer(this.fboQuarter, this.quarterW, this.quarterH);
     this.context.resizeFramebuffer(this.fboEighth, this.eighthW, this.eighthH);
   }
@@ -181,7 +184,7 @@ export class ScatterPass {
     gl.drawArrays(gl.TRIANGLES, 0, 3);
 
     // ==========================================
-    // Combine: Tier 1 (fboHalfA) + Tier 2 (fboHalfB) -> fboHalfA
+    // Combine: Tier 1 (fboHalfA) + Tier 2 (fboHalfB) -> fboHalfCombine
     // ==========================================
     gl.useProgram(this.combineProg);
     const uCombTier1 = gl.getUniformLocation(this.combineProg, 'u_Tier1Texture');
@@ -192,23 +195,23 @@ export class ScatterPass {
     if (uCombTier2) gl.uniform1i(uCombTier2, 1);
     if (uCombBloom) gl.uniform1f(uCombBloom, bloomIntensity);
 
-    // Draw combined into fboQuarter as scratch or fboHalfA
-    gl.bindFramebuffer(gl.FRAMEBUFFER, this.fboHalfA.framebuffer);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, this.fboHalfCombine.framebuffer);
     gl.viewport(0, 0, this.halfW, this.halfH);
     gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, this.fboHalfB.texture); // using B as input
+    gl.bindTexture(gl.TEXTURE_2D, this.fboHalfA.texture);
     gl.activeTexture(gl.TEXTURE1);
-    gl.bindTexture(gl.TEXTURE_2D, this.fboQuarter.texture);
+    gl.bindTexture(gl.TEXTURE_2D, this.fboHalfB.texture);
 
     gl.drawArrays(gl.TRIANGLES, 0, 3);
 
-    return this.fboHalfA;
+    return this.fboHalfCombine;
   }
 
   dispose(): void {
     const gl = this.context.gl;
     this.context.deleteFramebuffer(this.fboHalfA);
     this.context.deleteFramebuffer(this.fboHalfB);
+    this.context.deleteFramebuffer(this.fboHalfCombine);
     this.context.deleteFramebuffer(this.fboQuarter);
     this.context.deleteFramebuffer(this.fboEighth);
 
