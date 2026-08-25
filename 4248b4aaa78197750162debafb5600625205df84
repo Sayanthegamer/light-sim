@@ -1,0 +1,1 @@
+Task Summary: Renamed MAX_FRUSTUM_POOL to INITIAL_FRUSTUM_POOL_CAPACITY, updated Condition 4 test to MAX_RK2_STEPS (256), marked legacy integrateGeodesic() as @deprecated, and documented synchronous zero-GC single-threaded scratch vector execution.
