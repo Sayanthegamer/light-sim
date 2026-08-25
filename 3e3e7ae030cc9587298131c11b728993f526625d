@@ -1,0 +1,3 @@
+Task: Canonical JSON Serialization, lz-string URL Hash & 5 Bundled Presets
+Summary: Implemented canonical JSON scene serializer with lz-string URL hash fragment sync and 5 bundled optical presets (Newton's Prism, Convex/Concave Focus, Schwarzschild Relativistic Deflection, TIR Retroreflector, Achromatic Doublet).
+Files: src/engine/state/serializer.ts, src/engine/state/index.ts, src/engine/presets/*.ts, tests/state/serializer.test.ts
