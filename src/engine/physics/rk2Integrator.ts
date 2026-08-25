@@ -27,6 +27,7 @@ export interface GeodesicTrajectory {
   velocitiesY: Float32Array;
   radii: Float32Array;
   angles: Float32Array;
+  exitRay: Ray2D;
   pointCount: number;
   capacity: number;
 }
@@ -42,6 +43,7 @@ export function createGeodesicTrajectory(capacity = MAX_RK2_STEPS): GeodesicTraj
     velocitiesY: new Float32Array(capacity),
     radii: new Float32Array(capacity),
     angles: new Float32Array(capacity),
+    exitRay: { origin: { x: 0, y: 0 }, dir: { x: 0, y: 0 } },
     pointCount: 0,
     capacity
   };

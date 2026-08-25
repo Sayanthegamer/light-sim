@@ -6,7 +6,7 @@
  * 1. Event horizon capture (r <= rs) -> clamp to horizon, zero intensity
  * 2. Boundary escape (r >= 12 rs, v . r > 0) -> C1 handoff to straight-line solver
  * 3. Cumulative polar winding cap (sum |dTheta| >= 2*PI) -> smooth alpha fade
- * 4. Failsafe step budget cap (N = 64)
+ * 4. Failsafe step budget cap (N = 256)
  */
 
 import { type IVec2 } from '../math/vec2';
@@ -20,6 +20,12 @@ import {
 } from './rk2Integrator';
 
 const EPSILON = 1e-5;
+
+// Module-level scratch vectors for zero-GC adaptive RK2 integration
+const scratchCurPos: IVec2 = { x: 0, y: 0 };
+const scratchCurVel: IVec2 = { x: 0, y: 0 };
+const scratchNextPos: IVec2 = { x: 0, y: 0 };
+const scratchNextVel: IVec2 = { x: 0, y: 0 };
 
 export enum TerminationReason {
   Captured = 'captured',
@@ -117,10 +123,10 @@ export function traceGeodesicWithTermination(
   let velX = ray.dir.x;
   let velY = ray.dir.y;
 
-  const nextPos: IVec2 = { x: 0, y: 0 };
-  const nextVel: IVec2 = { x: 0, y: 0 };
-  const curPos: IVec2 = { x: curX, y: curY };
-  const curVel: IVec2 = { x: velX, y: velY };
+  scratchCurPos.x = curX;
+  scratchCurPos.y = curY;
+  scratchCurVel.x = velX;
+  scratchCurVel.y = velY;
 
   // Initial knot
   const dx0 = curX - blackHole.center.x;
@@ -161,10 +167,11 @@ export function traceGeodesicWithTermination(
     // Condition 2: Boundary escape (r >= 12 rs, moving outward)
     if (i > 1 && r >= blackHole.rInfluence && rx * velX + ry * velY > 0) {
       terminationReason = TerminationReason.Escaped;
-      exitRay = {
-        origin: { x: curX, y: curY },
-        dir: { x: velX, y: velY }
-      };
+      trajectory.exitRay.origin.x = curX;
+      trajectory.exitRay.origin.y = curY;
+      trajectory.exitRay.dir.x = velX;
+      trajectory.exitRay.dir.y = velY;
+      exitRay = trajectory.exitRay;
       break;
     }
 
@@ -177,17 +184,17 @@ export function traceGeodesicWithTermination(
 
     // Advance state via adaptive RK2
     const dt = calculateAdaptiveDt(r, blackHole.rs, blackHole.rInfluence);
-    curPos.x = curX;
-    curPos.y = curY;
-    curVel.x = velX;
-    curVel.y = velY;
+    scratchCurPos.x = curX;
+    scratchCurPos.y = curY;
+    scratchCurVel.x = velX;
+    scratchCurVel.y = velY;
 
-    stepRK2(nextPos, nextVel, curPos, curVel, blackHole, dt);
+    stepRK2(scratchNextPos, scratchNextVel, scratchCurPos, scratchCurVel, blackHole, dt);
 
-    curX = nextPos.x;
-    curY = nextPos.y;
-    velX = nextVel.x;
-    velY = nextVel.y;
+    curX = scratchNextPos.x;
+    curY = scratchNextPos.y;
+    velX = scratchNextVel.x;
+    velY = scratchNextVel.y;
 
     const nextRx = curX - blackHole.center.x;
     const nextRy = curY - blackHole.center.y;
@@ -228,10 +235,11 @@ export function traceGeodesicWithTermination(
     // Check escape on stepped position
     if (i > 1 && nextR >= blackHole.rInfluence && nextRx * velX + nextRy * velY > 0) {
       terminationReason = TerminationReason.Escaped;
-      exitRay = {
-        origin: { x: curX, y: curY },
-        dir: { x: velX, y: velY }
-      };
+      trajectory.exitRay.origin.x = curX;
+      trajectory.exitRay.origin.y = curY;
+      trajectory.exitRay.dir.x = velX;
+      trajectory.exitRay.dir.y = velY;
+      exitRay = trajectory.exitRay;
       break;
     }
   }

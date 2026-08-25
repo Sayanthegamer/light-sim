@@ -102,6 +102,16 @@ export type RibbonCallback = (
   bh: BlackHole
 ) => void;
 
+// Module-level scratch structures for zero-GC bisection
+const scratchBisectRay: Ray2D = { origin: { x: 0, y: 0 }, dir: { x: 0, y: 0 } };
+const scratchBisectHandOff: BoundaryRayHandOff = {
+  hasIntersection: false,
+  entryPoint: { x: 0, y: 0 },
+  exitPoint: { x: 0, y: 0 },
+  tEntry: 0,
+  tExit: 0
+};
+
 /**
  * Binary bisection to find the boundary parameter u in [0, 1]
  * where a grazing beam intersects the black hole influence boundary.
@@ -114,30 +124,21 @@ export function bisectBlackHoleSplit(
   blackHole: BlackHole,
   iterations = 10
 ): number {
-  const tempRay: Ray2D = { origin: { x: 0, y: 0 }, dir: { x: 0, y: 0 } };
-  const tempHandOff: BoundaryRayHandOff = {
-    hasIntersection: false,
-    entryPoint: { x: 0, y: 0 },
-    exitPoint: { x: 0, y: 0 },
-    tEntry: 0,
-    tExit: 0
-  };
-
-  const leftEnters = intersectRayInfluenceBoundary(tempHandOff, leftRay, blackHole);
+  const leftEnters = intersectRayInfluenceBoundary(scratchBisectHandOff, leftRay, blackHole);
   let uEntering = leftEnters ? 0.0 : 1.0;
   let uMissing = leftEnters ? 1.0 : 0.0;
 
   for (let i = 0; i < iterations; i++) {
     const uMid = 0.5 * (uEntering + uMissing);
-    tempRay.origin.x = (1.0 - uMid) * leftRay.origin.x + uMid * rightRay.origin.x;
-    tempRay.origin.y = (1.0 - uMid) * leftRay.origin.y + uMid * rightRay.origin.y;
+    scratchBisectRay.origin.x = (1.0 - uMid) * leftRay.origin.x + uMid * rightRay.origin.x;
+    scratchBisectRay.origin.y = (1.0 - uMid) * leftRay.origin.y + uMid * rightRay.origin.y;
     const dx = (1.0 - uMid) * leftRay.dir.x + uMid * rightRay.dir.x;
     const dy = (1.0 - uMid) * leftRay.dir.y + uMid * rightRay.dir.y;
     const len = Math.hypot(dx, dy) || 1.0;
-    tempRay.dir.x = dx / len;
-    tempRay.dir.y = dy / len;
+    scratchBisectRay.dir.x = dx / len;
+    scratchBisectRay.dir.y = dy / len;
 
-    const midEnters = intersectRayInfluenceBoundary(tempHandOff, tempRay, blackHole);
+    const midEnters = intersectRayInfluenceBoundary(scratchBisectHandOff, scratchBisectRay, blackHole);
     if (midEnters) {
       uEntering = uMid;
     } else {
@@ -179,6 +180,10 @@ export class BranchManager {
     exitPoint: { x: 0, y: 0 },
     tEntry: 0,
     tExit: 0
+  };
+  private readonly reusableSplitRay: Ray2D = {
+    origin: { x: 0, y: 0 },
+    dir: { x: 0, y: 0 }
   };
 
   constructor(poolCapacity = MAX_FRUSTUM_POOL) {
@@ -356,12 +361,12 @@ export class BranchManager {
             const splitLen = Math.hypot(splitDirX, splitDirY) || 1.0;
             const normDirX = splitDirX / splitLen;
             const normDirY = splitDirY / splitLen;
-            const splitRay: Ray2D = {
-              origin: { x: splitOriginX, y: splitOriginY },
-              dir: { x: normDirX, y: normDirY }
-            };
+            this.reusableSplitRay.origin.x = splitOriginX;
+            this.reusableSplitRay.origin.y = splitOriginY;
+            this.reusableSplitRay.dir.x = normDirX;
+            this.reusableSplitRay.dir.y = normDirY;
 
-            const splitHasEntry = intersectRayInfluenceBoundary(this.reusableHandOffSplit, splitRay, closestBH);
+            const splitHasEntry = intersectRayInfluenceBoundary(this.reusableHandOffSplit, this.reusableSplitRay, closestBH);
             if (!splitHasEntry) {
               continue;
             }
