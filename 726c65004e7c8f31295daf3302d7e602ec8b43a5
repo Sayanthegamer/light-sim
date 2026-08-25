@@ -1,0 +1,6 @@
+Task: Snell's Law, Cauchy Dispersion & Fresnel Energy Conservation Solvers
+- Implemented Cauchy formula n(lambda) = A + B / lambda^2
+- Implemented wavelength to dispersion U bidirectional mapping [380 nm, 780 nm]
+- Implemented unpolarized Fresnel R and T coefficients with strict R + T = 1
+- Implemented zero-allocation solveRefraction with reflection, refraction, and TIR handling
+- 100% test coverage
