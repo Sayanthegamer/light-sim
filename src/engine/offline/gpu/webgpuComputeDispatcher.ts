@@ -185,17 +185,27 @@ export class WebGpuComputeDispatcher {
 
         // Welford sample-weighted incremental mean: mean_k = mean_{k-1} + (X_epoch / epochPasses - mean_{k-1}) / k
         const epochWeight = 1.0 / Math.max(1, this.epochPassCount);
+        const invK = 1.0 / k;
         for (let i = 0; i < totalElements; i++) {
           const sampleVal = epochBuffer[i] * epochWeight;
           const oldMean = this.masterAccumulator![i];
           const diff = sampleVal - oldMean;
-          const newMean = oldMean + diff / k;
+          const newMean = oldMean + diff * invK;
           this.masterAccumulator![i] = newMean;
-          this.masterBuffer![i] = newMean * this.passCount;
-          sqDiffSum += diff * diff;
+          this.masterBuffer![i] = (newMean * this.passCount) as number;
         }
 
-        this.varianceDelta = sqDiffSum / totalElements;
+        // Strided variance sampling for 4K real-time telemetry (capped at ~16k probe points)
+        const stride = Math.max(1, Math.floor(totalElements / 16384));
+        let sampleCount = 0;
+        for (let i = 0; i < totalElements; i += stride) {
+          const sampleVal = epochBuffer[i] * epochWeight;
+          const diff = sampleVal - this.masterAccumulator![i];
+          sqDiffSum += diff * diff;
+          sampleCount++;
+        }
+
+        this.varianceDelta = sqDiffSum / Math.max(1, sampleCount);
 
         // Reset GPU VRAM texture for the next epoch to prevent mantissa underflow
         if (!isComplete) {

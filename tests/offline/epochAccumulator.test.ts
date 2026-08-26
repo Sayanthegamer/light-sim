@@ -105,4 +105,54 @@ describe('Epoch-Based GPU Sub-Accumulation & Welford Host Consolidation', () => 
     expect(dispatcher.getVarianceDelta()).toBeGreaterThanOrEqual(0);
     expect(dispatcher.getState()).toBe('COMPLETE');
   });
+
+  it('performs strided sub-sampled variance calculation efficiently on 4K resolution buffers', async () => {
+    // 4K resolution buffer (3840 x 2160 x 4 = 33,177,600 floats)
+    const width = 3840;
+    const height = 2160;
+    const mock4KDevice = {
+      ...mockDevice,
+      createBuffer: vi.fn().mockReturnValue({
+        mapAsync: vi.fn().mockResolvedValue(undefined),
+        getMappedRange: vi.fn().mockReturnValue(new Float32Array(width * height * 4).fill(2.0).buffer),
+        unmap: vi.fn(),
+        destroy: vi.fn()
+      })
+    } as unknown as GPUDevice;
+
+    const mock4KContext = new WebGpuContext({} as GPUAdapter, mock4KDevice);
+    const dispatcher = new WebGpuComputeDispatcher(async () => mock4KContext);
+
+    const job: IOfflineRenderJob = {
+      jobId: 'job_4k_test',
+      width,
+      height,
+      scene: {
+        bounds: { minX: 0, minY: 0, maxX: 100, maxY: 100 },
+        emitters: [{ id: 1, pos: { x: 10, y: 10 }, dir: { x: 1, y: 0 }, width: 5, spectrumType: 'monochromatic', spectrumParam: 500, power: 1 }],
+        prisms: [],
+        lenses: [],
+        barriers: [],
+        blackHoles: []
+      },
+      config: {
+        targetSamples: 1,
+        batchPhotons: 100,
+        volumetricInScatter: false,
+        maxBounces: 32,
+        russianRouletteThreshold: 0.1,
+        whitePoint: 4.0
+      }
+    };
+
+    const startTime = performance.now();
+    await new Promise<void>((resolve) => {
+      dispatcher.start(job, vi.fn(), () => resolve());
+    });
+    const duration = performance.now() - startTime;
+
+    // Strided variance sampling should execute smoothly without main-thread blocking
+    expect(duration).toBeLessThan(1000);
+    expect(dispatcher.getVarianceDelta()).toBeGreaterThanOrEqual(0);
+  });
 });
