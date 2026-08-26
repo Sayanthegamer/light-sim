@@ -1,0 +1,6 @@
+{
+    "status":  "new",
+    "id":  "fix_wgsl_redeclaration_20260826",
+    "type":  "bug_fix",
+    "createdAt":  "2026-08-26T15:03:05.8903953+05:30"
+}

@@ -14,3 +14,6 @@
 - [x] **Track: Black Hole Frustum Intersection, Splitting & Growable Pool Refactor**
   *Link: [black_hole_frustum_splitting_growable_pool_20260825](./tracks/black_hole_frustum_splitting_growable_pool_20260825/index.md)*
 
+- [ ] **Track: Bug Fix: WGSL Shader Redeclaration Error**
+  *Link: [fix_wgsl_redeclaration_20260826](./tracks/fix_wgsl_redeclaration_20260826/index.md)*
+
