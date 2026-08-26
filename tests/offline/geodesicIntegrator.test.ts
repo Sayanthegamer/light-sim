@@ -56,13 +56,13 @@ describe('Adaptive RK45 Geodesic Integrator (Offline Renderer)', () => {
 
   it('dynamically adapts step size near photon sphere (r ~ 1.5 rs)', () => {
     const trajectory = createRK45Trajectory(1024);
-    // Grazing close to photon sphere
+    // Grazing close to photon sphere (b = 78 px ~ b_crit = 77.94 px)
     const incidentRay = {
-      origin: { x: -350, y: 80 },
+      origin: { x: -350, y: 78.5 },
       dir: { x: 1, y: 0 }
     };
 
-    const result = integrateGeodesicRK45(trajectory, incidentRay, blackHole, { tolerance: 1e-4 });
+    const result = integrateGeodesicRK45(trajectory, incidentRay, blackHole, { tolerance: 1e-5 });
     expect(result.pointCount).toBeGreaterThan(10);
     expect(result.minDt).toBeLessThan(result.maxDt);
     expect(result.minDt).toBeLessThan(1.0); // Microsteps taken
