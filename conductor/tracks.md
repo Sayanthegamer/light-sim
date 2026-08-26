@@ -15,3 +15,7 @@
   *Link: [black_hole_frustum_splitting_growable_pool_20260825](./tracks/black_hole_frustum_splitting_growable_pool_20260825/index.md)*
 
 
+
+---
+- [ ] **Track: WebGPU Bind Group Validation Fix**
+  *Link: [./tracks/webgpu_bind_fix_20260826/index.md](./tracks/webgpu_bind_fix_20260826/index.md)*
