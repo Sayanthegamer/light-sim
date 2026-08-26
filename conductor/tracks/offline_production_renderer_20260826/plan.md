@@ -23,10 +23,10 @@
   - [x] Test complex wave phase $\phi = \vec{k}\cdot\vec{r} - \omega t$ propagation
   - [x] Test aperture discretization into secondary Huygens-Fresnel wavelet arrays
   - [x] Test electric field superposition $\tilde{E} = \sum E_k e^{i\phi_k}$ producing double-slit and Airy disc intensity profiles
-- [~] Task: Implement `src/engine/offline/waveOptics.ts`
-  - [ ] Implement secondary wavelet emitter generation for aperture slits and knife edges
-  - [ ] Implement coherent field accumulator and phase cancellation logic
-- [ ] Task: Write failing unit tests for adaptive RK45 / Symplectic geodesic integrator near Schwarzschild black holes (`tests/offline/geodesicIntegrator.test.ts`)
+- [x] Task: Implement `src/engine/offline/waveOptics.ts` [f0d0389]
+  - [x] Implement secondary wavelet emitter generation for aperture slits and knife edges
+  - [x] Implement coherent field accumulator and phase cancellation logic
+- [~] Task: Write failing unit tests for adaptive RK45 / Symplectic geodesic integrator near Schwarzschild black holes (`tests/offline/geodesicIntegrator.test.ts`)
   - [ ] Test adaptive step size reduction near the photon sphere ($r = 1.5 r_s$)
   - [ ] Test conservation of relativistic orbital energy and angular momentum
   - [ ] Test horizon termination without numerical tunneling or infinite loop stalls
