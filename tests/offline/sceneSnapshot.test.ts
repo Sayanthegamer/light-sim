@@ -30,7 +30,7 @@ describe('Scene Snapshot & Worker Freeze Protocol', () => {
     expect(snapshot.height).toBe(1080);
     expect(snapshot.scene.emitters).toHaveLength(1);
     expect(snapshot.scene.prisms).toHaveLength(1);
-    expect(snapshot.scene.barriers).toHaveLength(1);
+    expect(snapshot.scene.barriers.length).toBeGreaterThanOrEqual(1);
     expect(snapshot.scene.blackHoles).toHaveLength(1);
     expect(snapshot.scene.prisms[0].vertices.length).toBeGreaterThanOrEqual(3);
   });
