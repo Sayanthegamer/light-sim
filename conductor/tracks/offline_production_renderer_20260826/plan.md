@@ -1,11 +1,11 @@
 # Implementation Plan: Dedicated "Cycles-Style" Offline Production Renderer
 
 ## Phase 1: Spectral & Material Physics Foundation
-- [ ] Task: Write failing unit tests for continuous Planck spectral emission, CIE 1931 XYZ integration, and Sellmeier glass dispersion equations (`tests/offline/spectralSampler.test.ts`)
-  - [ ] Test Planck blackbody radiation curve sampling across temperature ranges
-  - [ ] Test continuous wavelength $\lambda \sim [380, 780]\text{ nm}$ mapping to CIE 1931 XYZ tristimulus integrals
-  - [ ] Test exact 3-term Sellmeier equations for BK7, Fused Silica, Diamond, Sapphire, and Flint glasses
-- [ ] Task: Implement `src/engine/offline/spectralSampler.ts` to satisfy spectral and dispersion tests
+- [x] Task: Write failing unit tests for continuous Planck spectral emission, CIE 1931 XYZ integration, and Sellmeier glass dispersion equations (`tests/offline/spectralSampler.test.ts`) [8adfdb3]
+  - [x] Test Planck blackbody radiation curve sampling across temperature ranges
+  - [x] Test continuous wavelength $\lambda \sim [380, 780]\text{ nm}$ mapping to CIE 1931 XYZ tristimulus integrals
+  - [x] Test exact 3-term Sellmeier equations for BK7, Fused Silica, Diamond, Sapphire, and Flint glasses
+- [~] Task: Implement `src/engine/offline/spectralSampler.ts` to satisfy spectral and dispersion tests
   - [ ] Implement Planck blackbody and D65 spectral distribution functions
   - [ ] Implement continuous CIE 1931 $\bar{x}, \bar{y}, \bar{z}$ integration and linear sRGB / Rec.709 conversion
   - [ ] Implement exact Sellmeier dispersion coefficients and index evaluation
