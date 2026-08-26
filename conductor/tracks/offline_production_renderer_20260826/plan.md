@@ -36,10 +36,10 @@
 - [x] Task: Phase Verification & Checkpoint (Refer to workflow.md) [023bea1]
 
 ## Phase 3: Monte Carlo Photon Tracer & 32-bit Accumulator Target
-- [~] Task: Write failing unit tests for 32-bit float accumulation buffer, sample count mapping, and XYZ-to-sRGB progressive tonemapping (`tests/offline/accumulationTarget.test.ts`)
-  - [ ] Test `RGBA32F` tile buffer allocation, pixel splatting, and sample weight averaging
-  - [ ] Test dynamic exposure scaling and Reinhard/ACES tonemapping to 8-bit/16-bit display buffers
-- [ ] Task: Implement `src/engine/offline/accumulationTarget.ts`
+- [x] Task: Write failing unit tests for 32-bit float accumulation buffer, sample count mapping, and XYZ-to-sRGB progressive tonemapping (`tests/offline/accumulationTarget.test.ts`) [f66d621]
+  - [x] Test `RGBA32F` tile buffer allocation, pixel splatting, and sample weight averaging
+  - [x] Test dynamic exposure scaling and Reinhard/ACES tonemapping to 8-bit/16-bit display buffers
+- [~] Task: Implement `src/engine/offline/accumulationTarget.ts`
   - [ ] Create high-precision `Float32Array` accumulation buffer with atomic/per-pixel sample counters
   - [ ] Implement progressive frame reconstruction and blitting routines
 - [ ] Task: Write failing unit tests for bidirectional Monte Carlo ray/photon transport with Russian Roulette unbounded branching and geometry intersection (`tests/offline/mcPhotonTracer.test.ts`)
