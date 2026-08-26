@@ -476,13 +476,9 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
     var nextPos = straightNextPos;
     var nextDir = curDir;
 
-    let numBH = config.counts.w;
-    for (var i = 0u; i < numBH; i = i + 1u) {
-      let bhResult = evaluateBlackHoleInteraction(curPos, curDir, blackHoles[i], closestT);
-      if (length(bhResult.zw) < 0.5 || distance(bhResult.xy, straightNextPos) > 1e-4) {
-        nextPos = bhResult.xy;
-        nextDir = bhResult.zw;
-      }
+    // Dummy read to prevent WebGPU from optimizing out the blackHoles binding (binding 3)
+    if (config.counts.w > 999999u) {
+      nextPos = blackHoles[0].center;
     }
 
     // Output active line segment

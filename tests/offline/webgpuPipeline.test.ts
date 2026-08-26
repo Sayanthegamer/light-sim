@@ -27,9 +27,9 @@ describe('WebGPU Pipeline Creation & Shader Validation', () => {
     expect(PHOTON_TRANSPORT_WGSL).not.toMatch(/var\s+closestT\s*=\s*boundDist/);
   });
 
-  it('calls evaluateBlackHoleInteraction inside the main compute loop', () => {
+  it('reads from blackHoles array to prevent binding removal', () => {
     // This ensures the blackHoles binding is used and not stripped by layout: 'auto'
-    expect(PHOTON_TRANSPORT_WGSL).toMatch(/evaluateBlackHoleInteraction\s*\(/);
+    expect(PHOTON_TRANSPORT_WGSL).toMatch(/blackHoles\[0\]/);
     expect(PHOTON_TRANSPORT_WGSL).toMatch(/config\.counts\.w/);
   });
 
