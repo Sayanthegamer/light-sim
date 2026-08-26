@@ -14,8 +14,8 @@
 - [x] Task: Ensure robust multi-worker synchronization on `PAUSE`, `RESUME`, `CANCEL`, and `COMPLETE` c6845d0
 - [x] Task: Phase Verification & Checkpoint (Refer to workflow.md) c6845d0
 
-## Phase 3: UI Thread Selection, Aggregated Progress Metrics & End-to-End Verification
-- [ ] Task: Write unit and integration tests for thread count configuration and multi-thread progress metrics
-- [ ] Task: Update `RenderModal.svelte` with Thread Count selector (Auto / 2 / 4 / 8 / 16 / 32) and multi-threaded metrics
-- [ ] Task: Execute end-to-end multi-threaded render benchmark verifying linear multi-core speedup and HDR export parity
-- [ ] Task: Phase Verification & Checkpoint (Refer to workflow.md)
+## Phase 3: UI Thread Selection, Aggregated Progress Metrics & End-to-End Verification [checkpoint: 2aa6c1e]
+- [x] Task: Write unit and integration tests for thread count configuration and multi-thread progress metrics 2aa6c1e
+- [x] Task: Update `RenderModal.svelte` with Thread Count selector (Auto / 2 / 4 / 8 / 16 / 32) and multi-threaded metrics 2aa6c1e
+- [x] Task: Execute end-to-end multi-threaded render benchmark verifying linear multi-core speedup and HDR export parity 2aa6c1e
+- [x] Task: Phase Verification & Checkpoint (Refer to workflow.md) 2aa6c1e
