@@ -661,9 +661,9 @@ export class GpuPipelineManager {
   private bindGroupCompute: GPUBindGroup | null = null;
   private bindGroupRender: GPUBindGroup | null = null;
 
-  private batchSize = 25000;
-  private minBatchSize = 5000;
-  private maxBatchSize = 100000;
+  private batchSize = 100000;
+  private minBatchSize = 25000;
+  private maxBatchSize = 500000;
 
   constructor(device: GPUDevice) {
     this.device = device;
