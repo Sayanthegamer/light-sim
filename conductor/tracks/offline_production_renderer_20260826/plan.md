@@ -57,10 +57,10 @@
 - [x] Task: Implement `src/engine/offline/sceneSnapshot.ts` and background worker dispatcher `src/engine/offline/renderWorker.ts` [9bdc90b]
   - [x] Implement Web Worker entry point with chunked tile/photon packet processing
   - [x] Implement main-thread worker dispatcher with transferable ArrayBuffer streaming
-- [~] Task: Write failing unit tests for Radiance 32-bit `.hdr` binary encoder and HDR/PNG export pipeline (`tests/offline/hdrExporter.test.ts`)
-  - [ ] Test Radiance `.hdr` (RGBE 32-bit) format encoding and header specification
-  - [ ] Test export data URL / Blob generation for PNG and HDR downloads
-- [ ] Task: Implement `src/engine/offline/hdrExporter.ts`
+- [x] Task: Write failing unit tests for Radiance 32-bit `.hdr` binary encoder and HDR/PNG export pipeline (`tests/offline/hdrExporter.test.ts`) [2129d7f]
+  - [x] Test Radiance `.hdr` (RGBE 32-bit) format encoding and header specification
+  - [x] Test export data URL / Blob generation for PNG and HDR downloads
+- [~] Task: Implement `src/engine/offline/hdrExporter.ts`
   - [ ] Implement high-efficiency RGBE 32-bit RLE encoder
   - [ ] Implement browser file download triggers
 - [ ] Task: Phase Verification & Checkpoint (Refer to workflow.md)
