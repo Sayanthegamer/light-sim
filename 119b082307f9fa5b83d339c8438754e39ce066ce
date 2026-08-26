@@ -1,0 +1,1 @@
+Task: Write failing unit tests for adaptive RK45 / Symplectic geodesic integrator near Schwarzschild black holes (tests/offline/geodesicIntegrator.test.ts)
