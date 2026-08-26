@@ -5,11 +5,11 @@
   - [x] Test Planck blackbody radiation curve sampling across temperature ranges
   - [x] Test continuous wavelength $\lambda \sim [380, 780]\text{ nm}$ mapping to CIE 1931 XYZ tristimulus integrals
   - [x] Test exact 3-term Sellmeier equations for BK7, Fused Silica, Diamond, Sapphire, and Flint glasses
-- [~] Task: Implement `src/engine/offline/spectralSampler.ts` to satisfy spectral and dispersion tests
-  - [ ] Implement Planck blackbody and D65 spectral distribution functions
-  - [ ] Implement continuous CIE 1931 $\bar{x}, \bar{y}, \bar{z}$ integration and linear sRGB / Rec.709 conversion
-  - [ ] Implement exact Sellmeier dispersion coefficients and index evaluation
-- [ ] Task: Write failing unit tests for volumetric Rayleigh and Henyey-Greenstein / Mie scattering phase functions and free-flight sampling (`tests/offline/volumetricMedium.test.ts`)
+- [x] Task: Implement `src/engine/offline/spectralSampler.ts` to satisfy spectral and dispersion tests [af45372]
+  - [x] Implement Planck blackbody and D65 spectral distribution functions
+  - [x] Implement continuous CIE 1931 $\bar{x}, \bar{y}, \bar{z}$ integration and linear sRGB / Rec.709 conversion
+  - [x] Implement exact Sellmeier dispersion coefficients and index evaluation
+- [~] Task: Write failing unit tests for volumetric Rayleigh and Henyey-Greenstein / Mie scattering phase functions and free-flight sampling (`tests/offline/volumetricMedium.test.ts`)
   - [ ] Test exponential free-flight distance sampling $s = -\ln(1-\xi)/\sigma_t$
   - [ ] Test normalization and angular distribution of Rayleigh phase function $p_R(\theta)$
   - [ ] Test forward/backward anisotropy in Henyey-Greenstein phase function $p_M(\theta, g)$
