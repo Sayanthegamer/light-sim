@@ -1,0 +1,1 @@
+Task: Write failing unit tests for 32-bit float accumulation buffer, sample count mapping, and XYZ-to-sRGB progressive tonemapping (tests/offline/accumulationTarget.test.ts)
