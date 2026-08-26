@@ -79,6 +79,9 @@ export class GpuAccumulator {
       return;
     }
 
+    // Update per-pass seed to guarantee unique Monte Carlo photon distributions across passes
+    pipelineMgr.updatePassSeed(this.passCount);
+
     const commandEncoder = this.device.createCommandEncoder({
       label: 'GpuAccumulatorFrameEncoder'
     });

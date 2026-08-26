@@ -420,7 +420,7 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
   let maxBounces = u32(config.params.y);
   let baseVertexIdx = photonIdx * maxBounces * 2u;
 
-  var rng = pcg32_init(photonIdx, u32(config.params.x) + photonIdx * 17u);
+  var rng = pcg32_init(photonIdx, u32(config.params.x) + u32(config.params.w) * 9781u + photonIdx * 17u);
 
   // 1. Pick Emitter & Sample Initial State
   let emIdx = u32(pcg32_next(&rng) * f32(config.emitterCount)) % config.emitterCount;
@@ -643,6 +643,21 @@ export class GpuPipelineManager {
 
   setBatchSize(size: number): void {
     this.batchSize = Math.max(this.minBatchSize, Math.min(this.maxBatchSize, size));
+  }
+
+  /**
+   * Updates the per-pass seed in the uniform buffer to ensure Monte Carlo variation across passes.
+   */
+  updatePassSeed(passIndex: number): void {
+    if (this.buffers.uniform) {
+      // Offset 44 bytes = float index 11 (config.params.w)
+      const passSeed = passIndex ^ (Math.floor(Math.random() * 0xffffffff));
+      this.device.queue.writeBuffer(
+        this.buffers.uniform,
+        44,
+        new Float32Array([passSeed])
+      );
+    }
   }
 
   /**

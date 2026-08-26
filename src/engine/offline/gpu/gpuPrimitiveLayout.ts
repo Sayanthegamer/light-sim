@@ -324,7 +324,7 @@ export function packSceneBuffers(
   uFloats[8] = seed;
   uFloats[9] = maxBounces;
   uFloats[10] = 0.1; // russianRouletteThreshold
-  uFloats[11] = 0; // padding
+  uFloats[11] = 0; // passSeed (updated dynamically per pass)
 
   uFloats[12] = scene.bounds.maxX - scene.bounds.minX;
   uFloats[13] = scene.bounds.maxY - scene.bounds.minY;
