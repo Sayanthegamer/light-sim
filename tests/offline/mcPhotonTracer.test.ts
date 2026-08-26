@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   tracePhotonPath,
+  extractScenePrimitives,
   type IOfflineSceneGeometry,
   type IPhotonState
 } from '../../src/engine/offline/mcPhotonTracer';
@@ -171,5 +172,55 @@ describe('Monte Carlo Photon Tracer & Russian Roulette Transport', () => {
     // With physical glass (n ~ 1.52), Fresnel reflection at normal incidence is ~4% per surface.
     // Over 100 photons, > 80% should transmit through both surfaces!
     expect(transmittedCount).toBeGreaterThan(80);
+  });
+
+  it('accepts pre-extracted primitives to eliminate per-photon collision extraction', () => {
+    target.reset();
+    const prismScene: IOfflineSceneGeometry = {
+      ...emptyScene,
+      prisms: [
+        {
+          id: 1,
+          vertices: [
+            { x: 30, y: 20 },
+            { x: 70, y: 50 },
+            { x: 30, y: 80 }
+          ],
+          n: 1.5,
+          cauchyA: 1.5,
+          cauchyB: 4200
+        }
+      ]
+    };
+
+    // Pre-extract primitives once
+    const precomputed = extractScenePrimitives(prismScene);
+    expect(precomputed.segments.length).toBe(3);
+    expect(precomputed.arcs.length).toBe(0);
+
+    const photon: IPhotonState = {
+      pos: { x: 10, y: 50 },
+      dir: { x: 1, y: 0 },
+      wavelengthNm: 550,
+      energy: 1.0,
+      phase: 0.0
+    };
+
+    // Pass pre-extracted primitives directly with an empty dummy scene geometry
+    // To prove that it uses the precomputed primitives rather than extracting from the scene
+    const dummyEmptyScene: IOfflineSceneGeometry = {
+      ...emptyScene,
+      prisms: [] // Empty! If it re-extracted from scene, it would have 0 segments and photon wouldn't hit anything
+    };
+
+    const stats = tracePhotonPath(photon, dummyEmptyScene, target, {
+      maxBounces: 10,
+      volumetricInScatter: false,
+      primitives: precomputed
+    });
+
+    // If precomputed primitives were used, the photon hit the prism segment
+    expect(stats.bounces).toBeGreaterThan(0);
+    expect(target.getTotalSamples()).toBeGreaterThan(0);
   });
 });

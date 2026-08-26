@@ -5,7 +5,14 @@
  */
 
 import { type IOfflineRenderJob } from './sceneSnapshot';
-import { tracePhotonPath, type IPhotonState } from './mcPhotonTracer';
+import {
+  tracePhotonPath,
+  extractScenePrimitives,
+  createTracerScratchContext,
+  type IPhotonState,
+  type IResolvedScenePrimitives,
+  type ITracerScratchContext
+} from './mcPhotonTracer';
 import { sampleContinuousWavelength } from './spectralSampler';
 import { AccumulationTarget } from './accumulationTarget';
 
@@ -54,6 +61,8 @@ export type IWorkerOutboundMessage = IWorkerProgressPayload | IWorkerCompletePay
 
 // Worker Execution State
 let currentJob: IOfflineRenderJob | null = null;
+let currentPrimitives: IResolvedScenePrimitives | null = null;
+const tracerScratch: ITracerScratchContext = createTracerScratchContext();
 let target: AccumulationTarget | null = null;
 let isPaused = false;
 let isCancelled = false;
@@ -120,7 +129,9 @@ function processBatch(): void {
 
     tracePhotonPath(photon, job.scene, target, {
       maxBounces: job.config.maxBounces,
-      volumetricInScatter: job.config.volumetricInScatter
+      volumetricInScatter: job.config.volumetricInScatter,
+      primitives: currentPrimitives ?? undefined,
+      scratch: tracerScratch
     });
   }
 
@@ -187,6 +198,7 @@ if (typeof self !== 'undefined' && typeof self.postMessage === 'function') {
     switch (msg.type) {
       case 'START':
         currentJob = msg.job;
+        currentPrimitives = extractScenePrimitives(msg.job.scene);
         target = new AccumulationTarget(msg.job.width, msg.job.height);
         isPaused = false;
         isCancelled = false;

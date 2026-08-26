@@ -92,19 +92,41 @@ export interface IPhotonTraceStats {
   energy: number;
 }
 
+export interface IResolvedScenePrimitives {
+  segments: readonly Segment2D[];
+  arcs: readonly Arc2D[];
+}
+
+export interface ITracerScratchContext {
+  hit: HitResult;
+  refrResult: RefractionResult;
+}
+
+export function createTracerScratchContext(): ITracerScratchContext {
+  return {
+    hit: createHitResult(),
+    refrResult: {
+      refractedDir: { x: 0, y: 0 },
+      reflectedDir: { x: 0, y: 0 },
+      R: 0,
+      T: 0,
+      isTIR: false
+    }
+  };
+}
+
 export interface ITracerOptions {
   maxBounces?: number;
   russianRouletteThreshold?: number;
   volumetricInScatter?: boolean;
+  primitives?: IResolvedScenePrimitives;
+  scratch?: ITracerScratchContext;
 }
 
 /**
  * Extracts flat segments and circular arcs from scene objects.
  */
-export function extractScenePrimitives(scene: IOfflineSceneGeometry): {
-  segments: Segment2D[];
-  arcs: Arc2D[];
-} {
+export function extractScenePrimitives(scene: IOfflineSceneGeometry): IResolvedScenePrimitives {
   const segments: Segment2D[] = [];
   const arcs: Arc2D[] = [];
 
@@ -172,9 +194,12 @@ export function tracePhotonPath(
   const maxBounces = options?.maxBounces ?? 64;
   const enableVolumetrics = options?.volumetricInScatter ?? true;
 
-  const { segments, arcs } = extractScenePrimitives(scene);
-  const hit = createHitResult();
-  const refrResult: RefractionResult = {
+  const precomputed = options?.primitives;
+  const segments = precomputed ? precomputed.segments : extractScenePrimitives(scene).segments;
+  const arcs = precomputed ? precomputed.arcs : extractScenePrimitives(scene).arcs;
+
+  const hit = options?.scratch ? options.scratch.hit : createHitResult();
+  const refrResult = options?.scratch ? options.scratch.refrResult : {
     refractedDir: { x: 0, y: 0 },
     reflectedDir: { x: 0, y: 0 },
     R: 0,
