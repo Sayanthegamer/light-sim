@@ -42,10 +42,10 @@
 - [x] Task: Implement `src/engine/offline/accumulationTarget.ts` [9e89d32]
   - [x] Create high-precision `Float32Array` accumulation buffer with atomic/per-pixel sample counters
   - [x] Implement progressive frame reconstruction and blitting routines
-- [~] Task: Write failing unit tests for bidirectional Monte Carlo ray/photon transport with Russian Roulette unbounded branching and geometry intersection (`tests/offline/mcPhotonTracer.test.ts`)
-  - [ ] Test unbounded Russian Roulette termination with continuation probability $P = \min(1.0, \max(R, T))$
-  - [ ] Test photon intersection against scene prisms, lenses, mirrors, barriers, and emitters
-- [ ] Task: Implement `src/engine/offline/mcPhotonTracer.ts`
+- [x] Task: Write failing unit tests for bidirectional Monte Carlo ray/photon transport with Russian Roulette unbounded branching and geometry intersection (`tests/offline/mcPhotonTracer.test.ts`) [0ab6f49]
+  - [x] Test unbounded Russian Roulette termination with continuation probability $P = \min(1.0, \max(R, T))$
+  - [x] Test photon intersection against scene prisms, lenses, mirrors, barriers, and emitters
+- [~] Task: Implement `src/engine/offline/mcPhotonTracer.ts`
   - [ ] Implement core zero-GC Monte Carlo ray transport loop
   - [ ] Implement Fresnel dielectric transmission/reflection branching and volume integration
 - [ ] Task: Phase Verification & Checkpoint (Refer to workflow.md)
