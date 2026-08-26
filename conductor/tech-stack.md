@@ -28,3 +28,10 @@
   3. Pass 3: 2-Tier Scatter Filter (Depth-Masked Bilateral Gaussian + 2-Stage Dual Kawase Bloom)
   4. Pass 4: Composite & Tonemap Blit (Luminance-Weighted Extended Reinhard + sRGB Gamma)
 - **Temporal Management:** 60 FPS single-pass dragging, 8-frame progressive EMA accumulation when static, sleep state when idle.
+
+## Offline Production Renderer Architecture
+
+- **Multi-Threaded Web Worker Pool:** Concurrency auto-scales to `navigator.hardwareConcurrency` with dynamic sample budget division across worker threads.
+- **Zero-Allocation Transport Kernel:** Scene geometry primitives and Sellmeier/Cauchy glass dispersion indices are extracted once per job; inner photon loops reuse pre-allocated scratch contexts with zero garbage collection churn.
+- **Progressive HDR Accumulation:** Background workers periodically post float buffers; `AccumulationTarget.mergeBuffer` sums multi-threaded radiance for real-time preview and 32-bit Radiance `.hdr` export.
+
