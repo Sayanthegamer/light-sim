@@ -1,0 +1,1 @@
+Task: Integrate Render action into src/ui/Dock.svelte and coordinate render worker lifecycle with main App.svelte
