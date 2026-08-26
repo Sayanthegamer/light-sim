@@ -13,3 +13,6 @@
 
 - [x] **Track: Black Hole Frustum Intersection, Splitting & Growable Pool Refactor**
   *Link: [black_hole_frustum_splitting_growable_pool_20260825](./tracks/black_hole_frustum_splitting_growable_pool_20260825/index.md)*
+
+- [ ] **Track: "Cycles-Style" Offline Production Renderer**
+  *Link: [offline_production_renderer_20260826](./tracks/offline_production_renderer_20260826/index.md)*

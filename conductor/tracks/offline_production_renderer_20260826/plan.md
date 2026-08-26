@@ -1,0 +1,78 @@
+# Implementation Plan: Dedicated "Cycles-Style" Offline Production Renderer
+
+## Phase 1: Spectral & Material Physics Foundation
+- [ ] Task: Write failing unit tests for continuous Planck spectral emission, CIE 1931 XYZ integration, and Sellmeier glass dispersion equations (`tests/offline/spectralSampler.test.ts`)
+  - [ ] Test Planck blackbody radiation curve sampling across temperature ranges
+  - [ ] Test continuous wavelength $\lambda \sim [380, 780]\text{ nm}$ mapping to CIE 1931 XYZ tristimulus integrals
+  - [ ] Test exact 3-term Sellmeier equations for BK7, Fused Silica, Diamond, Sapphire, and Flint glasses
+- [ ] Task: Implement `src/engine/offline/spectralSampler.ts` to satisfy spectral and dispersion tests
+  - [ ] Implement Planck blackbody and D65 spectral distribution functions
+  - [ ] Implement continuous CIE 1931 $\bar{x}, \bar{y}, \bar{z}$ integration and linear sRGB / Rec.709 conversion
+  - [ ] Implement exact Sellmeier dispersion coefficients and index evaluation
+- [ ] Task: Write failing unit tests for volumetric Rayleigh and Henyey-Greenstein / Mie scattering phase functions and free-flight sampling (`tests/offline/volumetricMedium.test.ts`)
+  - [ ] Test exponential free-flight distance sampling $s = -\ln(1-\xi)/\sigma_t$
+  - [ ] Test normalization and angular distribution of Rayleigh phase function $p_R(\theta)$
+  - [ ] Test forward/backward anisotropy in Henyey-Greenstein phase function $p_M(\theta, g)$
+- [ ] Task: Implement `src/engine/offline/volumetricMedium.ts` to pass scattering tests
+  - [ ] Implement homogeneous/heterogeneous medium properties ($\sigma_a, \sigma_s, \sigma_t, g$)
+  - [ ] Implement collision sampling and scattering direction perturbation routines
+- [ ] Task: Phase Verification & Checkpoint (Refer to workflow.md)
+
+## Phase 2: Wave Optics & Adaptive Geodesic Integrator
+- [ ] Task: Write failing unit tests for wave phase tracking, Huygens-Fresnel secondary wavelet generation, and slit interference (`tests/offline/waveOptics.test.ts`)
+  - [ ] Test complex wave phase $\phi = \vec{k}\cdot\vec{r} - \omega t$ propagation
+  - [ ] Test aperture discretization into secondary Huygens-Fresnel wavelet arrays
+  - [ ] Test electric field superposition $\tilde{E} = \sum E_k e^{i\phi_k}$ producing double-slit and Airy disc intensity profiles
+- [ ] Task: Implement `src/engine/offline/waveOptics.ts`
+  - [ ] Implement secondary wavelet emitter generation for aperture slits and knife edges
+  - [ ] Implement coherent field accumulator and phase cancellation logic
+- [ ] Task: Write failing unit tests for adaptive RK45 / Symplectic geodesic integrator near Schwarzschild black holes (`tests/offline/geodesicIntegrator.test.ts`)
+  - [ ] Test adaptive step size reduction near the photon sphere ($r = 1.5 r_s$)
+  - [ ] Test conservation of relativistic orbital energy and angular momentum
+  - [ ] Test horizon termination without numerical tunneling or infinite loop stalls
+- [ ] Task: Implement `src/engine/offline/geodesicIntegrator.ts`
+  - [ ] Implement adaptive Runge-Kutta-Fehlberg (RK45) / 4th-order Symplectic geodesic solver
+  - [ ] Implement dynamic step adjustment and event horizon capture
+- [ ] Task: Phase Verification & Checkpoint (Refer to workflow.md)
+
+## Phase 3: Monte Carlo Photon Tracer & 32-bit Accumulator Target
+- [ ] Task: Write failing unit tests for 32-bit float accumulation buffer, sample count mapping, and XYZ-to-sRGB progressive tonemapping (`tests/offline/accumulationTarget.test.ts`)
+  - [ ] Test `RGBA32F` tile buffer allocation, pixel splatting, and sample weight averaging
+  - [ ] Test dynamic exposure scaling and Reinhard/ACES tonemapping to 8-bit/16-bit display buffers
+- [ ] Task: Implement `src/engine/offline/accumulationTarget.ts`
+  - [ ] Create high-precision `Float32Array` accumulation buffer with atomic/per-pixel sample counters
+  - [ ] Implement progressive frame reconstruction and blitting routines
+- [ ] Task: Write failing unit tests for bidirectional Monte Carlo ray/photon transport with Russian Roulette unbounded branching and geometry intersection (`tests/offline/mcPhotonTracer.test.ts`)
+  - [ ] Test unbounded Russian Roulette termination with continuation probability $P = \min(1.0, \max(R, T))$
+  - [ ] Test photon intersection against scene prisms, lenses, mirrors, barriers, and emitters
+- [ ] Task: Implement `src/engine/offline/mcPhotonTracer.ts`
+  - [ ] Implement core zero-GC Monte Carlo ray transport loop
+  - [ ] Implement Fresnel dielectric transmission/reflection branching and volume integration
+- [ ] Task: Phase Verification & Checkpoint (Refer to workflow.md)
+
+## Phase 4: Web Worker Infrastructure & Scene Snapshot Pipeline
+- [ ] Task: Write failing unit tests for scene snapshot serialization / freeze protocol for offline render context (`tests/offline/sceneSnapshot.test.ts`)
+  - [ ] Test deep freezing of scene graph state into clean immutable transfer payload
+  - [ ] Test reconstruction of optical boundary primitives inside worker environment
+- [ ] Task: Implement `src/engine/offline/sceneSnapshot.ts` and background worker dispatcher `src/engine/offline/renderWorker.ts`
+  - [ ] Implement Web Worker entry point with chunked tile/photon packet processing
+  - [ ] Implement main-thread worker dispatcher with transferable ArrayBuffer streaming
+- [ ] Task: Write failing unit tests for Radiance 32-bit `.hdr` binary encoder and HDR/PNG export pipeline (`tests/offline/hdrExporter.test.ts`)
+  - [ ] Test Radiance `.hdr` (RGBE 32-bit) format encoding and header specification
+  - [ ] Test export data URL / Blob generation for PNG and HDR downloads
+- [ ] Task: Implement `src/engine/offline/hdrExporter.ts`
+  - [ ] Implement high-efficiency RGBE 32-bit RLE encoder
+  - [ ] Implement browser file download triggers
+- [ ] Task: Phase Verification & Checkpoint (Refer to workflow.md)
+
+## Phase 5: Production Render UI Dock, Modal & End-to-End Integration
+- [ ] Task: Implement `src/ui/RenderModal.svelte`
+  - [ ] Build modal overlay with progressive canvas preview
+  - [ ] Display live statistics (samples count, photons dispatched, samples/sec, elapsed time)
+  - [ ] Add Pause, Resume, Cancel, Exposure/Tonemap controls, and Export HDR / Export PNG buttons
+- [ ] Task: Integrate "Render" action into `src/ui/Dock.svelte` and coordinate render worker lifecycle with main `App.svelte` / `engine.ts`
+  - [ ] Add Render button with keyboard shortcut and tooltips to Dock
+  - [ ] Hook into scene freeze and launch `RenderModal`
+- [ ] Task: Write end-to-end integration tests for render worker lifecycle, snapshot transfer, progressive frame accumulation, and HDR export (`tests/offline/offlineRendererIntegration.test.ts`)
+  - [ ] Test full worker launch, progressive batch reception, accumulation, and clean termination
+- [ ] Task: Phase Verification & Checkpoint (Refer to workflow.md)
