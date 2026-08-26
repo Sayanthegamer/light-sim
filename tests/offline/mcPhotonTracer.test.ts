@@ -103,7 +103,7 @@ describe('Monte Carlo Photon Tracer & Russian Roulette Transport', () => {
       phase: 0.0
     };
 
-    const stats = tracePhotonPath(photon, barrierScene, target);
+    const stats = tracePhotonPath(photon, barrierScene, target, { volumetricInScatter: false });
     expect(stats.absorbed).toBe(true);
   });
 });
