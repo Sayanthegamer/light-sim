@@ -136,7 +136,7 @@
   });
 </script>
 
-<div class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+<div class="fixed inset-0 bg-black/85 z-50 flex items-center justify-center p-4">
   <div class="bg-matte-900 border border-matte-800 rounded-xl shadow-2xl flex flex-col w-full max-w-5xl max-h-[92vh] overflow-hidden text-zinc-200">
     <!-- Header -->
     <div class="flex items-center justify-between px-5 py-3 border-b border-matte-800 bg-matte-950/60">
