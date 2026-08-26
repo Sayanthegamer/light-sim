@@ -36,6 +36,12 @@ export class WebGpuComputeDispatcher {
   private isRunning = false;
   private isPaused = false;
   private passCount = 0;
+  private epochPassCount = 0;
+  private epochCount = 0;
+  private readonly epochSize = 500;
+  private masterAccumulator: Float64Array | null = null;
+  private masterBuffer: Float32Array | null = null;
+  private varianceDelta = 0;
   private totalPhotonsEmitted = 0;
   private startTime = 0;
   private lastReportTime = 0;
@@ -53,6 +59,10 @@ export class WebGpuComputeDispatcher {
     return this.passCount;
   }
 
+  getVarianceDelta(): number {
+    return this.varianceDelta;
+  }
+
   async start(
     job: IOfflineRenderJob,
     onProgress: ProgressCallback,
@@ -64,11 +74,18 @@ export class WebGpuComputeDispatcher {
     this.onComplete = onComplete;
     this.onError = onError ?? null;
     this.passCount = 0;
+    this.epochPassCount = 0;
+    this.epochCount = 0;
     this.totalPhotonsEmitted = 0;
     this.startTime = performance.now();
     this.lastReportTime = this.startTime;
     this.isRunning = true;
     this.isPaused = false;
+
+    const numPixels = job.width * job.height * 4;
+    this.masterAccumulator = new Float64Array(numPixels);
+    this.masterBuffer = new Float32Array(numPixels);
+    this.varianceDelta = 0;
 
     try {
       this.context = await this.contextProvider();
@@ -145,6 +162,7 @@ export class WebGpuComputeDispatcher {
       // Execute compute + raster pass on GPU
       this.accumulator.renderPass(this.pipelineMgr);
       this.passCount++;
+      this.epochPassCount++;
       const currentBatch = this.pipelineMgr.getBatchSize();
       this.totalPhotonsEmitted += currentBatch;
 
@@ -154,6 +172,37 @@ export class WebGpuComputeDispatcher {
 
       const targetSamples = this.currentJob.config.targetSamples ?? 100;
       const isComplete = this.passCount >= targetSamples;
+      const isEpochBoundary = this.epochPassCount >= this.epochSize;
+
+      // Handle Epoch consolidation & Welford host update
+      if (isEpochBoundary || isComplete) {
+        const epochBuffer = await this.accumulator.readbackToFloat32Array();
+        this.epochCount++;
+        const k = this.epochCount;
+
+        let sqDiffSum = 0;
+        const totalElements = this.masterAccumulator!.length;
+
+        // Welford sample-weighted incremental mean: mean_k = mean_{k-1} + (X_epoch / epochPasses - mean_{k-1}) / k
+        const epochWeight = 1.0 / Math.max(1, this.epochPassCount);
+        for (let i = 0; i < totalElements; i++) {
+          const sampleVal = epochBuffer[i] * epochWeight;
+          const oldMean = this.masterAccumulator![i];
+          const diff = sampleVal - oldMean;
+          const newMean = oldMean + diff / k;
+          this.masterAccumulator![i] = newMean;
+          this.masterBuffer![i] = newMean * this.passCount;
+          sqDiffSum += diff * diff;
+        }
+
+        this.varianceDelta = sqDiffSum / totalElements;
+
+        // Reset GPU VRAM texture for the next epoch to prevent mantissa underflow
+        if (!isComplete) {
+          this.accumulator.reset();
+          this.epochPassCount = 0;
+        }
+      }
 
       // Periodically report progress or when complete
       const now = performance.now();
@@ -164,7 +213,11 @@ export class WebGpuComputeDispatcher {
         const totalElapsedMs = now - this.startTime;
         const photonsPerSec = (this.totalPhotonsEmitted / Math.max(1, totalElapsedMs)) * 1000;
 
-        const buffer = await this.accumulator.readbackToFloat32Array();
+        let displayBuffer = this.masterBuffer;
+        if (this.epochCount === 0) {
+          displayBuffer = await this.accumulator.readbackToFloat32Array();
+        }
+
         const sampleCountMap = new Uint32Array(this.currentJob.width * this.currentJob.height);
         sampleCountMap.fill(this.passCount);
 
@@ -176,7 +229,7 @@ export class WebGpuComputeDispatcher {
             photonsEmitted: this.totalPhotonsEmitted,
             photonsPerSec,
             elapsedMs: totalElapsedMs,
-            renderedBuffer: buffer,
+            renderedBuffer: displayBuffer!,
             sampleCountMap
           });
         }
@@ -185,7 +238,7 @@ export class WebGpuComputeDispatcher {
           this.state = 'COMPLETE';
           this.isRunning = false;
           if (this.onComplete) {
-            this.onComplete(buffer, sampleCountMap, totalElapsedMs);
+            this.onComplete(displayBuffer!, sampleCountMap, totalElapsedMs);
           }
           this.cleanup();
           return;
