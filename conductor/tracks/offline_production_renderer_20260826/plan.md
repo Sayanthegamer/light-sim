@@ -9,11 +9,11 @@
   - [x] Implement Planck blackbody and D65 spectral distribution functions
   - [x] Implement continuous CIE 1931 $\bar{x}, \bar{y}, \bar{z}$ integration and linear sRGB / Rec.709 conversion
   - [x] Implement exact Sellmeier dispersion coefficients and index evaluation
-- [~] Task: Write failing unit tests for volumetric Rayleigh and Henyey-Greenstein / Mie scattering phase functions and free-flight sampling (`tests/offline/volumetricMedium.test.ts`)
-  - [ ] Test exponential free-flight distance sampling $s = -\ln(1-\xi)/\sigma_t$
-  - [ ] Test normalization and angular distribution of Rayleigh phase function $p_R(\theta)$
-  - [ ] Test forward/backward anisotropy in Henyey-Greenstein phase function $p_M(\theta, g)$
-- [ ] Task: Implement `src/engine/offline/volumetricMedium.ts` to pass scattering tests
+- [x] Task: Write failing unit tests for volumetric Rayleigh and Henyey-Greenstein / Mie scattering phase functions and free-flight sampling (`tests/offline/volumetricMedium.test.ts`) [1be445f]
+  - [x] Test exponential free-flight distance sampling $s = -\ln(1-\xi)/\sigma_t$
+  - [x] Test normalization and angular distribution of Rayleigh phase function $p_R(\theta)$
+  - [x] Test forward/backward anisotropy in Henyey-Greenstein phase function $p_M(\theta, g)$
+- [~] Task: Implement `src/engine/offline/volumetricMedium.ts` to pass scattering tests
   - [ ] Implement homogeneous/heterogeneous medium properties ($\sigma_a, \sigma_s, \sigma_t, g$)
   - [ ] Implement collision sampling and scattering direction perturbation routines
 - [ ] Task: Phase Verification & Checkpoint (Refer to workflow.md)
