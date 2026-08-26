@@ -65,7 +65,7 @@
   - [x] Implement browser file download triggers
 - [x] Task: Phase Verification & Checkpoint (Refer to workflow.md) [93893d7]
 
-## Phase 5: Production Render UI Dock, Modal & End-to-End Integration
+## Phase 5: Production Render UI Dock, Modal & End-to-End Integration [checkpoint: 57f09ad]
 - [x] Task: Implement `src/ui/RenderModal.svelte` [9d4ea74]
   - [x] Build modal overlay with progressive canvas preview
   - [x] Display live statistics (samples count, photons dispatched, samples/sec, elapsed time)
@@ -73,7 +73,7 @@
 - [x] Task: Integrate "Render" action into `src/ui/Dock.svelte` and coordinate render worker lifecycle with main `App.svelte` / `engine.ts` [46ebe14]
   - [x] Add Render button with keyboard shortcut and tooltips to Dock
   - [x] Hook into scene freeze and launch `RenderModal`
-- [~] Task: Write end-to-end integration tests for render worker lifecycle, snapshot transfer, progressive frame accumulation, and HDR export (`tests/offline/offlineRendererIntegration.test.ts`)
-  - [ ] Test complete workflow from scene snapshot through progressive Monte Carlo accumulation to `.hdr` output
-  - [ ] Verify non-blocking UI behavior and memory leak prevention during high-sample rendering
-- [ ] Task: Phase Verification & Checkpoint (Refer to workflow.md)
+- [x] Task: Write end-to-end integration tests for render worker lifecycle, snapshot transfer, progressive frame accumulation, and HDR export (`tests/offline/offlineRendererIntegration.test.ts`) [57f09ad]
+  - [x] Test complete workflow from scene snapshot through progressive Monte Carlo accumulation to `.hdr` output
+  - [x] Verify non-blocking UI behavior and memory leak prevention during high-sample rendering
+- [x] Task: Phase Verification & Checkpoint (Refer to workflow.md) [57f09ad]
