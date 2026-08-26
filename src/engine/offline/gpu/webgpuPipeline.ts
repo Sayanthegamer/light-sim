@@ -173,7 +173,7 @@ fn intersectRaySegment(origin: vec2<f32>, dir: vec2<f32>, seg: SegmentPrimitive)
   let t = (d.x * segDir.y - d.y * segDir.x) / denom;
   let u = (d.x * dir.y - d.y * dir.x) / denom;
 
-  if (t > 0.01 && u >= 0.0 && u <= 1.0) {
+  if (t > 1e-4 && u >= 0.0 && u <= 1.0) {
     hit.hit = true;
     hit.t = t;
     let n = normalize(vec2<f32>(-segDir.y, segDir.x));
@@ -212,11 +212,11 @@ fn intersectRayArc(origin: vec2<f32>, dir: vec2<f32>, arc: ArcPrimitive) -> HitI
 
   let sqrtDisc = sqrt(disc);
   var t = -b - sqrtDisc;
-  if (t < 0.01) {
+  if (t < 1e-4) {
     t = -b + sqrtDisc;
   }
 
-  if (t > 0.01) {
+  if (t > 1e-4) {
     let p = origin + dir * t;
     let local = p - arc.center;
     var ang = atan2(local.y, local.x);
@@ -510,7 +510,7 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
 
     if (bestHit.isMirror) {
       curDir = reflect(curDir, bestHit.normal);
-      curPos = curPos + bestHit.normal * 0.05;
+      curPos = curPos + curDir * 0.01;
       bounce = bounce + 1u;
       continue;
     }
@@ -526,7 +526,7 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
     if (sinT2 > 1.0) {
       // Total Internal Reflection (TIR)
       curDir = reflect(curDir, bestHit.normal);
-      curPos = curPos + bestHit.normal * 0.05;
+      curPos = curPos + curDir * 0.01;
     } else {
       let cosT = sqrt(1.0 - sinT2);
       let rPerp = (n1 * cosI - n2 * cosT) / (n1 * cosI + n2 * cosT);
@@ -536,10 +536,10 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
       let xi = pcg32_next(&rng);
       if (xi < R) {
         curDir = reflect(curDir, bestHit.normal);
-        curPos = curPos + bestHit.normal * 0.05;
+        curPos = curPos + curDir * 0.01;
       } else {
         curDir = normalize(eta * curDir + (eta * cosI - cosT) * bestHit.normal);
-        curPos = curPos - bestHit.normal * 0.05;
+        curPos = curPos + curDir * 0.01;
       }
     }
 
