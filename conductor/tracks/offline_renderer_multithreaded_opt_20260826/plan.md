@@ -1,0 +1,21 @@
+# Implementation Plan: Offline Renderer Multi-Threaded Worker Pool & Zero-Allocation Path Tracer
+
+## Phase 1: Zero-Allocation Scene Primitive Hoisting & Transport Kernel Refactor
+- [ ] Task: Write failing unit tests for one-time primitive precomputation and zero-allocation photon tracing
+- [ ] Task: Refactor `tracePhotonPath` signature to accept pre-extracted `Segment2D[]` and `Arc2D[]` primitives
+- [ ] Task: Hoist `extractScenePrimitives()` in `renderWorker.ts` on job start and cache Sellmeier/Cauchy indices
+- [ ] Task: Update existing offline test suite to use pre-extracted primitives
+- [ ] Task: Phase Verification & Checkpoint (Refer to workflow.md)
+
+## Phase 2: Multi-Threaded Worker Pool Architecture (`RenderDispatcher`)
+- [ ] Task: Write failing unit tests for multi-worker lifecycle dispatching and thread concurrency splitting
+- [ ] Task: Implement multi-threaded Web Worker pool in `RenderDispatcher.ts` with `navigator.hardwareConcurrency` auto-detection
+- [ ] Task: Implement thread-safe progressive buffer summation and sample aggregation in `RenderDispatcher.ts`
+- [ ] Task: Ensure robust multi-worker synchronization on `PAUSE`, `RESUME`, `CANCEL`, and `COMPLETE`
+- [ ] Task: Phase Verification & Checkpoint (Refer to workflow.md)
+
+## Phase 3: UI Thread Selection, Aggregated Progress Metrics & End-to-End Verification
+- [ ] Task: Write unit and integration tests for thread count configuration and multi-thread progress metrics
+- [ ] Task: Update `RenderModal.svelte` with Thread Count selector (Auto / 2 / 4 / 8 / 16 / 32) and multi-threaded metrics
+- [ ] Task: Execute end-to-end multi-threaded render benchmark verifying linear multi-core speedup and HDR export parity
+- [ ] Task: Phase Verification & Checkpoint (Refer to workflow.md)
