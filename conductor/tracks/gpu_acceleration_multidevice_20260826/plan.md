@@ -7,9 +7,9 @@ Implement a high-throughput WebGPU Compute-to-Raster photon transport accelerati
 
 ## Phase 1: WebGPU Foundation, Multi-SSBO Layouts & Minimal Kernel Prototype
 
-- [ ] Task: Implement WebGPU device initialization (`navigator.gpu`), feature detection, and context fallback handling
-    - [ ] Create `src/engine/offline/gpu/webgpuContext.ts` with device request, loss handlers, and capability checks
-    - [ ] Write unit tests for WebGPU capability detection and mock fallback initialization
+- [x] Task: Implement WebGPU device initialization (`navigator.gpu`), feature detection, and context fallback handling [ae550c2]
+    - [x] Create `src/engine/offline/gpu/webgpuContext.ts` with device request, loss handlers, and capability checks
+    - [x] Write unit tests for WebGPU capability detection and mock fallback initialization
 - [ ] Task: Implement TypeScript encoders for `BVHNode`, `SegmentPrimitive`, `ArcPrimitive`, and `BlackHolePrimitive` with byte-exact stride tests
     - [ ] Create `src/engine/offline/gpu/gpuPrimitiveLayout.ts` defining binary structures and typed array packing
     - [ ] Write unit tests verifying byte offsets, struct sizes, and field alignments against WGSL specs
