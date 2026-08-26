@@ -29,6 +29,15 @@ To ensure 100% WGSL spec compliance and avoid raw-pointer bitcasting hacks or `a
 - A balanced 2D Bounding Volume Hierarchy built on CPU organizes all geometric primitives.
 - Shader uses an 8-element private short-stack (`array<u32, 8>`) for $O(\log N)$ spatial traversal, consuming only 8 registers per thread and maximizing warp occupancy.
 
+### 2.5 Epoch-Based GPU Sub-Accumulation with Welford Host Consolidation
+- **Zero Mantissa Plateauing:** GPU VRAM accumulates micro-batches in epochs of 500 passes in native `rgba32float` / `rgba16float` targets.
+- **Asynchronous Host Merge:** Host merges epoch buffers asynchronously into a 64-bit precision accumulator using Welford's running mean formula ($\bar{X}_k = \bar{X}_{k-1} + \frac{X_{\text{epoch}} - \bar{X}_{k-1}}{k}$), completely eliminating floating-point quantization walls during multi-hour renders.
+- **Zero PCIe Stall:** Buffer reads occur every ~2 seconds with 0% frame stutter.
+
+### 2.6 Sparse 1:1 Fixed-Index Continuation Array
+- Chaotic strong-field geodesic states $(\mathbf{x}, \mathbf{v}, \lambda, E)$ that exhaust micro-batch budgets are saved into a dedicated slot `continuation[photonIdx]` without atomic append contention.
+- Subsequent dispatches resume in-flight photons directly, guaranteeing 100% conservation of energy without atomic serialization.
+
 ---
 
 ## 3. Physical Optics & Curvature Scope
@@ -36,7 +45,9 @@ To ensure 100% WGSL spec compliance and avoid raw-pointer bitcasting hacks or `a
 1. **Continuous Spectral Dispersion:** Full visible spectrum ($\lambda \in [380, 780]\text{ nm}$) with analytic CIE 1931 color matching equations in WGSL.
 2. **Geometric Elements:** Polygonal prisms (Cauchy/Sellmeier $A, B$), curved circular lens arcs, planar mirrors, opaque absorbing barriers, and multi-spectral emitters (monochromatic, D65, blackbody, uniform).
 3. **Physical Boundary Solvers:** Snell's law refraction, Cauchy dispersion index calculation, exact Fresnel reflection/transmission coefficients, and Russian Roulette stochastic branching with a bounded bounce limit ($N_{\text{max}} = 32$).
-4. **Schwarzschild Spacetime Curvature:** Numerical RK2 geodesic stepping inside black hole influence zones ($R_{\text{influence}} = 12 r_s$) with gravitational redshift $(1+z) = (1 - r_s/r)^{-1/2}$.
+4. **Schwarzschild Spacetime Curvature:**
+   - **Weak-Field ($r > 3 r_s$):** Analytic closed-form Einstein deflection ($\Delta \theta = 2 r_s / b$) in $O(1)$ constant time.
+   - **Strong-Field ($r \le 3 r_s$):** Numerical RK2 geodesic stepping with dynamic sub-steps and gravitational redshift $(1+z) = (1 - r_s/r)^{-1/2}$.
 
 ---
 
@@ -52,7 +63,7 @@ To ensure 100% WGSL spec compliance and avoid raw-pointer bitcasting hacks or `a
    - Resilient error handling for context loss and fallback detection.
 3. **`CpuWorkerDispatcher`:**
    - Multi-threaded Web Worker pool preserved for baseline reference rendering and non-WebGPU environments.
-4. **`RenderDispatcher`:**
+4. **`RenderDispatcher` / `MultiDeviceDispatcher`:**
    - Top-level manager facilitating seamless backend selection (`GPU` vs `CPU` vs `Auto`).
 
 ---
@@ -61,9 +72,9 @@ To ensure 100% WGSL spec compliance and avoid raw-pointer bitcasting hacks or `a
 
 - **Device Selector Dropdown:** `[ GPU (WebGPU Accelerator) | CPU (Multi-Worker Pool) | Auto ]`.
 - **Dynamic Context Controls:**
-  - When GPU is selected: Batch Size / Workload Slider (`10k`, `25k`, `50k`, `100k`, `250k` photons/batch).
-  - When CPU is selected: Thread Count Selector (`1T`, `2T`, `4T`, `8T`, `Auto`).
-- **Telemetry Readouts:** Live MPhotons/sec, Workgroup Pass count, and Hardware device badge.
+   - When GPU is selected: Batch Size / Workload Slider (`10k`, `25k`, `50k`, `100k`, `250k` photons/batch).
+   - When CPU is selected: Thread Count Selector (`1T`, `2T`, `4T`, `8T`, `Auto`).
+- **Telemetry Readouts:** Live MPhotons/sec, Workgroup Pass count, Hardware device badge (`WebGPU Compute` vs `CPU (N Threads)`), and asymptotic convergence detector ($\Delta \sigma^2$).
 - **Unified Export:** 32-bit Radiance `.hdr` and `.png` export compatibility across all backends.
 
 ---
