@@ -1,7 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import {
-  WebGpuComputeDispatcher,
-  type DispatcherState
+  WebGpuComputeDispatcher
 } from '../../src/engine/offline/gpu/webgpuComputeDispatcher';
 import { type IOfflineRenderJob } from '../../src/engine/offline/sceneSnapshot';
 import { WebGpuContext } from '../../src/engine/offline/gpu/webgpuContext';
@@ -63,7 +62,10 @@ describe('WebGPU Compute Dispatcher & Lifecycle State Machine', () => {
       config: {
         targetSamples: 5,
         batchPhotons: 1000,
-        volumetricInScatter: false
+        volumetricInScatter: false,
+        maxBounces: 32,
+        russianRouletteThreshold: 0.1,
+        whitePoint: 4.0
       }
     };
 
@@ -106,7 +108,10 @@ describe('WebGPU Compute Dispatcher & Lifecycle State Machine', () => {
       config: {
         targetSamples: 100,
         batchPhotons: 1000,
-        volumetricInScatter: false
+        volumetricInScatter: false,
+        maxBounces: 32,
+        russianRouletteThreshold: 0.1,
+        whitePoint: 4.0
       }
     };
 
@@ -132,7 +137,14 @@ describe('WebGPU Compute Dispatcher & Lifecycle State Machine', () => {
       width: 100,
       height: 100,
       scene: { bounds: { minX: 0, minY: 0, maxX: 100, maxY: 100 }, emitters: [], prisms: [], lenses: [], barriers: [], blackHoles: [] },
-      config: { targetSamples: 10, batchPhotons: 1000, volumetricInScatter: false }
+      config: {
+        targetSamples: 10,
+        batchPhotons: 1000,
+        volumetricInScatter: false,
+        maxBounces: 32,
+        russianRouletteThreshold: 0.1,
+        whitePoint: 4.0
+      }
     };
 
     failingDispatcher.start(job, vi.fn(), vi.fn(), onError);

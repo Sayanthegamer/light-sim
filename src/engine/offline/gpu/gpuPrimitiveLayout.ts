@@ -251,10 +251,11 @@ export function packSceneBuffers(
 
     for (let j = 0; j < l.arcs.length; j++) {
       const a = l.arcs[j];
+      const arcGlass = (a as any).nGlass ?? (a as any).nInside ?? nGlass;
       arcs.push({
         center: a.center,
         radius: a.radius,
-        nGlass: a.nGlass ?? nGlass,
+        nGlass: arcGlass,
         startAngle: a.startAngle,
         endAngle: a.endAngle,
         cauchyA: a.cauchyA ?? cauchyA,

@@ -220,4 +220,8 @@ export class RenderDispatcher {
     this.onProgress = null;
     this.onComplete = null;
   }
+
+  destroy(): void {
+    this.cancel();
+  }
 }

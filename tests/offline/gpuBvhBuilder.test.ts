@@ -92,7 +92,7 @@ describe('GPU 2D Bounding Volume Hierarchy (BVH) Builder', () => {
       lenses: [
         {
           id: 3,
-          arcs: [{ center: { x: 400, y: 300 }, radius: 50, startAngle: 0, endAngle: 3.14 }]
+          arcs: [{ id: 3, center: { x: 400, y: 300 }, radius: 50, startAngle: 0, endAngle: 3.14, nInside: 1.5, nOutside: 1.0 }]
         }
       ],
       barriers: [{ id: 4, p1: { x: 500, y: 50 }, p2: { x: 500, y: 400 }, isMirror: true }],

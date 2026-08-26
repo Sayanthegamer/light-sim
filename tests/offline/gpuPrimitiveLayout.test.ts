@@ -233,11 +233,13 @@ describe('GPU Primitive Binary Layout & Alignment', () => {
           id: 3,
           arcs: [
             {
+              id: 3,
               center: { x: 500, y: 300 },
               radius: 60,
               startAngle: -1,
               endAngle: 1,
-              nGlass: 1.55,
+              nInside: 1.55,
+              nOutside: 1.0,
               cauchyA: 1.54,
               cauchyB: 4500
             }

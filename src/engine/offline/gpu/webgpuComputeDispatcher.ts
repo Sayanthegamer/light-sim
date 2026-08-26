@@ -9,11 +9,11 @@ import { WebGpuContext, initWebGpuContext } from './webgpuContext';
 import { GpuPipelineManager } from './webgpuPipeline';
 import { GpuAccumulator } from './gpuAccumulator';
 import { type IOfflineRenderJob } from '../sceneSnapshot';
-import { type IPhotonProgress } from '../renderDispatcher';
+import { type IDeviceProgress } from '../deviceDispatcher';
 
 export type DispatcherState = 'IDLE' | 'RUNNING' | 'PAUSED' | 'COMPLETE' | 'CANCELLED' | 'ERROR';
 
-export type ProgressCallback = (progress: IPhotonProgress) => void;
+export type ProgressCallback = (progress: IDeviceProgress) => void;
 export type CompleteCallback = (
   buffer: Float32Array,
   sampleCountMap: Uint32Array,

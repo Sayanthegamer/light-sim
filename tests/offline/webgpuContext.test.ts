@@ -2,8 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
   isWebGpuSupported,
   initWebGpuContext,
-  WebGpuContext,
-  type IWebGpuCapabilities
+  WebGpuContext
 } from '../../src/engine/offline/gpu/webgpuContext';
 
 describe('WebGPU Context & Capability Management', () => {

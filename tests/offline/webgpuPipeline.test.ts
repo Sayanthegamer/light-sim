@@ -1,7 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
 import {
-  createWebGpuRenderPipeline,
-  createWebGpuComputePipeline,
   PHOTON_TRANSPORT_WGSL,
   CLIP_RASTER_WGSL,
   GpuPipelineManager

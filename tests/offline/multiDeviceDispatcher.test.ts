@@ -1,8 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import {
   MultiDeviceDispatcher,
-  type IDeviceDispatcher,
-  type IDeviceProgress
+  type IDeviceDispatcher
 } from '../../src/engine/offline/multiDeviceManager';
 import { type IOfflineRenderJob } from '../../src/engine/offline/sceneSnapshot';
 
@@ -25,7 +24,10 @@ describe('MultiDeviceDispatcher & Dynamic Fallback Orchestration', () => {
       config: {
         targetSamples: 10,
         batchPhotons: 1000,
-        volumetricInScatter: false
+        volumetricInScatter: false,
+        maxBounces: 32,
+        russianRouletteThreshold: 0.1,
+        whitePoint: 4.0
       }
     };
   });

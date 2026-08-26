@@ -7,12 +7,13 @@
     Download,
     FileImage,
     Sparkles,
-    Cpu
+    Cpu,
+    Zap
   } from '@lucide/svelte';
   import { SceneGraph } from '../engine/scene/sceneGraph';
   import { freezeSceneSnapshot, type IOfflineRenderJob } from '../engine/offline/sceneSnapshot';
   import { AccumulationTarget } from '../engine/offline/accumulationTarget';
-  import { RenderDispatcher } from '../engine/offline/renderDispatcher';
+  import { MultiDeviceDispatcher, type DeviceType } from '../engine/offline/multiDeviceManager';
   import { exportHDRBlob, downloadBlob, exportCanvasPNG } from '../engine/offline/hdrExporter';
 
   let {
@@ -28,11 +29,13 @@
   } = $props();
 
   let previewCanvas: HTMLCanvasElement;
-  let dispatcher = $state<RenderDispatcher | null>(null);
+  let dispatcher = $state<MultiDeviceDispatcher | null>(null);
   let target = $state<AccumulationTarget | null>(null);
 
   // Render State
   const hardwareConcurrency = typeof navigator !== 'undefined' && navigator.hardwareConcurrency ? navigator.hardwareConcurrency : 4;
+  let computeDevice = $state<DeviceType>('auto');
+  let activeDevice = $state<DeviceType>('gpu');
   let threadCount = $state<number>(0); // 0 = Auto
   let isPaused = $state(false);
   let isComplete = $state(false);
@@ -68,12 +71,12 @@
     if (!sceneGraph) return;
 
     target = new AccumulationTarget(renderWidth, renderHeight);
-    dispatcher = new RenderDispatcher();
+    dispatcher = new MultiDeviceDispatcher();
 
     const activeThreads = threadCount === 0 ? hardwareConcurrency : threadCount;
     const job: IOfflineRenderJob = freezeSceneSnapshot(sceneGraph, renderWidth, renderHeight, {
       targetSamples: targetPasses,
-      batchPhotons: 25000,
+      batchPhotons: 50000,
       volumetricInScatter: true,
       threadCount: activeThreads
     });
@@ -85,12 +88,14 @@
 
     dispatcher.start(
       job,
+      computeDevice,
       (progress) => {
         passCount = progress.pass;
-        totalPhotons = progress.totalPhotons;
-        samplesPerSec = progress.samplesPerSec;
+        totalPhotons = progress.photonsEmitted;
+        samplesPerSec = progress.photonsPerSec;
         elapsedMs = progress.elapsedMs;
-        latestBuffer = progress.buffer;
+        latestBuffer = progress.renderedBuffer;
+        if (progress.device) activeDevice = progress.device;
         updatePreview();
       },
       (buffer, _sampleCountMap, finalElapsedMs) => {
@@ -197,14 +202,19 @@
       </div>
 
       <div class="flex items-center gap-4 text-[11px]">
-        <div class="flex items-center gap-1.5 text-zinc-300">
-          <Cpu class="w-3 h-3 text-amber-400" />
-          <span>{dispatcher?.getWorkerCount() || (threadCount === 0 ? hardwareConcurrency : threadCount)} Threads</span>
+        <div class="flex items-center gap-1.5 {activeDevice === 'gpu' ? 'text-cyan-300' : 'text-amber-300'} bg-matte-850 px-2 py-0.5 rounded border border-matte-800">
+          {#if activeDevice === 'gpu'}
+            <Zap class="w-3 h-3 text-cyan-400 fill-cyan-400" />
+            <span>WebGPU Compute</span>
+          {:else}
+            <Cpu class="w-3 h-3 text-amber-400" />
+            <span>CPU ({threadCount === 0 ? hardwareConcurrency : threadCount}T)</span>
+          {/if}
         </div>
         <span class="text-zinc-700">|</span>
         <span>{(totalPhotons / 1e6).toFixed(2)}M Photons</span>
         <span class="text-zinc-700">|</span>
-        <span>{(samplesPerSec / 1000).toFixed(1)}k samp/s</span>
+        <span>{(samplesPerSec / 1e6).toFixed(2)}M Photons/s</span>
         <span class="text-zinc-700">|</span>
         <span>{(elapsedMs / 1000).toFixed(1)}s</span>
       </div>
@@ -212,7 +222,7 @@
 
     <!-- Controls & Actions Toolbar -->
     <div class="px-5 py-3 bg-matte-900 flex items-center justify-between gap-4">
-      <!-- Left: Pause / Resume -->
+      <!-- Left: Pause / Resume / Device Selection -->
       <div class="flex items-center gap-2">
         <button
           type="button"
@@ -230,21 +240,36 @@
         </button>
 
         <div class="flex items-center gap-1.5 text-xs font-mono ml-2">
-          <span class="text-zinc-400">Threads:</span>
+          <span class="text-zinc-400">Device:</span>
           <select
-            bind:value={threadCount}
+            bind:value={computeDevice}
             onchange={restartRender}
             class="bg-matte-850 border border-matte-800 text-zinc-200 text-xs rounded px-2 py-1 outline-none font-mono cursor-pointer"
           >
-            <option value={0}>Auto ({hardwareConcurrency}T)</option>
-            <option value={1}>1 Thread</option>
-            <option value={2}>2 Threads</option>
-            <option value={4}>4 Threads</option>
-            <option value={8}>8 Threads</option>
-            <option value={16}>16 Threads</option>
-            <option value={32}>32 Threads</option>
+            <option value="auto">Auto (GPU Preferred)</option>
+            <option value="gpu">WebGPU Compute</option>
+            <option value="cpu">Multi-Threaded CPU</option>
           </select>
         </div>
+
+        {#if computeDevice === 'cpu'}
+          <div class="flex items-center gap-1.5 text-xs font-mono ml-2">
+            <span class="text-zinc-400">Threads:</span>
+            <select
+              bind:value={threadCount}
+              onchange={restartRender}
+              class="bg-matte-850 border border-matte-800 text-zinc-200 text-xs rounded px-2 py-1 outline-none font-mono cursor-pointer"
+            >
+              <option value={0}>Auto ({hardwareConcurrency}T)</option>
+              <option value={1}>1 Thread</option>
+              <option value={2}>2 Threads</option>
+              <option value={4}>4 Threads</option>
+              <option value={8}>8 Threads</option>
+              <option value={16}>16 Threads</option>
+              <option value={32}>32 Threads</option>
+            </select>
+          </div>
+        {/if}
       </div>
 
       <!-- Center: Real-time Tonemap & Exposure -->

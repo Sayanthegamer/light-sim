@@ -7,7 +7,6 @@
 
 import {
   type IDeviceDispatcher,
-  type IDeviceProgress,
   type DeviceType,
   type DeviceProgressCallback,
   type DeviceCompleteCallback,
@@ -151,13 +150,13 @@ export class CpuWorkerAdapter implements IDeviceDispatcher {
       job,
       (p) => {
         onProgress({
-          jobId: p.jobId,
+          jobId: job.jobId,
           pass: p.pass,
-          totalPasses: p.totalPasses,
+          totalPasses: job.config.targetSamples,
           photonsEmitted: p.totalPhotons,
           photonsPerSec: p.samplesPerSec,
           elapsedMs: p.elapsedMs,
-          renderedBuffer: p.renderedBuffer,
+          renderedBuffer: p.buffer,
           sampleCountMap: p.sampleCountMap,
           device: 'cpu'
         });
