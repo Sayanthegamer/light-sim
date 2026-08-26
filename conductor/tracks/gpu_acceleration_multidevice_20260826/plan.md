@@ -16,9 +16,9 @@ Implement a high-throughput WebGPU Compute-to-Raster photon transport accelerati
 - [x] Task: Implement 8-element short-stack 2D BVH builder on CPU for scene geometry [c50fc5f]
     - [x] Create `src/engine/offline/gpu/gpuBvhBuilder.ts` to construct balanced bounding hierarchies from scene snapshots
     - [x] Write unit tests verifying AABB containment, leaf indexing, and max depth bounds
-- [ ] Task: Build minimal WGSL Compute & Hardware Clip-Culling prototype with adaptive micro-batch pacing
-    - [ ] Create `src/engine/offline/gpu/shaders/photonTransport.wgsl` and `clipRaster.wgsl`
-    - [ ] Write test harness verifying pipeline creation, bind group creation, and dispatch execution
+- [x] Task: Build minimal WGSL Compute & Hardware Clip-Culling prototype with adaptive micro-batch pacing [61b4cd8]
+    - [x] Create `src/engine/offline/gpu/shaders/photonTransport.wgsl` and `clipRaster.wgsl`
+    - [x] Write test harness verifying pipeline creation, bind group creation, and dispatch execution
 - [ ] Task: Phase Verification & Checkpoint (Refer to workflow.md)
 
 ---
