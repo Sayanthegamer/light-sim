@@ -5,7 +5,7 @@ Implement a high-throughput WebGPU Compute-to-Raster photon transport accelerati
 
 ---
 
-## Phase 1: WebGPU Foundation, Multi-SSBO Layouts & Minimal Kernel Prototype
+## Phase 1: WebGPU Foundation, Multi-SSBO Layouts & Minimal Kernel Prototype [checkpoint: a9458da]
 
 - [x] Task: Implement WebGPU device initialization (`navigator.gpu`), feature detection, and context fallback handling [ae550c2]
     - [x] Create `src/engine/offline/gpu/webgpuContext.ts` with device request, loss handlers, and capability checks
@@ -19,7 +19,7 @@ Implement a high-throughput WebGPU Compute-to-Raster photon transport accelerati
 - [x] Task: Build minimal WGSL Compute & Hardware Clip-Culling prototype with adaptive micro-batch pacing [61b4cd8]
     - [x] Create `src/engine/offline/gpu/shaders/photonTransport.wgsl` and `clipRaster.wgsl`
     - [x] Write test harness verifying pipeline creation, bind group creation, and dispatch execution
-- [ ] Task: Phase Verification & Checkpoint (Refer to workflow.md)
+- [x] Task: Phase Verification & Checkpoint (Refer to workflow.md) [a9458da]
 
 ---
 
