@@ -93,3 +93,15 @@ Implement a high-throughput WebGPU Compute-to-Raster photon transport accelerati
     - [x] Create test suite in `tests/offline/epochAccumulator.test.ts` verifying zero mantissa underflow across thousands of passes
     - [x] Implement Welford running mean host consolidation ($\bar{X}_k = \bar{X}_{k-1} + \frac{X_{\text{epoch}} - \bar{X}_{k-1}}{k}$) and variance delta calculation in `webgpuComputeDispatcher.ts`
 - [x] Task: Phase Verification & Checkpoint (Refer to workflow.md) [512cca0]
+
+---
+
+## Phase 7: $C^\infty$ Relativistic Curvature Continuum & 4K Zero-GC Memory Budgeting
+
+- [ ] Task: Shift Schwarzschild integration threshold to $8 r_s$ with adaptive radial step sizing ($\Delta t \propto r$) in WGSL to eliminate $C^1$ boundary seams
+    - [ ] Update `tests/offline/relativisticAsymptotics.test.ts` to test $8 r_s$ threshold and continuous geodesic deflection
+    - [ ] Update `evaluateBlackHoleInteraction` in `webgpuPipeline.ts`
+- [ ] Task: Implement in-place zero-GC Welford mutation and strided variance telemetry sampling ($S = 64$) for 4K resolutions in `webgpuComputeDispatcher.ts`
+    - [ ] Create/update unit tests in `tests/offline/epochAccumulator.test.ts` testing in-place mutation and strided sampling
+    - [ ] Update `webgpuComputeDispatcher.ts` with static pre-allocated buffer mutation and strided variance calculation
+- [ ] Task: Phase Verification & Checkpoint (Refer to workflow.md)
