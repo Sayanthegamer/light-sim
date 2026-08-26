@@ -417,7 +417,9 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
   let maxBounces = u32(config.params.y);
   let baseVertexIdx = photonIdx * maxBounces * 2u;
 
-  var rng = pcg32_init(photonIdx, u32(config.params.x) + u32(config.params.w) * 9781u + photonIdx * 17u);
+  let passSeed = u32(config.params.w);
+  let baseSeed = u32(config.params.x);
+  var rng = pcg32_init(photonIdx ^ (passSeed * 10007u), baseSeed + passSeed * 9781u + photonIdx * 65537u);
 
   // 1. Pick Emitter & Sample Initial State
   let emIdx = u32(pcg32_next(&rng) * f32(config.emitterCount)) % config.emitterCount;
@@ -652,7 +654,8 @@ export class GpuPipelineManager {
   updatePassSeed(passIndex: number): void {
     if (this.buffers.uniform) {
       // Offset 44 bytes = float index 11 (config.params.w)
-      const passSeed = passIndex ^ (Math.floor(Math.random() * 0xffffffff));
+      // Use positive 23-bit integer to guarantee exact precision in Float32 mantissa and non-negative u32 in WGSL
+      const passSeed = ((passIndex * 1664525 + 1013904223) ^ Math.floor(Math.random() * 0x7fffff)) & 0x7fffff;
       this.device.queue.writeBuffer(
         this.buffers.uniform,
         44,
