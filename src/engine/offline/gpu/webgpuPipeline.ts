@@ -469,19 +469,6 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
       bestHit.hit = false;
     }
 
-    // Volumetric in-scattering check (homogeneous participating medium)
-    let sigmaT = 0.0025;
-    let albedo = 0.8;
-    let g = 0.25;
-
-    let xiScatter = pcg32_next(&rng);
-    let scatterDist = -log(max(1e-7, 1.0 - xiScatter)) / sigmaT;
-    var didScatter = false;
-    if (scatterDist < closestT) {
-      closestT = scatterDist;
-      didScatter = true;
-    }
-
     let straightNextPos = curPos + curDir * closestT;
     var nextPos = straightNextPos;
     var nextDir = curDir;
@@ -498,29 +485,6 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
 
     curPos = nextPos;
     curDir = nextDir;
-
-    if (didScatter) {
-      // Photon scattered inside volumetric medium (Henyey-Greenstein)
-      let xiTheta = pcg32_next(&rng);
-      let sq = (1.0 - g * g) / (1.0 - g + 2.0 * g * xiTheta);
-      let cosTheta = clamp((1.0 + g * g - sq * sq) / (2.0 * g), -1.0, 1.0);
-      let sinTheta = sqrt(max(0.0, 1.0 - cosTheta * cosTheta)) * select(-1.0, 1.0, pcg32_next(&rng) > 0.5);
-
-      let newX = curDir.x * cosTheta - curDir.y * sinTheta;
-      let newY = curDir.x * sinTheta + curDir.y * cosTheta;
-      curDir = normalize(vec2<f32>(newX, newY));
-      energy = energy * albedo;
-      bounce = bounce + 1u;
-
-      if (energy < 0.2) {
-        if (pcg32_next(&rng) > energy * 5.0) {
-          energy = 0.0;
-          break;
-        }
-        energy = 0.2;
-      }
-      continue;
-    }
 
     if (length(curDir) < 0.1) {
       // Absorbed by event horizon
