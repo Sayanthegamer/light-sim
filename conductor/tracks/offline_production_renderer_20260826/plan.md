@@ -1,6 +1,6 @@
 # Implementation Plan: Dedicated "Cycles-Style" Offline Production Renderer
 
-## Phase 1: Spectral & Material Physics Foundation
+## Phase 1: Spectral & Material Physics Foundation [checkpoint: e5c7d2a]
 - [x] Task: Write failing unit tests for continuous Planck spectral emission, CIE 1931 XYZ integration, and Sellmeier glass dispersion equations (`tests/offline/spectralSampler.test.ts`) [8adfdb3]
   - [x] Test Planck blackbody radiation curve sampling across temperature ranges
   - [x] Test continuous wavelength $\lambda \sim [380, 780]\text{ nm}$ mapping to CIE 1931 XYZ tristimulus integrals
@@ -13,13 +13,13 @@
   - [x] Test exponential free-flight distance sampling $s = -\ln(1-\xi)/\sigma_t$
   - [x] Test normalization and angular distribution of Rayleigh phase function $p_R(\theta)$
   - [x] Test forward/backward anisotropy in Henyey-Greenstein phase function $p_M(\theta, g)$
-- [~] Task: Implement `src/engine/offline/volumetricMedium.ts` to pass scattering tests
-  - [ ] Implement homogeneous/heterogeneous medium properties ($\sigma_a, \sigma_s, \sigma_t, g$)
-  - [ ] Implement collision sampling and scattering direction perturbation routines
-- [ ] Task: Phase Verification & Checkpoint (Refer to workflow.md)
+- [x] Task: Implement `src/engine/offline/volumetricMedium.ts` to pass scattering tests [e5c7d2a]
+  - [x] Implement homogeneous/heterogeneous medium properties ($\sigma_a, \sigma_s, \sigma_t, g$)
+  - [x] Implement collision sampling and scattering direction perturbation routines
+- [x] Task: Phase Verification & Checkpoint (Refer to workflow.md) [e5c7d2a]
 
 ## Phase 2: Wave Optics & Adaptive Geodesic Integrator
-- [ ] Task: Write failing unit tests for wave phase tracking, Huygens-Fresnel secondary wavelet generation, and slit interference (`tests/offline/waveOptics.test.ts`)
+- [~] Task: Write failing unit tests for wave phase tracking, Huygens-Fresnel secondary wavelet generation, and slit interference (`tests/offline/waveOptics.test.ts`)
   - [ ] Test complex wave phase $\phi = \vec{k}\cdot\vec{r} - \omega t$ propagation
   - [ ] Test aperture discretization into secondary Huygens-Fresnel wavelet arrays
   - [ ] Test electric field superposition $\tilde{E} = \sum E_k e^{i\phi_k}$ producing double-slit and Airy disc intensity profiles
