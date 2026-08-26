@@ -54,10 +54,10 @@
 - [x] Task: Write failing unit tests for scene snapshot serialization / freeze protocol for offline render context (`tests/offline/sceneSnapshot.test.ts`) [dd1b81a]
   - [x] Test deep freezing of scene graph state into clean immutable transfer payload
   - [x] Test reconstruction of optical boundary primitives inside worker environment
-- [~] Task: Implement `src/engine/offline/sceneSnapshot.ts` and background worker dispatcher `src/engine/offline/renderWorker.ts`
-  - [ ] Implement Web Worker entry point with chunked tile/photon packet processing
-  - [ ] Implement main-thread worker dispatcher with transferable ArrayBuffer streaming
-- [ ] Task: Write failing unit tests for Radiance 32-bit `.hdr` binary encoder and HDR/PNG export pipeline (`tests/offline/hdrExporter.test.ts`)
+- [x] Task: Implement `src/engine/offline/sceneSnapshot.ts` and background worker dispatcher `src/engine/offline/renderWorker.ts` [9bdc90b]
+  - [x] Implement Web Worker entry point with chunked tile/photon packet processing
+  - [x] Implement main-thread worker dispatcher with transferable ArrayBuffer streaming
+- [~] Task: Write failing unit tests for Radiance 32-bit `.hdr` binary encoder and HDR/PNG export pipeline (`tests/offline/hdrExporter.test.ts`)
   - [ ] Test Radiance `.hdr` (RGBE 32-bit) format encoding and header specification
   - [ ] Test export data URL / Blob generation for PNG and HDR downloads
 - [ ] Task: Implement `src/engine/offline/hdrExporter.ts`
