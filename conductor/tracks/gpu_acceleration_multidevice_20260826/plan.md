@@ -42,14 +42,14 @@ Implement a high-throughput WebGPU Compute-to-Raster photon transport accelerati
 
 ## Phase 3: Concrete WebGpuComputeDispatcher & Resilient Lifecycle
 
-- [ ] Task: Implement `WebGpuComputeDispatcher` with concrete progress reporting, adaptive micro-batch pacing, and cancellation/pause lifecycle
-    - [ ] Create `src/engine/offline/gpu/webgpuComputeDispatcher.ts` implementing `start`, `pause`, `resume`, `cancel`
-    - [ ] Implement live throughput calculation (MPhotons/sec, pass count, elapsed time)
-- [ ] Task: Implement robust error recovery for WebGPU device loss, out-of-memory, and shader compilation failures
-    - [ ] Handle asynchronous device loss events and clean buffer teardown
-    - [ ] Implement fallback notification triggering CPU worker fallback if GPU execution fails
-- [ ] Task: Write unit tests covering dispatcher state machines, buffer cleanup, and progress aggregation
-    - [ ] Test lifecycle states (`IDLE`, `RUNNING`, `PAUSED`, `COMPLETE`, `CANCELLED`)
+- [x] Task: Implement `WebGpuComputeDispatcher` with concrete progress reporting, adaptive micro-batch pacing, and cancellation/pause lifecycle [d1177cd]
+    - [x] Create `src/engine/offline/gpu/webgpuComputeDispatcher.ts` implementing `start`, `pause`, `resume`, `cancel`
+    - [x] Implement live throughput calculation (MPhotons/sec, pass count, elapsed time)
+- [x] Task: Implement robust error recovery for WebGPU device loss, out-of-memory, and shader compilation failures [d1177cd]
+    - [x] Handle asynchronous device loss events and clean buffer teardown
+    - [x] Implement fallback notification triggering CPU worker fallback if GPU execution fails
+- [x] Task: Write unit tests covering dispatcher state machines, buffer cleanup, and progress aggregation [d1177cd]
+    - [x] Test lifecycle states (IDLE, RUNNING, PAUSED, COMPLETE, CANCELLED)
 - [ ] Task: Phase Verification & Checkpoint (Refer to workflow.md)
 
 ---
