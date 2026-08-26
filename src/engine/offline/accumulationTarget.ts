@@ -167,7 +167,7 @@ export class AccumulationTarget {
   /**
    * Merges another full-size accumulation buffer and sample count map into this master target.
    */
-  public mergeBuffer(
+  mergeBuffer(
     otherBuffer: Float32Array,
     otherSampleCounts?: Uint32Array
   ): void {

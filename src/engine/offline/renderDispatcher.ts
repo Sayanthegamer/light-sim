@@ -42,11 +42,17 @@ export class RenderDispatcher {
     this.workerFactory = workerFactory;
   }
 
-  public getWorkerCount(): number {
+  /**
+   * Returns the count of active workers currently spawned in the pool.
+   */
+  getWorkerCount(): number {
     return this.workers.length;
   }
 
-  public start(
+  /**
+   * Spawns worker pool, partitions target sample workload, and starts distributed rendering.
+   */
+  start(
     job: IOfflineRenderJob,
     onProgress: ProgressCallback,
     onComplete: CompleteCallback
@@ -180,19 +186,28 @@ export class RenderDispatcher {
     this.onComplete?.(this.masterTarget.buffer, this.masterTarget.sampleCountMap, elapsedMs);
   }
 
-  public pause(): void {
+  /**
+   * Broadcasts a PAUSE message to all workers in the pool.
+   */
+  pause(): void {
     for (let i = 0; i < this.workers.length; i++) {
       this.workers[i].worker.postMessage({ type: 'PAUSE' });
     }
   }
 
-  public resume(): void {
+  /**
+   * Broadcasts a RESUME message to all workers in the pool.
+   */
+  resume(): void {
     for (let i = 0; i < this.workers.length; i++) {
       this.workers[i].worker.postMessage({ type: 'RESUME' });
     }
   }
 
-  public cancel(): void {
+  /**
+   * Cancels and terminates all running workers in the pool and frees resources.
+   */
+  cancel(): void {
     this.isCancelled = true;
     for (let i = 0; i < this.workers.length; i++) {
       try {

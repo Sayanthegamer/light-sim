@@ -11,6 +11,7 @@ import {
   type Segment2D,
   type Arc2D,
   type HitResult,
+  type Ray2D,
   createHitResult,
   findClosestIntersection
 } from '../geometry/intersections';
@@ -101,6 +102,8 @@ export interface IResolvedScenePrimitives {
 export interface ITracerScratchContext {
   hit: HitResult;
   refrResult: RefractionResult;
+  ray: Ray2D;
+  inDir: IVec2;
 }
 
 export function createTracerScratchContext(): ITracerScratchContext {
@@ -112,7 +115,12 @@ export function createTracerScratchContext(): ITracerScratchContext {
       R: 0,
       T: 0,
       isTIR: false
-    }
+    },
+    ray: {
+      origin: { x: 0, y: 0 },
+      dir: { x: 0, y: 0 }
+    },
+    inDir: { x: 0, y: 0 }
   };
 }
 
@@ -183,8 +191,7 @@ export function extractScenePrimitives(scene: IOfflineSceneGeometry): IResolvedS
 }
 
 /**
- * Traces a continuous spectral photon path through the scene with volumetric scattering,
- * Sellmeier dispersion, and Russian Roulette stochastic termination.
+ * Traces a single photon wave packet through the scene using Russian Roulette Monte Carlo transport.
  */
 export function tracePhotonPath(
   photon: IPhotonState,
@@ -199,14 +206,17 @@ export function tracePhotonPath(
   const segments = precomputed ? precomputed.segments : extractScenePrimitives(scene).segments;
   const arcs = precomputed ? precomputed.arcs : extractScenePrimitives(scene).arcs;
 
-  const hit = options?.scratch ? options.scratch.hit : createHitResult();
-  const refrResult = options?.scratch ? options.scratch.refrResult : {
+  const scratch = options?.scratch;
+  const hit = scratch ? scratch.hit : createHitResult();
+  const refrResult = scratch ? scratch.refrResult : {
     refractedDir: { x: 0, y: 0 },
     reflectedDir: { x: 0, y: 0 },
     R: 0,
     T: 0,
     isTIR: false
   };
+  const scratchRay = scratch ? scratch.ray : { origin: { x: 0, y: 0 }, dir: { x: 0, y: 0 } };
+  const scratchInDir = scratch ? scratch.inDir : { x: 0, y: 0 };
 
   let curX = photon.pos.x;
   let curY = photon.pos.y;
@@ -225,8 +235,11 @@ export function tracePhotonPath(
 
   while (bounces < maxBounces && energy > 1e-4) {
     // 1. Find geometric collision
-    const ray = { origin: { x: curX, y: curY }, dir: { x: dirX, y: dirY } };
-    const hasHit = findClosestIntersection(hit, ray, segments, arcs);
+    scratchRay.origin.x = curX;
+    scratchRay.origin.y = curY;
+    scratchRay.dir.x = dirX;
+    scratchRay.dir.y = dirY;
+    const hasHit = findClosestIntersection(hit, scratchRay, segments, arcs);
     let dist = hasHit ? hit.t : 1000.0;
 
     // Boundary distance check
@@ -317,8 +330,9 @@ export function tracePhotonPath(
     const n1 = hit.n1 <= 1.05 ? 1.0 : cauchyIndex(wl, hit.cauchyA, hit.cauchyB);
     const n2 = hit.n2 <= 1.05 ? 1.0 : cauchyIndex(wl, hit.cauchyA, hit.cauchyB);
 
-    const inDir = { x: dirX, y: dirY };
-    solveRefraction(refrResult, inDir, hit.normal, n1, n2);
+    scratchInDir.x = dirX;
+    scratchInDir.y = dirY;
+    solveRefraction(refrResult, scratchInDir, hit.normal, n1, n2);
 
     // Russian Roulette branching
     const xi = Math.random();
