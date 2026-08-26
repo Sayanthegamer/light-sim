@@ -7,11 +7,11 @@ Fix WebGPU compute shader compilation errors by resolving variable redeclaration
 
 ## Phase 1: Test & Implementation of Shader Fix
 
-- [ ] Task: Write Failing Tests (Red Phase)
-    - [ ] Create or update tests verifying WebGPU compute pipeline creation succeeds without compilation errors or warnings.
-- [ ] Task: Implement to Pass Tests (Green Phase)
-    - [ ] Locate `PhotonTransportComputeShader` WGSL source code (likely in `src/engine/offline/gpu/shaders/photonTransport.wgsl`).
-    - [ ] Remove or correct the redeclarations of the `bestHit` and `closestT` variables to fix the scope conflict.
-- [ ] Task: Verify Tests and Type Safety
-    - [ ] Run `CI=true npx vitest run` to ensure all optical tests pass and the pipeline initializes correctly.
+- [x] Task: Write Failing Tests (Red Phase)
+    - [x] Create or update tests verifying WebGPU compute pipeline creation succeeds without compilation errors or warnings.
+- [x] Task: Implement to Pass Tests (Green Phase) [60b0dae]
+    - [x] Locate `PhotonTransportComputeShader` WGSL source code (likely in `src/engine/offline/gpu/shaders/photonTransport.wgsl`).
+    - [x] Remove or correct the redeclarations of the `bestHit` and `closestT` variables to fix the scope conflict.
+- [x] Task: Verify Tests and Type Safety
+    - [x] Run `CI=true npx vitest run` to ensure all optical tests pass and the pipeline initializes correctly.
 - [ ] Task: Phase Verification & Checkpoint (Refer to workflow.md)
