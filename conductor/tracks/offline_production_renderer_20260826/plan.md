@@ -66,11 +66,11 @@
 - [x] Task: Phase Verification & Checkpoint (Refer to workflow.md) [93893d7]
 
 ## Phase 5: Production Render UI Dock, Modal & End-to-End Integration
-- [~] Task: Implement `src/ui/RenderModal.svelte`
-  - [ ] Build modal overlay with progressive canvas preview
-  - [ ] Display live statistics (samples count, photons dispatched, samples/sec, elapsed time)
-  - [ ] Add Pause, Resume, Cancel, Exposure/Tonemap controls, and Export HDR / Export PNG buttons
-- [ ] Task: Integrate "Render" action into `src/ui/Dock.svelte` and coordinate render worker lifecycle with main `App.svelte` / `engine.ts`
+- [x] Task: Implement `src/ui/RenderModal.svelte` [9d4ea74]
+  - [x] Build modal overlay with progressive canvas preview
+  - [x] Display live statistics (samples count, photons dispatched, samples/sec, elapsed time)
+  - [x] Add Pause, Resume, Cancel, Exposure/Tonemap controls, and Export HDR / Export PNG buttons
+- [~] Task: Integrate "Render" action into `src/ui/Dock.svelte` and coordinate render worker lifecycle with main `App.svelte` / `engine.ts`
   - [ ] Add Render button with keyboard shortcut and tooltips to Dock
   - [ ] Hook into scene freeze and launch `RenderModal`
 - [ ] Task: Write end-to-end integration tests for render worker lifecycle, snapshot transfer, progressive frame accumulation, and HDR export (`tests/offline/offlineRendererIntegration.test.ts`)
