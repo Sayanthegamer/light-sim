@@ -54,7 +54,7 @@ Implement a high-throughput WebGPU Compute-to-Raster photon transport accelerati
 
 ---
 
-## Phase 4: Multi-Device Abstraction & Unified Dispatcher Integration
+## Phase 4: Multi-Device Abstraction & Unified Dispatcher Integration [checkpoint: 98299b6]
 
 - [x] Task: Refactor and extract `IDeviceDispatcher` interface common to CPU and GPU dispatchers (`CpuWorkerDispatcher` and `WebGpuComputeDispatcher`) [edeb5fd]
     - [x] Create `src/engine/offline/deviceDispatcher.ts` defining `IDeviceDispatcher`, `ProgressCallback`, and `CompleteCallback`
@@ -65,7 +65,7 @@ Implement a high-throughput WebGPU Compute-to-Raster photon transport accelerati
 - [x] Task: Write unit tests verifying multi-device orchestration, device switching, and error fallback [edeb5fd]
     - [x] Test device selection flags (`cpu`, `gpu`, `auto`)
     - [x] Test automatic fallback triggers when GPU mock rejects
-- [ ] Task: Phase Verification & Checkpoint (Refer to workflow.md)
+- [x] Task: Phase Verification & Checkpoint (Refer to workflow.md) [98299b6]
 
 ---
 
