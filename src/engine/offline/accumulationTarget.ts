@@ -165,6 +165,25 @@ export class AccumulationTarget {
   }
 
   /**
+   * Merges another full-size accumulation buffer and sample count map into this master target.
+   */
+  public mergeBuffer(
+    otherBuffer: Float32Array,
+    otherSampleCounts?: Uint32Array
+  ): void {
+    const len = Math.min(this.buffer.length, otherBuffer.length);
+    for (let i = 0; i < len; i++) {
+      this.buffer[i] += otherBuffer[i];
+    }
+    if (otherSampleCounts) {
+      const mapLen = Math.min(this.sampleCountMap.length, otherSampleCounts.length);
+      for (let i = 0; i < mapLen; i++) {
+        this.sampleCountMap[i] += otherSampleCounts[i];
+      }
+    }
+  }
+
+  /**
    * Resolves the HDR accumulation buffer into 8-bit sRGB pixels with exposure and tonemapping.
    */
   public resolveToImageData(
