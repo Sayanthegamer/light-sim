@@ -7,12 +7,12 @@
 - [x] Task: Update existing offline test suite to use pre-extracted primitives a4a69c8
 - [x] Task: Phase Verification & Checkpoint (Refer to workflow.md) a4a69c8
 
-## Phase 2: Multi-Threaded Worker Pool Architecture (`RenderDispatcher`)
-- [ ] Task: Write failing unit tests for multi-worker lifecycle dispatching and thread concurrency splitting
-- [ ] Task: Implement multi-threaded Web Worker pool in `RenderDispatcher.ts` with `navigator.hardwareConcurrency` auto-detection
-- [ ] Task: Implement thread-safe progressive buffer summation and sample aggregation in `RenderDispatcher.ts`
-- [ ] Task: Ensure robust multi-worker synchronization on `PAUSE`, `RESUME`, `CANCEL`, and `COMPLETE`
-- [ ] Task: Phase Verification & Checkpoint (Refer to workflow.md)
+## Phase 2: Multi-Threaded Worker Pool Architecture (`RenderDispatcher`) [checkpoint: c6845d0]
+- [x] Task: Write failing unit tests for multi-worker lifecycle dispatching and thread concurrency splitting c6845d0
+- [x] Task: Implement multi-threaded Web Worker pool in `RenderDispatcher.ts` with `navigator.hardwareConcurrency` auto-detection c6845d0
+- [x] Task: Implement thread-safe progressive buffer summation and sample aggregation in `RenderDispatcher.ts` c6845d0
+- [x] Task: Ensure robust multi-worker synchronization on `PAUSE`, `RESUME`, `CANCEL`, and `COMPLETE` c6845d0
+- [x] Task: Phase Verification & Checkpoint (Refer to workflow.md) c6845d0
 
 ## Phase 3: UI Thread Selection, Aggregated Progress Metrics & End-to-End Verification
 - [ ] Task: Write unit and integration tests for thread count configuration and multi-thread progress metrics
