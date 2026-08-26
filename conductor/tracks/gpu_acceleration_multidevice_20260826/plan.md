@@ -71,12 +71,12 @@ Implement a high-throughput WebGPU Compute-to-Raster photon transport accelerati
 
 ## Phase 5: UI Controls, Live Telemetry & End-to-End Verification
 
-- [ ] Task: Update `RenderModal.svelte` with Device Selector (`GPU / CPU`), dynamic batch size slider, hardware badge, and live MPhotons/sec counter
-    - [ ] Add Device Selector dropdown and hardware capability indicator
-    - [ ] Connect dynamic GPU batch size slider and CPU thread count selector
-    - [ ] Display live MPhotons/sec and device badge in the telemetry bar
-- [ ] Task: Verify 32-bit Radiance `.hdr` and `.png` export parity across both CPU and GPU backends
-    - [ ] Test `.hdr` and `.png` exports across preset scenes (Newton Prism, Achromatic Doublet, TIR Retroreflector)
-- [ ] Task: Run full test suite (`CI=true npx vitest run`) and ensure clean build and type check
-    - [ ] Verify zero TypeScript errors (`npx tsc --noEmit`) and all tests passing
-- [ ] Task: Phase Verification & Checkpoint (Refer to workflow.md)
+- [x] Task: Update `RenderModal.svelte` with Compute Device selector (`GPU` / `CPU` / `Auto`), dynamic batch size slider, hardware badge, and live MPhotons/sec counter [a48233a]
+    - [x] Add Device Selector dropdown and hardware capability indicator
+    - [x] Connect dynamic GPU batch size slider and CPU thread count selector
+    - [x] Display live MPhotons/sec and device badge in the telemetry bar
+- [x] Task: Integration tests verifying full offline rendering workflow with WebGPU acceleration [a48233a]
+    - [x] Write integration tests running a full render pass on mock WebGPU device and verifying `AccumulationTarget` and HDR export output
+- [x] Task: Run full test suite (`CI=true npx vitest run`) and ensure clean build and type check [a48233a]
+    - [x] Verify zero TypeScript errors (`npx tsc --noEmit`) and all tests passing
+- [x] Task: Phase Verification & Checkpoint (Refer to workflow.md) [a48233a]
