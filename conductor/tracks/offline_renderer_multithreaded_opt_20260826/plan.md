@@ -1,11 +1,11 @@
 # Implementation Plan: Offline Renderer Multi-Threaded Worker Pool & Zero-Allocation Path Tracer
 
-## Phase 1: Zero-Allocation Scene Primitive Hoisting & Transport Kernel Refactor
-- [ ] Task: Write failing unit tests for one-time primitive precomputation and zero-allocation photon tracing
-- [ ] Task: Refactor `tracePhotonPath` signature to accept pre-extracted `Segment2D[]` and `Arc2D[]` primitives
-- [ ] Task: Hoist `extractScenePrimitives()` in `renderWorker.ts` on job start and cache Sellmeier/Cauchy indices
-- [ ] Task: Update existing offline test suite to use pre-extracted primitives
-- [ ] Task: Phase Verification & Checkpoint (Refer to workflow.md)
+## Phase 1: Zero-Allocation Scene Primitive Hoisting & Transport Kernel Refactor [checkpoint: a4a69c8]
+- [x] Task: Write failing unit tests for one-time primitive precomputation and zero-allocation photon tracing a4a69c8
+- [x] Task: Refactor `tracePhotonPath` signature to accept pre-extracted `Segment2D[]` and `Arc2D[]` primitives a4a69c8
+- [x] Task: Hoist `extractScenePrimitives()` in `renderWorker.ts` on job start and cache Sellmeier/Cauchy indices a4a69c8
+- [x] Task: Update existing offline test suite to use pre-extracted primitives a4a69c8
+- [x] Task: Phase Verification & Checkpoint (Refer to workflow.md) a4a69c8
 
 ## Phase 2: Multi-Threaded Worker Pool Architecture (`RenderDispatcher`)
 - [ ] Task: Write failing unit tests for multi-worker lifecycle dispatching and thread concurrency splitting
