@@ -4,7 +4,8 @@ import {
   type BeamFrustum,
   MAX_BOUNCE_DEPTH,
   MIN_ENERGY_THRESHOLD,
-  MAX_FRUSTUM_POOL
+  MAX_FRUSTUM_POOL,
+  MAX_DYNAMIC_POOL_CAPACITY
 } from '../../src/engine/geometry/branchManager';
 import { type Segment2D, type Arc2D } from '../../src/engine/geometry/intersections';
 import { type CornerVertex } from '../../src/engine/geometry/bisection';
@@ -14,6 +15,7 @@ describe('Branch Management and Fresnel Energy Culling Engine', () => {
     expect(MAX_BOUNCE_DEPTH).toBe(8);
     expect(MIN_ENERGY_THRESHOLD).toBe(0.005);
     expect(MAX_FRUSTUM_POOL).toBe(1024);
+    expect(MAX_DYNAMIC_POOL_CAPACITY).toBe(8192);
   });
 
   it('prunes branches when intensity drops below 0.005 threshold', () => {
@@ -210,6 +212,10 @@ describe('Branch Management and Fresnel Energy Culling Engine', () => {
     const frustums = manager.traceLightTree(initialFrustum, prismSegments, [], corners);
     // Should split into at least 2 frustums at root level
     expect(frustums.length).toBeGreaterThanOrEqual(2);
+    // Children spawned from corner bisection must have incremented depth to prevent infinite recursion
+    const children = frustums.filter(f => f.depth > 0);
+    expect(children.length).toBeGreaterThan(0);
+    expect(children[0].depth).toBe(1);
   });
 
   it('reflects specular beam off flat and curved mirror elements', () => {
@@ -306,6 +312,19 @@ describe('Branch Management and Fresnel Energy Culling Engine', () => {
     // Only root frustum exists; no children spawned
     expect(frustums.length).toBe(1);
     expect(frustums[0].leftHit.x).toBeCloseTo(100, 5);
+  });
+
+  it('caps dynamic pool allocation at MAX_DYNAMIC_POOL_CAPACITY to prevent unbounded heap allocation', () => {
+    const manager = new BranchManager(10);
+    manager.resetPool();
+
+    // Allocate up to capacity + 5
+    for (let i = 0; i < MAX_DYNAMIC_POOL_CAPACITY + 5; i++) {
+      const f = manager.allocateFrustum();
+      expect(f).toBeDefined();
+    }
+
+    expect(manager.getPoolSize()).toBe(MAX_DYNAMIC_POOL_CAPACITY);
   });
 });
 

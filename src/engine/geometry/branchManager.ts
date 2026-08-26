@@ -41,6 +41,7 @@ export const MAX_BOUNCE_DEPTH = 8;
 export const MIN_ENERGY_THRESHOLD = 0.005;
 export const INITIAL_FRUSTUM_POOL_CAPACITY = 1024;
 export const MAX_FRUSTUM_POOL = INITIAL_FRUSTUM_POOL_CAPACITY; // Alias for backward compatibility
+export const MAX_DYNAMIC_POOL_CAPACITY = 8192;
 
 export interface BeamFrustum {
   id: number;
@@ -234,11 +235,16 @@ export class BranchManager {
 
   /**
    * Allocates a pre-allocated frustum from the pool with amortized zero-GC.
-   * Dynamically grows the pool if capacity is exceeded to prevent branch dropping.
+   * Dynamically grows the pool if capacity is exceeded to prevent branch dropping,
+   * up to MAX_DYNAMIC_POOL_CAPACITY to prevent unbounded heap growth.
    */
   allocateFrustum(): BeamFrustum {
     if (this.poolCount >= this.frustumPool.length) {
-      this.frustumPool.push(createBeamFrustum());
+      if (this.frustumPool.length < MAX_DYNAMIC_POOL_CAPACITY) {
+        this.frustumPool.push(createBeamFrustum());
+      } else {
+        return this.frustumPool[this.frustumPool.length - 1];
+      }
     }
     const frustum = this.frustumPool[this.poolCount];
     frustum.id = this.poolCount;
@@ -608,6 +614,7 @@ export class BranchManager {
 
           // Spawn Left Sub-Frustum [leftRay -> splitRay]
           copyBeamFrustum(leftChild, current);
+          leftChild.depth = current.depth + 1;
           leftChild.rightRay.origin.x = split.splitRay.origin.x;
           leftChild.rightRay.origin.y = split.splitRay.origin.y;
           leftChild.rightRay.dir.x = split.splitRay.dir.x;
@@ -616,6 +623,7 @@ export class BranchManager {
 
           // Spawn Right Sub-Frustum [splitRay -> rightRay]
           copyBeamFrustum(rightChild, current);
+          rightChild.depth = current.depth + 1;
           rightChild.leftRay.origin.x = split.splitRay.origin.x;
           rightChild.leftRay.origin.y = split.splitRay.origin.y;
           rightChild.leftRay.dir.x = split.splitRay.dir.x;
