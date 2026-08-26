@@ -85,10 +85,10 @@ Implement a high-throughput WebGPU Compute-to-Raster photon transport accelerati
 
 ## Phase 6: Advanced Hardware Convergence, Relativistic Asymptotics & Precision Preservation
 
-- [ ] Task: Implement Weak-Field Analytic Einstein Deflection ($r > 3 r_s$) & Strong-Field Geodesic Hand-off in WGSL
-    - [ ] Create rigorous test suite in `tests/offline/relativisticAsymptotics.test.ts`
-    - [ ] Verify analytic deflection angle $\Delta \theta = 2 r_s / b$ matches relativistic theoretical limit
-    - [ ] Implement `evaluateBlackHoleInteraction` in `webgpuPipeline.ts`
+- [x] Task: Implement Weak-Field Analytic Einstein Deflection ($r > 3 r_s$) & Strong-Field Geodesic Hand-off in WGSL [f418c3c]
+    - [x] Create rigorous test suite in `tests/offline/relativisticAsymptotics.test.ts`
+    - [x] Verify analytic deflection angle $\Delta \theta = 2 r_s / b$ matches relativistic theoretical limit
+    - [x] Implement `evaluateBlackHoleInteraction` in `webgpuPipeline.ts`
 - [ ] Task: Implement Epoch-Based GPU Sub-Accumulation with Host Welford Consolidation & Variance Delta Telemetry
     - [ ] Create test suite in `tests/offline/epochAccumulator.test.ts` verifying zero mantissa underflow across thousands of passes
     - [ ] Implement Welford running mean host consolidation ($\bar{X}_k = \bar{X}_{k-1} + \frac{X_{\text{epoch}} - \bar{X}_{k-1}}{k}$) and variance delta calculation in `webgpuComputeDispatcher.ts`
