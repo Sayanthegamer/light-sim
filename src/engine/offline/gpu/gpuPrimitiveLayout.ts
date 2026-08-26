@@ -3,21 +3,21 @@
  *
  * Defines binary struct layouts, byte strides, and typed-array serialization
  * for WGSL Shader Storage Buffer Objects (SSBOs).
- * Strictly enforces 16-byte alignment and explicit typing without runtime bitcasting.
+ * Strictly enforces 16-byte alignment and maximum cache density with zero dead bytes.
  */
 
 import { type IVec2 } from '../../math/vec2';
 import { type IOfflineSceneGeometry } from '../mcPhotonTracer';
 import { evaluateSellmeierIndex } from '../spectralSampler';
 
-// Stride Constants (All multiples of 16 bytes for strict WGSL alignment)
-export const BVH_NODE_STRIDE_BYTES = 32; // 8 words (floats/u32)
-export const SEGMENT_STRIDE_BYTES = 48;  // 12 words
-export const ARC_STRIDE_BYTES = 48;      // 12 words
-export const BLACK_HOLE_STRIDE_BYTES = 32; // 8 words
-export const EMITTER_STRIDE_BYTES = 48;  // 12 words
-export const PHOTON_VERTEX_STRIDE_BYTES = 32; // 8 words
-export const UNIFORM_CONFIG_STRIDE_BYTES = 64; // 16 words
+// Stride Constants (All minimal multiples of 16 bytes for strict WGSL alignment & max cache density)
+export const BVH_NODE_STRIDE_BYTES = 32;   // 8 words (32 bytes)
+export const SEGMENT_STRIDE_BYTES = 32;    // 8 words (32 bytes)
+export const ARC_STRIDE_BYTES = 32;        // 8 words (32 bytes)
+export const BLACK_HOLE_STRIDE_BYTES = 16; // 4 words (16 bytes)
+export const EMITTER_STRIDE_BYTES = 32;    // 8 words (32 bytes)
+export const PHOTON_VERTEX_STRIDE_BYTES = 32; // 8 words (32 bytes)
+export const UNIFORM_CONFIG_STRIDE_BYTES = 64; // 16 words (64 bytes)
 
 export interface IGpuBVHNode {
   aabbMin: IVec2;
@@ -95,7 +95,7 @@ export function encodeBVHNode(
 
 export function encodeSegment(
   floatView: Float32Array,
-  uintView: Uint32Array,
+  _uintView: Uint32Array,
   index: number,
   seg: IGpuSegment
 ): void {
@@ -104,24 +104,21 @@ export function encodeSegment(
   floatView[offset + 1] = seg.p1.y;
   floatView[offset + 2] = seg.p2.x;
   floatView[offset + 3] = seg.p2.y;
-  floatView[offset + 4] = seg.n1;
+
+  // Compact optical encoding: n1 <= -0.5 -> Mirror, n1 == 0.0 -> Barrier, n1 > 0 -> Dielectric n1
+  let n1Val = seg.n1;
+  if (seg.isBarrier) n1Val = 0.0;
+  else if (seg.isMirror) n1Val = -1.0;
+
+  floatView[offset + 4] = n1Val;
   floatView[offset + 5] = seg.n2;
   floatView[offset + 6] = seg.cauchyA;
   floatView[offset + 7] = seg.cauchyB;
-
-  let flags = 0;
-  if (seg.isBarrier) flags |= 1;
-  if (seg.isMirror) flags |= 2;
-
-  uintView[offset + 8] = flags >>> 0;
-  uintView[offset + 9] = (seg.id ?? 0) >>> 0;
-  uintView[offset + 10] = 0;
-  uintView[offset + 11] = 0;
 }
 
 export function encodeArc(
   floatView: Float32Array,
-  uintView: Uint32Array,
+  _uintView: Uint32Array,
   index: number,
   arc: IGpuArc
 ): void {
@@ -134,15 +131,11 @@ export function encodeArc(
   floatView[offset + 5] = arc.endAngle;
   floatView[offset + 6] = arc.cauchyA;
   floatView[offset + 7] = arc.cauchyB;
-  uintView[offset + 8] = 0; // flags
-  uintView[offset + 9] = (arc.id ?? 0) >>> 0;
-  uintView[offset + 10] = 0;
-  uintView[offset + 11] = 0;
 }
 
 export function encodeBlackHole(
   floatView: Float32Array,
-  uintView: Uint32Array,
+  _uintView: Uint32Array,
   index: number,
   bh: IGpuBlackHole
 ): void {
@@ -151,15 +144,11 @@ export function encodeBlackHole(
   floatView[offset + 1] = bh.center.y;
   floatView[offset + 2] = bh.rs;
   floatView[offset + 3] = bh.rInfluence;
-  uintView[offset + 4] = (bh.id ?? 0) >>> 0;
-  uintView[offset + 5] = 0;
-  uintView[offset + 6] = 0;
-  uintView[offset + 7] = 0;
 }
 
 export function encodeEmitter(
   floatView: Float32Array,
-  uintView: Uint32Array,
+  _uintView: Uint32Array,
   index: number,
   em: IGpuEmitter
 ): void {
@@ -178,10 +167,6 @@ export function encodeEmitter(
   floatView[offset + 5] = specType;
   floatView[offset + 6] = em.spectrumParam;
   floatView[offset + 7] = em.power;
-  uintView[offset + 8] = (em.id ?? 0) >>> 0;
-  uintView[offset + 9] = 0;
-  uintView[offset + 10] = 0;
-  uintView[offset + 11] = 0;
 }
 
 export function packSceneBuffers(

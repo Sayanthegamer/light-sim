@@ -38,10 +38,7 @@ struct BVHNode {
 struct SegmentPrimitive {
   p1: vec2<f32>,
   p2: vec2<f32>,
-  optics: vec4<f32>, // n1, n2, cauchyA, cauchyB
-  flags: u32,        // 1 = barrier, 2 = mirror, 0 = dielectric
-  id: u32,
-  pad: vec2<u32>,
+  optics: vec4<f32>, // n1 (<= -0.5 mirror, == 0 barrier, > 0 dielectric), n2, cauchyA, cauchyB
 };
 
 struct ArcPrimitive {
@@ -50,25 +47,17 @@ struct ArcPrimitive {
   nGlass: f32,
   angles: vec2<f32>, // startAngle, endAngle
   cauchy: vec2<f32>, // cauchyA, cauchyB
-  flags: u32,
-  id: u32,
-  pad: vec2<u32>,
 };
 
 struct BlackHolePrimitive {
   center: vec2<f32>,
-  rs: f32,
-  rInfluence: f32,
-  id: u32,
-  pad: vec3<u32>,
+  radii: vec2<f32>,  // rs, rInfluence
 };
 
 struct EmitterPrimitive {
   pos: vec2<f32>,
   dir: vec2<f32>,
   params: vec4<f32>, // width, spectrumType, spectrumParam, power
-  id: u32,
-  pad: vec3<u32>,
 };
 
 struct UniformSceneConfig {
@@ -209,8 +198,8 @@ fn intersectRaySegment(origin: vec2<f32>, dir: vec2<f32>, seg: SegmentPrimitive)
     hit.n2 = seg.optics.y;
     hit.cauchyA = seg.optics.z;
     hit.cauchyB = seg.optics.w;
-    hit.isBarrier = (seg.flags & 1u) != 0u;
-    hit.isMirror = (seg.flags & 2u) != 0u;
+    hit.isBarrier = (seg.optics.x == 0.0);
+    hit.isMirror = (seg.optics.x <= -0.5);
   }
 
   return hit;

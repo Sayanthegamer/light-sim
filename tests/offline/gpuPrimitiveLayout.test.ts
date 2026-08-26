@@ -22,7 +22,7 @@ import {
 import { type IOfflineSceneGeometry } from '../../src/engine/offline/mcPhotonTracer';
 
 describe('GPU Primitive Binary Layout & Alignment', () => {
-  it('enforces strict 16-byte multiple stride constraints across all struct layouts', () => {
+  it('enforces strict minimal 16-byte multiple stride constraints with maximum cache density', () => {
     expect(BVH_NODE_STRIDE_BYTES % 16).toBe(0);
     expect(SEGMENT_STRIDE_BYTES % 16).toBe(0);
     expect(ARC_STRIDE_BYTES % 16).toBe(0);
@@ -31,11 +31,12 @@ describe('GPU Primitive Binary Layout & Alignment', () => {
     expect(PHOTON_VERTEX_STRIDE_BYTES % 16).toBe(0);
     expect(UNIFORM_CONFIG_STRIDE_BYTES % 16).toBe(0);
 
+    // Assert strictly minimal, unbloated strides:
     expect(BVH_NODE_STRIDE_BYTES).toBe(32);
-    expect(SEGMENT_STRIDE_BYTES).toBe(48);
-    expect(ARC_STRIDE_BYTES).toBe(48);
-    expect(BLACK_HOLE_STRIDE_BYTES).toBe(32);
-    expect(EMITTER_STRIDE_BYTES).toBe(48);
+    expect(SEGMENT_STRIDE_BYTES).toBe(32);     // 2x 16B (was 48B)
+    expect(ARC_STRIDE_BYTES).toBe(32);         // 2x 16B (was 48B)
+    expect(BLACK_HOLE_STRIDE_BYTES).toBe(16);  // 1x 16B (was 32B)
+    expect(EMITTER_STRIDE_BYTES).toBe(32);     // 2x 16B (was 48B)
     expect(PHOTON_VERTEX_STRIDE_BYTES).toBe(32);
     expect(UNIFORM_CONFIG_STRIDE_BYTES).toBe(64);
   });
@@ -66,7 +67,7 @@ describe('GPU Primitive Binary Layout & Alignment', () => {
     expect(uintView[7]).toBe(7);
   });
 
-  it('correctly serializes a segment with refractive & dispersion parameters', () => {
+  it('correctly serializes a segment with refractive & dispersion parameters in 32 bytes', () => {
     const buffer = new ArrayBuffer(SEGMENT_STRIDE_BYTES);
     const floatView = new Float32Array(buffer);
     const uintView = new Uint32Array(buffer);
@@ -79,8 +80,7 @@ describe('GPU Primitive Binary Layout & Alignment', () => {
       cauchyA: 1.504,
       cauchyB: 4200,
       isMirror: false,
-      isBarrier: false,
-      id: 42
+      isBarrier: false
     };
 
     encodeSegment(floatView, uintView, 0, seg);
@@ -93,11 +93,9 @@ describe('GPU Primitive Binary Layout & Alignment', () => {
     expect(floatView[5]).toBeCloseTo(1.517);
     expect(floatView[6]).toBeCloseTo(1.504);
     expect(floatView[7]).toBe(4200);
-    expect(uintView[8]).toBe(0); // flags: dielectric
-    expect(uintView[9]).toBe(42);
   });
 
-  it('correctly serializes a mirror and barrier with proper flag bitmasks', () => {
+  it('correctly encodes mirror (n1 = -1) and barrier (n1 = 0) in 32-byte segment layout', () => {
     const buffer = new ArrayBuffer(SEGMENT_STRIDE_BYTES * 2);
     const floatView = new Float32Array(buffer);
     const uintView = new Uint32Array(buffer);
@@ -110,8 +108,7 @@ describe('GPU Primitive Binary Layout & Alignment', () => {
       cauchyA: 1.0,
       cauchyB: 0,
       isMirror: true,
-      isBarrier: false,
-      id: 1
+      isBarrier: false
     };
 
     const barrier: IGpuSegment = {
@@ -122,20 +119,17 @@ describe('GPU Primitive Binary Layout & Alignment', () => {
       cauchyA: 1.0,
       cauchyB: 0,
       isMirror: false,
-      isBarrier: true,
-      id: 2
+      isBarrier: true
     };
 
     encodeSegment(floatView, uintView, 0, mirror);
     encodeSegment(floatView, uintView, 1, barrier);
 
-    expect(uintView[8]).toBe(2); // Flag: Mirror = 2
-    expect(uintView[9]).toBe(1);
-    expect(uintView[8 + 12]).toBe(1); // Flag: Barrier = 1
-    expect(uintView[9 + 12]).toBe(2);
+    expect(floatView[4]).toBe(-1.0); // Mirror encoding
+    expect(floatView[4 + 8]).toBe(0.0);  // Barrier encoding
   });
 
-  it('correctly serializes an arc with circular bounds and Cauchy constants', () => {
+  it('correctly serializes an arc with circular bounds and Cauchy constants in 32 bytes', () => {
     const buffer = new ArrayBuffer(ARC_STRIDE_BYTES);
     const floatView = new Float32Array(buffer);
     const uintView = new Uint32Array(buffer);
@@ -147,8 +141,7 @@ describe('GPU Primitive Binary Layout & Alignment', () => {
       startAngle: -1.57,
       endAngle: 1.57,
       cauchyA: 1.60,
-      cauchyB: 5300,
-      id: 10
+      cauchyB: 5300
     };
 
     encodeArc(floatView, uintView, 0, arc);
@@ -161,10 +154,9 @@ describe('GPU Primitive Binary Layout & Alignment', () => {
     expect(floatView[5]).toBeCloseTo(1.57);
     expect(floatView[6]).toBeCloseTo(1.60);
     expect(floatView[7]).toBe(5300);
-    expect(uintView[9]).toBe(10);
   });
 
-  it('correctly serializes a black hole with center and Schwarzschild radius', () => {
+  it('correctly serializes a black hole with center and Schwarzschild radius in 16 bytes', () => {
     const buffer = new ArrayBuffer(BLACK_HOLE_STRIDE_BYTES);
     const floatView = new Float32Array(buffer);
     const uintView = new Uint32Array(buffer);
@@ -172,8 +164,7 @@ describe('GPU Primitive Binary Layout & Alignment', () => {
     const bh: IGpuBlackHole = {
       center: { x: 400, y: 300 },
       rs: 25,
-      rInfluence: 300,
-      id: 99
+      rInfluence: 300
     };
 
     encodeBlackHole(floatView, uintView, 0, bh);
@@ -182,10 +173,9 @@ describe('GPU Primitive Binary Layout & Alignment', () => {
     expect(floatView[1]).toBe(300);
     expect(floatView[2]).toBe(25);
     expect(floatView[3]).toBe(300);
-    expect(uintView[4]).toBe(99);
   });
 
-  it('correctly serializes an emitter with spectral parameters', () => {
+  it('correctly serializes an emitter with spectral parameters in 32 bytes', () => {
     const buffer = new ArrayBuffer(EMITTER_STRIDE_BYTES);
     const floatView = new Float32Array(buffer);
     const uintView = new Uint32Array(buffer);
@@ -196,8 +186,7 @@ describe('GPU Primitive Binary Layout & Alignment', () => {
       width: 40,
       spectrumType: 'd65',
       spectrumParam: 6500,
-      power: 1.5,
-      id: 7
+      power: 1.5
     };
 
     encodeEmitter(floatView, uintView, 0, emitter);
@@ -210,7 +199,6 @@ describe('GPU Primitive Binary Layout & Alignment', () => {
     expect(floatView[5]).toBe(1); // 1 = D65
     expect(floatView[6]).toBe(6500);
     expect(floatView[7]).toBe(1.5);
-    expect(uintView[8]).toBe(7);
   });
 
   it('packs an entire scene geometry into segregated typed array buffers', () => {
