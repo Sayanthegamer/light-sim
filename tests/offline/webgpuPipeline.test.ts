@@ -27,6 +27,12 @@ describe('WebGPU Pipeline Creation & Shader Validation', () => {
     expect(PHOTON_TRANSPORT_WGSL).not.toMatch(/var\s+closestT\s*=\s*boundDist/);
   });
 
+  it('calls evaluateBlackHoleInteraction inside the main compute loop', () => {
+    // This ensures the blackHoles binding is used and not stripped by layout: 'auto'
+    expect(PHOTON_TRANSPORT_WGSL).toMatch(/evaluateBlackHoleInteraction\s*\(/);
+    expect(PHOTON_TRANSPORT_WGSL).toMatch(/config\.counts\.w/);
+  });
+
   it('initializes GpuPipelineManager with mocked device and creates storage buffers and bind groups', () => {
     const mockBuffer = {
       destroy: vi.fn()
