@@ -70,9 +70,10 @@
   - [x] Build modal overlay with progressive canvas preview
   - [x] Display live statistics (samples count, photons dispatched, samples/sec, elapsed time)
   - [x] Add Pause, Resume, Cancel, Exposure/Tonemap controls, and Export HDR / Export PNG buttons
-- [~] Task: Integrate "Render" action into `src/ui/Dock.svelte` and coordinate render worker lifecycle with main `App.svelte` / `engine.ts`
-  - [ ] Add Render button with keyboard shortcut and tooltips to Dock
-  - [ ] Hook into scene freeze and launch `RenderModal`
-- [ ] Task: Write end-to-end integration tests for render worker lifecycle, snapshot transfer, progressive frame accumulation, and HDR export (`tests/offline/offlineRendererIntegration.test.ts`)
-  - [ ] Test full worker launch, progressive batch reception, accumulation, and clean termination
+- [x] Task: Integrate "Render" action into `src/ui/Dock.svelte` and coordinate render worker lifecycle with main `App.svelte` / `engine.ts` [46ebe14]
+  - [x] Add Render button with keyboard shortcut and tooltips to Dock
+  - [x] Hook into scene freeze and launch `RenderModal`
+- [~] Task: Write end-to-end integration tests for render worker lifecycle, snapshot transfer, progressive frame accumulation, and HDR export (`tests/offline/offlineRendererIntegration.test.ts`)
+  - [ ] Test complete workflow from scene snapshot through progressive Monte Carlo accumulation to `.hdr` output
+  - [ ] Verify non-blocking UI behavior and memory leak prevention during high-sample rendering
 - [ ] Task: Phase Verification & Checkpoint (Refer to workflow.md)
