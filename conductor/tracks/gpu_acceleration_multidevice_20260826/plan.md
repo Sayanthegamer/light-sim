@@ -89,7 +89,7 @@ Implement a high-throughput WebGPU Compute-to-Raster photon transport accelerati
     - [x] Create rigorous test suite in `tests/offline/relativisticAsymptotics.test.ts`
     - [x] Verify analytic deflection angle $\Delta \theta = 2 r_s / b$ matches relativistic theoretical limit
     - [x] Implement `evaluateBlackHoleInteraction` in `webgpuPipeline.ts`
-- [ ] Task: Implement Epoch-Based GPU Sub-Accumulation with Host Welford Consolidation & Variance Delta Telemetry
-    - [ ] Create test suite in `tests/offline/epochAccumulator.test.ts` verifying zero mantissa underflow across thousands of passes
-    - [ ] Implement Welford running mean host consolidation ($\bar{X}_k = \bar{X}_{k-1} + \frac{X_{\text{epoch}} - \bar{X}_{k-1}}{k}$) and variance delta calculation in `webgpuComputeDispatcher.ts`
+- [x] Task: Implement Epoch-Based GPU Sub-Accumulation with Host Welford Consolidation & Variance Delta Telemetry [89b47c1]
+    - [x] Create test suite in `tests/offline/epochAccumulator.test.ts` verifying zero mantissa underflow across thousands of passes
+    - [x] Implement Welford running mean host consolidation ($\bar{X}_k = \bar{X}_{k-1} + \frac{X_{\text{epoch}} - \bar{X}_{k-1}}{k}$) and variance delta calculation in `webgpuComputeDispatcher.ts`
 - [ ] Task: Phase Verification & Checkpoint (Refer to workflow.md)
