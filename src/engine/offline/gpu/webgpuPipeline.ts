@@ -282,7 +282,7 @@ fn intersectAABB(origin: vec2<f32>, dir: vec2<f32>, aabbMin: vec2<f32>, aabbMax:
   return tmax >= max(0.0, tmin);
 }
 
-// Schwarzschild Relativistic Geodesic Stepper
+// Schwarzschild Relativistic Geodesic Stepper (Strong-Field Numerical RK2)
 fn stepSchwarzschildGeodesic(pos: vec2<f32>, dir: vec2<f32>, center: vec2<f32>, rs: f32, dt: f32) -> vec4<f32> {
   let rVec = pos - center;
   let r = length(rVec);
@@ -309,6 +309,38 @@ fn stepSchwarzschildGeodesic(pos: vec2<f32>, dir: vec2<f32>, center: vec2<f32>, 
   let newDir = normalize(dir + midAccel * dt);
 
   return vec4<f32>(newPos, newDir);
+}
+
+// Hybrid Relativistic Evaluator: Analytic Einstein Deflection (r > 3*rs) + Numerical RK2 (r <= 3*rs)
+fn evaluateBlackHoleInteraction(pos: vec2<f32>, dir: vec2<f32>, bh: BlackHolePrimitive, dt: f32) -> vec4<f32> {
+  let rVec = pos - bh.center;
+  let r = length(rVec);
+  let rs = bh.radii.x;
+  let rInf = bh.radii.y;
+
+  if (r > rInf) {
+    return vec4<f32>(pos + dir * dt, dir);
+  }
+
+  // Event Horizon Absorption
+  if (r <= rs) {
+    return vec4<f32>(pos, 0.0, 0.0);
+  }
+
+  // Weak-Field Regime: r > 3.0 * rs -> Analytic Einstein Deflection O(1)
+  if (r > 3.0 * rs) {
+    let perp = normalize(vec2<f32>(-rVec.y, rVec.x));
+    let signL = select(-1.0, 1.0, dot(perp, dir) > 0.0);
+    let b = max(rs * 1.5, abs(rVec.x * dir.y - rVec.y * dir.x));
+    let deltaTheta = (2.0 * rs / b) * (dt / r);
+    let cosD = cos(deltaTheta * signL);
+    let sinD = sin(deltaTheta * signL);
+    let newDir = normalize(vec2<f32>(dir.x * cosD - dir.y * sinD, dir.x * sinD + dir.y * cosD));
+    return vec4<f32>(pos + newDir * dt, newDir);
+  }
+
+  // Strong-Field Regime: rs < r <= 3.0 * rs -> Numerical RK2 Stepping
+  return stepSchwarzschildGeodesic(pos, dir, bh.center, rs, dt);
 }
 
 // 8-Element Short-Stack BVH Traversal
