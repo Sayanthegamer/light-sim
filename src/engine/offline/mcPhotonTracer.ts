@@ -10,6 +10,7 @@ import { type IVec2 } from '../math/vec2';
 import {
   type Segment2D,
   type Arc2D,
+  type HitResult,
   createHitResult,
   findClosestIntersection
 } from '../geometry/intersections';

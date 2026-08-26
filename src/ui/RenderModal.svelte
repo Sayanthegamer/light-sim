@@ -28,10 +28,12 @@
   } = $props();
 
   let previewCanvas: HTMLCanvasElement;
-  let dispatcher: RenderDispatcher | null = null;
-  let target: AccumulationTarget | null = null;
+  let dispatcher = $state<RenderDispatcher | null>(null);
+  let target = $state<AccumulationTarget | null>(null);
 
   // Render State
+  const hardwareConcurrency = typeof navigator !== 'undefined' && navigator.hardwareConcurrency ? navigator.hardwareConcurrency : 4;
+  let threadCount = $state<number>(0); // 0 = Auto
   let isPaused = $state(false);
   let isComplete = $state(false);
   let passCount = $state(0);
@@ -68,10 +70,12 @@
     target = new AccumulationTarget(renderWidth, renderHeight);
     dispatcher = new RenderDispatcher();
 
+    const activeThreads = threadCount === 0 ? hardwareConcurrency : threadCount;
     const job: IOfflineRenderJob = freezeSceneSnapshot(sceneGraph, renderWidth, renderHeight, {
       targetSamples: targetPasses,
       batchPhotons: 25000,
-      volumetricInScatter: true
+      volumetricInScatter: true,
+      threadCount: activeThreads
     });
 
     isPaused = false;
@@ -96,6 +100,11 @@
         updatePreview();
       }
     );
+  }
+
+  function restartRender() {
+    dispatcher?.cancel();
+    startRender();
   }
 
   function togglePause() {
@@ -188,6 +197,11 @@
       </div>
 
       <div class="flex items-center gap-4 text-[11px]">
+        <div class="flex items-center gap-1.5 text-zinc-300">
+          <Cpu class="w-3 h-3 text-amber-400" />
+          <span>{dispatcher?.getWorkerCount() || (threadCount === 0 ? hardwareConcurrency : threadCount)} Threads</span>
+        </div>
+        <span class="text-zinc-700">|</span>
         <span>{(totalPhotons / 1e6).toFixed(2)}M Photons</span>
         <span class="text-zinc-700">|</span>
         <span>{(samplesPerSec / 1000).toFixed(1)}k samp/s</span>
@@ -214,6 +228,23 @@
             <span>Pause</span>
           {/if}
         </button>
+
+        <div class="flex items-center gap-1.5 text-xs font-mono ml-2">
+          <span class="text-zinc-400">Threads:</span>
+          <select
+            bind:value={threadCount}
+            onchange={restartRender}
+            class="bg-matte-850 border border-matte-800 text-zinc-200 text-xs rounded px-2 py-1 outline-none font-mono cursor-pointer"
+          >
+            <option value={0}>Auto ({hardwareConcurrency}T)</option>
+            <option value={1}>1 Thread</option>
+            <option value={2}>2 Threads</option>
+            <option value={4}>4 Threads</option>
+            <option value={8}>8 Threads</option>
+            <option value={16}>16 Threads</option>
+            <option value={32}>32 Threads</option>
+          </select>
+        </div>
       </div>
 
       <!-- Center: Real-time Tonemap & Exposure -->

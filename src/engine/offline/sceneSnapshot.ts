@@ -28,6 +28,7 @@ export interface IOfflineRenderConfig {
   russianRouletteThreshold: number;
   volumetricInScatter: boolean;
   whitePoint: number;
+  threadCount?: number;
 }
 
 export interface IOfflineRenderJob {
