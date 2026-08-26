@@ -39,3 +39,6 @@
   - [x] Verify 60 FPS performance in grazing black hole scenes
   - [x] Confirm amortized zero-GC memory allocation during continuous rendering
 - [x] Task: Phase Verification & Checkpoint (Refer to workflow.md) (977330f)
+
+## Phase: Review Fixes
+- [x] Task: Apply review suggestions (ac6a9f6)
