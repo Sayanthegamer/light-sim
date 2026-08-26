@@ -8,7 +8,8 @@
     Plus,
     Share2,
     Sun,
-    Trash2
+    Trash2,
+    Sparkles
   } from '@lucide/svelte';
   import { ALL_PRESETS } from '../engine/presets';
   import type { OpticsEngine, EngineStats } from '../engine/engine';
@@ -19,7 +20,8 @@
     selectedPresetName = $bindable(),
     onAddNode,
     onResetScene,
-    onClearScene
+    onClearScene,
+    onOpenRenderModal
   }: {
     engine: OpticsEngine | null;
     stats: EngineStats;
@@ -27,6 +29,7 @@
     onAddNode: (type: string) => void;
     onResetScene: () => void;
     onClearScene: () => void;
+    onOpenRenderModal?: () => void;
   } = $props();
 
   let showAddMenu = $state(false);
@@ -105,8 +108,19 @@
     </div>
   </div>
 
-  <!-- Right: Add Objects, Share & Clear -->
+  <!-- Right: Add Objects, Render, Share & Clear -->
   <div class="flex items-center gap-2 pointer-events-auto bg-matte-900 border border-matte-800 rounded-lg px-2 py-1.5 shadow-2xl">
+    <!-- Offline Production Render Button -->
+    <button
+      type="button"
+      title="Launch Cycles Offline Production Renderer"
+      onclick={onOpenRenderModal}
+      class="flex items-center gap-1.5 text-xs font-semibold text-amber-300 hover:text-amber-200 bg-amber-950/40 hover:bg-amber-900/60 border border-amber-500/40 px-2.5 py-1 rounded transition-all shadow-sm"
+    >
+      <Sparkles class="w-3.5 h-3.5 text-amber-400" />
+      <span>Render</span>
+    </button>
+
     <!-- Add Object Dropdown -->
     <div class="relative">
       <button

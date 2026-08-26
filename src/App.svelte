@@ -14,10 +14,12 @@
   import Dock from './ui/Dock.svelte';
   import Inspector from './ui/Inspector.svelte';
   import GizmoOverlay from './ui/GizmoOverlay.svelte';
+  import RenderModal from './ui/RenderModal.svelte';
 
   let canvasEl: HTMLCanvasElement;
   let engine = $state<OpticsEngine | null>(null);
   let selectedPresetName = $state<string>("Newton's Prism Dispersion");
+  let showRenderModal = $state(false);
 
   let stats = $state<EngineStats>({
     fps: 60,
@@ -185,6 +187,7 @@
     onAddNode={handleAddNode}
     onResetScene={handleResetScene}
     onClearScene={handleClearScene}
+    onOpenRenderModal={() => (showRenderModal = true)}
   />
 
   <!-- Floating Context-Sensitive Properties Inspector -->
@@ -199,4 +202,14 @@
       }
     }}
   />
+
+  <!-- Production Offline Render Modal -->
+  {#if showRenderModal && engine}
+    <RenderModal
+      sceneGraph={engine.getScene()}
+      viewportWidth={engine.getWidth()}
+      viewportHeight={engine.getHeight()}
+      onClose={() => (showRenderModal = false)}
+    />
+  {/if}
 </main>
