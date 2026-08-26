@@ -19,11 +19,11 @@
 - [x] Task: Phase Verification & Checkpoint (Refer to workflow.md) [e5c7d2a]
 
 ## Phase 2: Wave Optics & Adaptive Geodesic Integrator
-- [~] Task: Write failing unit tests for wave phase tracking, Huygens-Fresnel secondary wavelet generation, and slit interference (`tests/offline/waveOptics.test.ts`)
-  - [ ] Test complex wave phase $\phi = \vec{k}\cdot\vec{r} - \omega t$ propagation
-  - [ ] Test aperture discretization into secondary Huygens-Fresnel wavelet arrays
-  - [ ] Test electric field superposition $\tilde{E} = \sum E_k e^{i\phi_k}$ producing double-slit and Airy disc intensity profiles
-- [ ] Task: Implement `src/engine/offline/waveOptics.ts`
+- [x] Task: Write failing unit tests for wave phase tracking, Huygens-Fresnel secondary wavelet generation, and slit interference (`tests/offline/waveOptics.test.ts`) [d1ccc42]
+  - [x] Test complex wave phase $\phi = \vec{k}\cdot\vec{r} - \omega t$ propagation
+  - [x] Test aperture discretization into secondary Huygens-Fresnel wavelet arrays
+  - [x] Test electric field superposition $\tilde{E} = \sum E_k e^{i\phi_k}$ producing double-slit and Airy disc intensity profiles
+- [~] Task: Implement `src/engine/offline/waveOptics.ts`
   - [ ] Implement secondary wavelet emitter generation for aperture slits and knife edges
   - [ ] Implement coherent field accumulator and phase cancellation logic
 - [ ] Task: Write failing unit tests for adaptive RK45 / Symplectic geodesic integrator near Schwarzschild black holes (`tests/offline/geodesicIntegrator.test.ts`)
