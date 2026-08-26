@@ -1,0 +1,1 @@
+Task: Write failing unit tests for wave phase tracking, Huygens-Fresnel secondary wavelet generation, and slit interference (tests/offline/waveOptics.test.ts)
