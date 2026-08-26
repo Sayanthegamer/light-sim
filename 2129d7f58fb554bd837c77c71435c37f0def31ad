@@ -1,0 +1,1 @@
+Task: Write failing unit tests for Radiance 32-bit .hdr binary encoder and HDR/PNG export pipeline (tests/offline/hdrExporter.test.ts)
