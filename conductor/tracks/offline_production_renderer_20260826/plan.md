@@ -77,3 +77,7 @@
   - [x] Test complete workflow from scene snapshot through progressive Monte Carlo accumulation to `.hdr` output
   - [x] Verify non-blocking UI behavior and memory leak prevention during high-sample rendering
 - [x] Task: Phase Verification & Checkpoint (Refer to workflow.md) [57f09ad]
+
+## Phase: Review Fixes
+- [x] Task: Apply review suggestions [e560359]
+
