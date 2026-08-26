@@ -93,8 +93,6 @@ function processBatch(): void {
     phase: 0.0
   };
 
-  const batchStart = performance.now();
-
   for (let i = 0; i < batchSize; i++) {
     // Select emitter
     const emitterIdx = (Math.random() * numEmitters) | 0;
@@ -157,6 +155,8 @@ function postProgress(isComplete: boolean): void {
   const bufferCopy = new Float32Array(target.buffer);
   const sampleMapCopy = new Uint32Array(target.sampleCountMap);
 
+  const workerCtx = self as unknown as { postMessage: (msg: unknown, transfer?: Transferable[]) => void };
+
   if (isComplete) {
     const msg: IWorkerCompletePayload = {
       type: 'COMPLETE',
@@ -165,7 +165,7 @@ function postProgress(isComplete: boolean): void {
       buffer: bufferCopy,
       sampleCountMap: sampleMapCopy
     };
-    self.postMessage(msg, [bufferCopy.buffer, sampleMapCopy.buffer]);
+    workerCtx.postMessage(msg, [bufferCopy.buffer, sampleMapCopy.buffer]);
   } else {
     const msg: IWorkerProgressPayload = {
       type: 'PROGRESS',
@@ -176,7 +176,7 @@ function postProgress(isComplete: boolean): void {
       buffer: bufferCopy,
       sampleCountMap: sampleMapCopy
     };
-    self.postMessage(msg, [bufferCopy.buffer, sampleMapCopy.buffer]);
+    workerCtx.postMessage(msg, [bufferCopy.buffer, sampleMapCopy.buffer]);
   }
 }
 

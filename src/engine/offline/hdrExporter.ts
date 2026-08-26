@@ -98,7 +98,7 @@ export function exportHDRBlob(
   exposure: number = 1.0
 ): Blob {
   const bytes = encodeHDR(buffer, width, height, exposure);
-  return new Blob([bytes.buffer], { type: 'image/vnd.radiance' });
+  return new Blob([bytes.buffer as ArrayBuffer], { type: 'image/vnd.radiance' });
 }
 
 /**

@@ -14,10 +14,10 @@ describe('Scene Snapshot & Worker Freeze Protocol', () => {
   it('freezes live polymorphic scene graph into immutable transferable snapshot payload', () => {
     const scene = new SceneGraph();
 
-    const emitter = new EmitterNode(1, { x: 100, y: 200 }, 0, 40, 1.0, 550);
-    const prism = new PrismNode(2, { x: 300, y: 200 }, 0, 'equilateral', 80, 1.5168, 0.005);
-    const barrier = new BarrierNode(3, { x: 500, y: 100 }, { x: 500, y: 300 }, false);
-    const bh = new BlackHoleNode(4, { x: 700, y: 400 }, 40);
+    const emitter = new EmitterNode('1', { x: 100, y: 200 }, 0, { beamWidth: 40, intensity: 1.0, wavelength: 550 });
+    const prism = new PrismNode('2', { x: 300, y: 200 }, 0, { refractiveIndex: 1.5168 });
+    const barrier = new BarrierNode('3', { x: 500, y: 100 }, 0, { length: 120, thickness: 6, isMirror: false });
+    const bh = new BlackHoleNode('4', { x: 700, y: 400 }, 0, { rs: 40 });
 
     scene.addNode(emitter);
     scene.addNode(prism);
@@ -37,7 +37,7 @@ describe('Scene Snapshot & Worker Freeze Protocol', () => {
 
   it('serializes and deserializes snapshot across postMessage boundary', () => {
     const scene = new SceneGraph();
-    const emitter = new EmitterNode(1, { x: 50, y: 50 }, 0, 20, 1.0, 650);
+    const emitter = new EmitterNode('1', { x: 50, y: 50 }, 0, { beamWidth: 20, intensity: 1.0, wavelength: 650 });
     scene.addNode(emitter);
 
     const snapshot = freezeSceneSnapshot(scene, 800, 600);

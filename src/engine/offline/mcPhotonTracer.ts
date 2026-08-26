@@ -6,11 +6,10 @@
  * 32-bit float accumulation target splatting.
  */
 
-import { type IVec2, Vec2 } from '../math/vec2';
+import { type IVec2 } from '../math/vec2';
 import {
   type Segment2D,
   type Arc2D,
-  type HitResult,
   createHitResult,
   findClosestIntersection
 } from '../geometry/intersections';
@@ -22,7 +21,7 @@ import {
 } from './volumetricMedium';
 import { advanceWavePhase } from './waveOptics';
 import { AccumulationTarget } from './accumulationTarget';
-import { fresnelCoefficients, solveRefraction, type RefractionResult } from '../optics/refraction';
+import { solveRefraction, type RefractionResult } from '../optics/refraction';
 
 export interface IOfflinePrism {
   id: number;
