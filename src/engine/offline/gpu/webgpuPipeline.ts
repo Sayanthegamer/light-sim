@@ -177,9 +177,15 @@ fn intersectRaySegment(origin: vec2<f32>, dir: vec2<f32>, seg: SegmentPrimitive)
     hit.hit = true;
     hit.t = t;
     let n = normalize(vec2<f32>(-segDir.y, segDir.x));
-    hit.normal = select(-n, n, dot(dir, n) < 0.0);
-    hit.n1 = seg.optics.x;
-    hit.n2 = seg.optics.y;
+    let isBackFace = (dot(dir, n) > 0.0);
+    hit.normal = select(n, -n, isBackFace);
+    if (isBackFace) {
+      hit.n1 = seg.optics.y;
+      hit.n2 = seg.optics.x;
+    } else {
+      hit.n1 = seg.optics.x;
+      hit.n2 = seg.optics.y;
+    }
     hit.cauchyA = seg.optics.z;
     hit.cauchyB = seg.optics.w;
     hit.isBarrier = (seg.optics.x == 0.0);
@@ -235,9 +241,15 @@ fn intersectRayArc(origin: vec2<f32>, dir: vec2<f32>, arc: ArcPrimitive) -> HitI
       hit.hit = true;
       hit.t = t;
       let n = normalize(local);
-      hit.normal = select(-n, n, dot(dir, n) < 0.0);
-      hit.n1 = 1.0;
-      hit.n2 = arc.nGlass;
+      let isBackFace = (dot(dir, n) > 0.0);
+      hit.normal = select(n, -n, isBackFace);
+      if (isBackFace) {
+        hit.n1 = arc.nGlass;
+        hit.n2 = 1.0;
+      } else {
+        hit.n1 = 1.0;
+        hit.n2 = arc.nGlass;
+      }
       hit.cauchyA = arc.cauchy.x;
       hit.cauchyB = arc.cauchy.y;
       hit.isBarrier = false;
