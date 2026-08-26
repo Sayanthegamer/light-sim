@@ -39,10 +39,10 @@
 - [x] Task: Write failing unit tests for 32-bit float accumulation buffer, sample count mapping, and XYZ-to-sRGB progressive tonemapping (`tests/offline/accumulationTarget.test.ts`) [f66d621]
   - [x] Test `RGBA32F` tile buffer allocation, pixel splatting, and sample weight averaging
   - [x] Test dynamic exposure scaling and Reinhard/ACES tonemapping to 8-bit/16-bit display buffers
-- [~] Task: Implement `src/engine/offline/accumulationTarget.ts`
-  - [ ] Create high-precision `Float32Array` accumulation buffer with atomic/per-pixel sample counters
-  - [ ] Implement progressive frame reconstruction and blitting routines
-- [ ] Task: Write failing unit tests for bidirectional Monte Carlo ray/photon transport with Russian Roulette unbounded branching and geometry intersection (`tests/offline/mcPhotonTracer.test.ts`)
+- [x] Task: Implement `src/engine/offline/accumulationTarget.ts` [9e89d32]
+  - [x] Create high-precision `Float32Array` accumulation buffer with atomic/per-pixel sample counters
+  - [x] Implement progressive frame reconstruction and blitting routines
+- [~] Task: Write failing unit tests for bidirectional Monte Carlo ray/photon transport with Russian Roulette unbounded branching and geometry intersection (`tests/offline/mcPhotonTracer.test.ts`)
   - [ ] Test unbounded Russian Roulette termination with continuation probability $P = \min(1.0, \max(R, T))$
   - [ ] Test photon intersection against scene prisms, lenses, mirrors, barriers, and emitters
 - [ ] Task: Implement `src/engine/offline/mcPhotonTracer.ts`
