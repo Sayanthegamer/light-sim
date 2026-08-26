@@ -1,0 +1,1 @@
+Task: Write failing unit tests for continuous Planck spectral emission, CIE 1931 XYZ integration, and Sellmeier glass dispersion equations (tests/offline/spectralSampler.test.ts)
