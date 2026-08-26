@@ -30,12 +30,12 @@ Implement a high-throughput WebGPU Compute-to-Raster photon transport accelerati
     - [x] Implement Snell refraction, Fresnel reflection, and Russian Roulette stochastic branching in WGSL
     - [x] Implement Schwarzschild geodesic stepping inside black hole influence zones in WGSL
     - [x] Write unit tests verifying mathematical consistency of WGSL shader generators
-- [ ] Task: Implement WebGPU Render Pipeline with hardware clip-culling and native floating-point additive blending
-    - [ ] Create render pipeline with `rgba32float` / `rgba16float` target format and `blendFunc(ONE, ONE)`
-    - [ ] Configure vertex shader to discard dead/absorbed segments via out-of-clip coordinates ($w = 0$)
-- [ ] Task: Implement progressive accumulation ping-pong and direct float readback into `AccumulationTarget`
-    - [ ] Create `src/engine/offline/gpu/gpuAccumulator.ts` managing textures and staging readback buffers
-    - [ ] Implement direct `Float32Array` readback bridging GPU accumulation to `AccumulationTarget`
+- [x] Task: Implement WebGPU Render Pipeline with hardware clip-culling and native floating-point additive blending [f33f403]
+    - [x] Create render pipeline with `rgba32float` / `rgba16float` target format and `blendFunc(ONE, ONE)`
+    - [x] Configure vertex shader to discard dead/absorbed segments via out-of-clip coordinates ($w = 0$)
+- [x] Task: Implement progressive accumulation ping-pong and direct float readback into `AccumulationTarget` [f33f403]
+    - [x] Create `src/engine/offline/gpu/gpuAccumulator.ts` managing textures and staging readback buffers
+    - [x] Implement direct `Float32Array` readback bridging GPU accumulation to `AccumulationTarget`
 - [ ] Task: Phase Verification & Checkpoint (Refer to workflow.md)
 
 ---
