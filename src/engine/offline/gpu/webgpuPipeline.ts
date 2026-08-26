@@ -109,48 +109,33 @@ fn pcg32_next(rng: ptr<function, RngState>) -> f32 {
   return f32(res) * (1.0 / 4294967296.0);
 }
 
-// Analytic CIE 1931 RGB Color Matching
+// Analytic CIE 1931 XYZ Color Matching (Wyman, Sloan, Shirley 2013)
+fn gaussian(x: f32, mu: f32, sigma1: f32, sigma2: f32) -> f32 {
+  let sigma = select(sigma2, sigma1, x < mu);
+  let t = (x - mu) / sigma;
+  return exp(-0.5 * t * t);
+}
+
+fn wavelengthToXYZ(wl: f32) -> vec3<f32> {
+  let x = 1.056 * gaussian(wl, 599.8, 37.9, 31.0)
+        + 0.362 * gaussian(wl, 442.0, 16.0, 26.7)
+        - 0.065 * gaussian(wl, 501.1, 20.4, 18.9);
+
+  let y = 0.821 * gaussian(wl, 568.8, 46.9, 40.5)
+        + 0.286 * gaussian(wl, 530.9, 16.3, 31.1);
+
+  let z = 1.217 * gaussian(wl, 437.0, 11.8, 36.0)
+        + 0.681 * gaussian(wl, 459.0, 26.0, 13.8);
+
+  return vec3<f32>(max(0.0, x), max(0.0, y), max(0.0, z));
+}
+
 fn wavelengthToRGB(lambda: f32) -> vec3<f32> {
-  var r = 0.0;
-  var g = 0.0;
-  var b = 0.0;
-
-  if (lambda >= 380.0 && lambda < 440.0) {
-    r = -(lambda - 440.0) / (440.0 - 380.0);
-    g = 0.0;
-    b = 1.0;
-  } else if (lambda >= 440.0 && lambda < 490.0) {
-    r = 0.0;
-    g = (lambda - 440.0) / (490.0 - 440.0);
-    b = 1.0;
-  } else if (lambda >= 490.0 && lambda < 510.0) {
-    r = 0.0;
-    g = 1.0;
-    b = -(lambda - 510.0) / (510.0 - 490.0);
-  } else if (lambda >= 510.0 && lambda < 580.0) {
-    r = (lambda - 510.0) / (580.0 - 510.0);
-    g = 1.0;
-    b = 0.0;
-  } else if (lambda >= 580.0 && lambda < 645.0) {
-    r = 1.0;
-    g = -(lambda - 645.0) / (645.0 - 580.0);
-    b = 0.0;
-  } else if (lambda >= 645.0 && lambda <= 780.0) {
-    r = 1.0;
-    g = 0.0;
-    b = 0.0;
-  }
-
-  var factor = 0.0;
-  if (lambda >= 380.0 && lambda < 420.0) {
-    factor = 0.3 + 0.7 * (lambda - 380.0) / (420.0 - 380.0);
-  } else if (lambda >= 420.0 && lambda <= 700.0) {
-    factor = 1.0;
-  } else if (lambda > 700.0 && lambda <= 780.0) {
-    factor = 0.3 + 0.7 * (780.0 - lambda) / (780.0 - 700.0);
-  }
-
-  return vec3<f32>(r * factor, g * factor, b * factor);
+  let xyz = wavelengthToXYZ(lambda);
+  let r = 3.2404542 * xyz.x - 1.5371385 * xyz.y - 0.4985314 * xyz.z;
+  let g = -0.969266 * xyz.x + 1.8760108 * xyz.y + 0.041556 * xyz.z;
+  let b = 0.0556434 * xyz.x - 0.2040259 * xyz.y + 1.0572252 * xyz.z;
+  return vec3<f32>(max(0.0, r), max(0.0, g), max(0.0, b));
 }
 
 fn evaluateCauchy(lambdaNm: f32, a: f32, b: f32) -> f32 {
@@ -442,7 +427,7 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
     wavelength = 380.0 + pcg32_next(&rng) * 400.0; // Continuous spectrum
   }
 
-  var color = wavelengthToRGB(wavelength);
+  var color = wavelengthToXYZ(wavelength);
 
   // 2. Trace Bounces
   var bounce = 0u;
@@ -472,6 +457,19 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
       bestHit.hit = false;
     }
 
+    // Volumetric in-scattering check (homogeneous participating medium)
+    let sigmaT = 0.0025;
+    let albedo = 0.8;
+    let g = 0.25;
+
+    let xiScatter = pcg32_next(&rng);
+    let scatterDist = -log(max(1e-7, 1.0 - xiScatter)) / sigmaT;
+    var didScatter = false;
+    if (scatterDist < closestT) {
+      closestT = scatterDist;
+      didScatter = true;
+    }
+
     let straightNextPos = curPos + curDir * closestT;
     var nextPos = straightNextPos;
     var nextDir = curDir;
@@ -487,6 +485,29 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
 
     curPos = nextPos;
     curDir = nextDir;
+
+    if (didScatter) {
+      // Photon scattered inside volumetric medium (Henyey-Greenstein)
+      let xiTheta = pcg32_next(&rng);
+      let sq = (1.0 - g * g) / (1.0 - g + 2.0 * g * xiTheta);
+      let cosTheta = clamp((1.0 + g * g - sq * sq) / (2.0 * g), -1.0, 1.0);
+      let sinTheta = sqrt(max(0.0, 1.0 - cosTheta * cosTheta)) * select(-1.0, 1.0, pcg32_next(&rng) > 0.5);
+
+      let newX = curDir.x * cosTheta - curDir.y * sinTheta;
+      let newY = curDir.x * sinTheta + curDir.y * cosTheta;
+      curDir = normalize(vec2<f32>(newX, newY));
+      energy = energy * albedo;
+      bounce = bounce + 1u;
+
+      if (energy < 0.2) {
+        if (pcg32_next(&rng) > energy * 5.0) {
+          energy = 0.0;
+          break;
+        }
+        energy = 0.2;
+      }
+      continue;
+    }
 
     if (length(curDir) < 0.1) {
       // Absorbed by event horizon
@@ -610,7 +631,7 @@ fn vs_main(@builtin(vertex_index) vertexIdx: u32) -> VertexOutput {
   let ndcY = 1.0 - ((v.pos.y - b.y) / (b.w - b.y)) * 2.0;
 
   out.position = vec4<f32>(ndcX, ndcY, 0.0, 1.0);
-  out.color = vec4<f32>(v.color * v.energy * 0.005, 1.0);
+  out.color = vec4<f32>(v.color * v.energy * 0.0001, 1.0);
   return out;
 }
 
