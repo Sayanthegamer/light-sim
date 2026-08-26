@@ -18,7 +18,7 @@
   - [x] Implement collision sampling and scattering direction perturbation routines
 - [x] Task: Phase Verification & Checkpoint (Refer to workflow.md) [e5c7d2a]
 
-## Phase 2: Wave Optics & Adaptive Geodesic Integrator
+## Phase 2: Wave Optics & Adaptive Geodesic Integrator [checkpoint: 023bea1]
 - [x] Task: Write failing unit tests for wave phase tracking, Huygens-Fresnel secondary wavelet generation, and slit interference (`tests/offline/waveOptics.test.ts`) [d1ccc42]
   - [x] Test complex wave phase $\phi = \vec{k}\cdot\vec{r} - \omega t$ propagation
   - [x] Test aperture discretization into secondary Huygens-Fresnel wavelet arrays
@@ -30,13 +30,13 @@
   - [x] Test adaptive step size reduction near the photon sphere ($r = 1.5 r_s$)
   - [x] Test conservation of relativistic orbital energy and angular momentum
   - [x] Test horizon termination without numerical tunneling or infinite loop stalls
-- [~] Task: Implement `src/engine/offline/geodesicIntegrator.ts`
-  - [ ] Implement adaptive Runge-Kutta-Fehlberg (RK45) / 4th-order Symplectic geodesic solver
-  - [ ] Implement dynamic step adjustment and event horizon capture
-- [ ] Task: Phase Verification & Checkpoint (Refer to workflow.md)
+- [x] Task: Implement `src/engine/offline/geodesicIntegrator.ts` [023bea1]
+  - [x] Implement adaptive Runge-Kutta-Fehlberg (RK45) / 4th-order Symplectic geodesic solver
+  - [x] Implement dynamic step adjustment and event horizon capture
+- [x] Task: Phase Verification & Checkpoint (Refer to workflow.md) [023bea1]
 
 ## Phase 3: Monte Carlo Photon Tracer & 32-bit Accumulator Target
-- [ ] Task: Write failing unit tests for 32-bit float accumulation buffer, sample count mapping, and XYZ-to-sRGB progressive tonemapping (`tests/offline/accumulationTarget.test.ts`)
+- [~] Task: Write failing unit tests for 32-bit float accumulation buffer, sample count mapping, and XYZ-to-sRGB progressive tonemapping (`tests/offline/accumulationTarget.test.ts`)
   - [ ] Test `RGBA32F` tile buffer allocation, pixel splatting, and sample weight averaging
   - [ ] Test dynamic exposure scaling and Reinhard/ACES tonemapping to 8-bit/16-bit display buffers
 - [ ] Task: Implement `src/engine/offline/accumulationTarget.ts`
