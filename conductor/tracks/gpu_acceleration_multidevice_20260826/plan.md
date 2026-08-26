@@ -25,11 +25,11 @@ Implement a high-throughput WebGPU Compute-to-Raster photon transport accelerati
 
 ## Phase 2: Complete Physical Optics WGSL Kernel & Floating-Point Accumulation Pipeline
 
-- [ ] Task: Implement full physical optics in WGSL
-    - [ ] Implement continuous CIE 1931 color matching and Cauchy dispersion solver in WGSL
-    - [ ] Implement Snell refraction, Fresnel reflection, and Russian Roulette stochastic branching in WGSL
-    - [ ] Implement Schwarzschild geodesic stepping inside black hole influence zones in WGSL
-    - [ ] Write unit tests verifying mathematical consistency of WGSL shader generators
+- [x] Task: Implement full physical optics in WGSL [9d6807c]
+    - [x] Implement continuous CIE 1931 color matching and Cauchy dispersion solver in WGSL
+    - [x] Implement Snell refraction, Fresnel reflection, and Russian Roulette stochastic branching in WGSL
+    - [x] Implement Schwarzschild geodesic stepping inside black hole influence zones in WGSL
+    - [x] Write unit tests verifying mathematical consistency of WGSL shader generators
 - [ ] Task: Implement WebGPU Render Pipeline with hardware clip-culling and native floating-point additive blending
     - [ ] Create render pipeline with `rgba32float` / `rgba16float` target format and `blendFunc(ONE, ONE)`
     - [ ] Configure vertex shader to discard dead/absorbed segments via out-of-clip coordinates ($w = 0$)
