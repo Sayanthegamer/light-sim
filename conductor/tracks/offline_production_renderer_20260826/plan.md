@@ -26,11 +26,11 @@
 - [x] Task: Implement `src/engine/offline/waveOptics.ts` [f0d0389]
   - [x] Implement secondary wavelet emitter generation for aperture slits and knife edges
   - [x] Implement coherent field accumulator and phase cancellation logic
-- [~] Task: Write failing unit tests for adaptive RK45 / Symplectic geodesic integrator near Schwarzschild black holes (`tests/offline/geodesicIntegrator.test.ts`)
-  - [ ] Test adaptive step size reduction near the photon sphere ($r = 1.5 r_s$)
-  - [ ] Test conservation of relativistic orbital energy and angular momentum
-  - [ ] Test horizon termination without numerical tunneling or infinite loop stalls
-- [ ] Task: Implement `src/engine/offline/geodesicIntegrator.ts`
+- [x] Task: Write failing unit tests for adaptive RK45 / Symplectic geodesic integrator near Schwarzschild black holes (`tests/offline/geodesicIntegrator.test.ts`) [119b082]
+  - [x] Test adaptive step size reduction near the photon sphere ($r = 1.5 r_s$)
+  - [x] Test conservation of relativistic orbital energy and angular momentum
+  - [x] Test horizon termination without numerical tunneling or infinite loop stalls
+- [~] Task: Implement `src/engine/offline/geodesicIntegrator.ts`
   - [ ] Implement adaptive Runge-Kutta-Fehlberg (RK45) / 4th-order Symplectic geodesic solver
   - [ ] Implement dynamic step adjustment and event horizon capture
 - [ ] Task: Phase Verification & Checkpoint (Refer to workflow.md)
