@@ -35,7 +35,7 @@
   - [x] Implement dynamic step adjustment and event horizon capture
 - [x] Task: Phase Verification & Checkpoint (Refer to workflow.md) [023bea1]
 
-## Phase 3: Monte Carlo Photon Tracer & 32-bit Accumulator Target
+## Phase 3: Monte Carlo Photon Tracer & 32-bit Accumulator Target [checkpoint: 74ef290]
 - [x] Task: Write failing unit tests for 32-bit float accumulation buffer, sample count mapping, and XYZ-to-sRGB progressive tonemapping (`tests/offline/accumulationTarget.test.ts`) [f66d621]
   - [x] Test `RGBA32F` tile buffer allocation, pixel splatting, and sample weight averaging
   - [x] Test dynamic exposure scaling and Reinhard/ACES tonemapping to 8-bit/16-bit display buffers
@@ -45,13 +45,13 @@
 - [x] Task: Write failing unit tests for bidirectional Monte Carlo ray/photon transport with Russian Roulette unbounded branching and geometry intersection (`tests/offline/mcPhotonTracer.test.ts`) [0ab6f49]
   - [x] Test unbounded Russian Roulette termination with continuation probability $P = \min(1.0, \max(R, T))$
   - [x] Test photon intersection against scene prisms, lenses, mirrors, barriers, and emitters
-- [~] Task: Implement `src/engine/offline/mcPhotonTracer.ts`
-  - [ ] Implement core zero-GC Monte Carlo ray transport loop
-  - [ ] Implement Fresnel dielectric transmission/reflection branching and volume integration
-- [ ] Task: Phase Verification & Checkpoint (Refer to workflow.md)
+- [x] Task: Implement `src/engine/offline/mcPhotonTracer.ts` [74ef290]
+  - [x] Implement core zero-GC Monte Carlo ray transport loop
+  - [x] Implement Fresnel dielectric transmission/reflection branching and volume integration
+- [x] Task: Phase Verification & Checkpoint (Refer to workflow.md) [74ef290]
 
 ## Phase 4: Web Worker Infrastructure & Scene Snapshot Pipeline
-- [ ] Task: Write failing unit tests for scene snapshot serialization / freeze protocol for offline render context (`tests/offline/sceneSnapshot.test.ts`)
+- [~] Task: Write failing unit tests for scene snapshot serialization / freeze protocol for offline render context (`tests/offline/sceneSnapshot.test.ts`)
   - [ ] Test deep freezing of scene graph state into clean immutable transfer payload
   - [ ] Test reconstruction of optical boundary primitives inside worker environment
 - [ ] Task: Implement `src/engine/offline/sceneSnapshot.ts` and background worker dispatcher `src/engine/offline/renderWorker.ts`
