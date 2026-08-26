@@ -1,0 +1,1 @@
+Task: Write failing unit tests for bidirectional Monte Carlo ray/photon transport with Russian Roulette unbounded branching and geometry intersection (tests/offline/mcPhotonTracer.test.ts)
