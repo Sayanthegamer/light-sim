@@ -205,6 +205,179 @@ fn intersectRaySegment(origin: vec2<f32>, dir: vec2<f32>, seg: SegmentPrimitive)
   return hit;
 }
 
+// Ray-Arc Intersection
+fn intersectRayArc(origin: vec2<f32>, dir: vec2<f32>, arc: ArcPrimitive) -> HitInfo {
+  var hit: HitInfo;
+  hit.hit = false;
+  hit.t = 1e9;
+
+  let oc = origin - arc.center;
+  let b = dot(oc, dir);
+  let c = dot(oc, oc) - arc.radius * arc.radius;
+  let disc = b * b - c;
+
+  if (disc < 0.0) {
+    return hit;
+  }
+
+  let sqrtDisc = sqrt(disc);
+  var t = -b - sqrtDisc;
+  if (t < 0.01) {
+    t = -b + sqrtDisc;
+  }
+
+  if (t > 0.01) {
+    let p = origin + dir * t;
+    let local = p - arc.center;
+    var ang = atan2(local.y, local.x);
+
+    // Normalize angle to [0, 2pi]
+    let twoPi = 6.28318530718;
+    var start = arc.angles.x;
+    var end = arc.angles.y;
+
+    if (start < 0.0) { start = start + twoPi; }
+    if (end < 0.0) { end = end + twoPi; }
+    if (ang < 0.0) { ang = ang + twoPi; }
+
+    var inside = false;
+    if (start <= end) {
+      inside = (ang >= start && ang <= end);
+    } else {
+      inside = (ang >= start || ang <= end);
+    }
+
+    if (inside) {
+      hit.hit = true;
+      hit.t = t;
+      let n = normalize(local);
+      hit.normal = select(-n, n, dot(dir, n) < 0.0);
+      hit.n1 = 1.0;
+      hit.n2 = arc.nGlass;
+      hit.cauchyA = arc.cauchy.x;
+      hit.cauchyB = arc.cauchy.y;
+      hit.isBarrier = false;
+      hit.isMirror = false;
+    }
+  }
+
+  return hit;
+}
+
+// Bounding Box Slab Intersection
+fn intersectAABB(origin: vec2<f32>, dir: vec2<f32>, aabbMin: vec2<f32>, aabbMax: vec2<f32>) -> bool {
+  let invDirX = 1.0 / select(dir.x, 1e-6, abs(dir.x) < 1e-6);
+  let invDirY = 1.0 / select(dir.y, 1e-6, abs(dir.y) < 1e-6);
+
+  var t1 = (aabbMin.x - origin.x) * invDirX;
+  var t2 = (aabbMax.x - origin.x) * invDirX;
+  var tmin = min(t1, t2);
+  var tmax = max(t1, t2);
+
+  t1 = (aabbMin.y - origin.y) * invDirY;
+  t2 = (aabbMax.y - origin.y) * invDirY;
+  tmin = max(tmin, min(t1, t2));
+  tmax = min(tmax, max(t1, t2));
+
+  return tmax >= max(0.0, tmin);
+}
+
+// Schwarzschild Relativistic Geodesic Stepper
+fn stepSchwarzschildGeodesic(pos: vec2<f32>, dir: vec2<f32>, center: vec2<f32>, rs: f32, dt: f32) -> vec4<f32> {
+  let rVec = pos - center;
+  let r = length(rVec);
+
+  if (r <= rs) {
+    return vec4<f32>(pos, 0.0, 0.0); // Absorbed by event horizon
+  }
+
+  let L = rVec.x * dir.y - rVec.y * dir.x;
+  let L2 = L * L;
+  let r5 = r * r * r * r * r;
+  let accel = -1.5 * rs * L2 * rVec / r5;
+
+  // RK2 Midpoint Step
+  let midPos = pos + dir * (0.5 * dt);
+  let midVel = dir + accel * (0.5 * dt);
+
+  let midRVec = midPos - center;
+  let midR = length(midRVec);
+  let midR5 = midR * midR * midR * midR * midR;
+  let midAccel = -1.5 * rs * L2 * midRVec / midR5;
+
+  let newPos = pos + midVel * dt;
+  let newDir = normalize(dir + midAccel * dt);
+
+  return vec4<f32>(newPos, newDir);
+}
+
+// 8-Element Short-Stack BVH Traversal
+fn traverseBVH(origin: vec2<f32>, dir: vec2<f32>) -> HitInfo {
+  var bestHit: HitInfo;
+  bestHit.hit = false;
+  bestHit.t = 1e9;
+
+  let numNodes = config.counts.x;
+  if (numNodes == 0u) {
+    // Linear fallback if no BVH nodes
+    let numSegs = config.counts.y;
+    for (var s = 0u; s < numSegs; s = s + 1u) {
+      let h = intersectRaySegment(origin, dir, segments[s]);
+      if (h.hit && h.t < bestHit.t) {
+        bestHit = h;
+      }
+    }
+    let numArcs = config.counts.z;
+    for (var a = 0u; a < numArcs; a = a + 1u) {
+      let h = intersectRayArc(origin, dir, arcs[a]);
+      if (h.hit && h.t < bestHit.t) {
+        bestHit = h;
+      }
+    }
+    return bestHit;
+  }
+
+  var stack: array<u32, 8>;
+  var stackPtr = 0u;
+  stack[stackPtr] = 0u;
+  stackPtr = stackPtr + 1u;
+
+  while (stackPtr > 0u) {
+    stackPtr = stackPtr - 1u;
+    let nodeIdx = stack[stackPtr];
+    let node = bvhNodes[nodeIdx];
+
+    if (!intersectAABB(origin, dir, node.aabbMin, node.aabbMax)) {
+      continue;
+    }
+
+    if (node.leftChild == 0u) {
+      // Leaf Node
+      if (node.primType == 0u) {
+        let h = intersectRaySegment(origin, dir, segments[node.primIndex]);
+        if (h.hit && h.t < bestHit.t) {
+          bestHit = h;
+        }
+      } else if (node.primType == 1u) {
+        let h = intersectRayArc(origin, dir, arcs[node.primIndex]);
+        if (h.hit && h.t < bestHit.t) {
+          bestHit = h;
+        }
+      }
+    } else {
+      // Internal Node: push children to stack (max 8)
+      if (stackPtr < 7u) {
+        stack[stackPtr] = node.rightChildOrCount;
+        stackPtr = stackPtr + 1u;
+        stack[stackPtr] = node.leftChild;
+        stackPtr = stackPtr + 1u;
+      }
+    }
+  }
+
+  return bestHit;
+}
+
 @compute @workgroup_size(64, 1, 1)
 fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
   let photonIdx = global_id.x;
@@ -251,20 +424,20 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
     bestHit.hit = false;
 
     // Boundary check
+    var boundDist = 1000.0;
     let b = config.bounds;
-    if (curDir.x > 1e-6) { closestT = min(closestT, (b.z - curPos.x) / curDir.x); }
-    else if (curDir.x < -1e-6) { closestT = min(closestT, (b.x - curPos.x) / curDir.x); }
-    if (curDir.y > 1e-6) { closestT = min(closestT, (b.w - curPos.y) / curDir.y); }
-    else if (curDir.y < -1e-6) { closestT = min(closestT, (b.y - curPos.y) / curDir.y); }
+    if (curDir.x > 1e-6) { boundDist = min(boundDist, (b.z - curPos.x) / curDir.x); }
+    else if (curDir.x < -1e-6) { boundDist = min(boundDist, (b.x - curPos.x) / curDir.x); }
+    if (curDir.y > 1e-6) { boundDist = min(boundDist, (b.w - curPos.y) / curDir.y); }
+    else if (curDir.y < -1e-6) { boundDist = min(boundDist, (b.y - curPos.y) / curDir.y); }
 
-    // Intersect segments
-    let numSegs = config.counts.y;
-    for (var s = 0u; s < numSegs; s = s + 1u) {
-      let h = intersectRaySegment(curPos, curDir, segments[s]);
-      if (h.hit && h.t < closestT) {
-        closestT = h.t;
-        bestHit = h;
-      }
+    // Intersect scene geometry via short-stack BVH
+    var bestHit = traverseBVH(curPos, curDir);
+    var closestT = boundDist;
+    if (bestHit.hit && bestHit.t < boundDist) {
+      closestT = bestHit.t;
+    } else {
+      bestHit.hit = false;
     }
 
     let nextPos = curPos + curDir * closestT;
@@ -626,4 +799,8 @@ export function createWebGpuRenderPipeline(device: GPUDevice, format: GPUTexture
     },
     primitive: { topology: 'line-list' }
   });
+}
+
+export function generatePhotonTransportWgsl(_options?: { maxBounces?: number; workgroupSize?: number }): string {
+  return PHOTON_TRANSPORT_WGSL;
 }
