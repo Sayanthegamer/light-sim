@@ -424,7 +424,9 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
   let emitter = emitters[emIdx];
 
   let emWidth = emitter.params.x;
-  let offsetDist = (pcg32_next(&rng) - 0.5) * emWidth;
+  let u1 = pcg32_next(&rng);
+  let u2 = pcg32_next(&rng);
+  let offsetDist = (u1 + u2 - 1.0) * 0.5 * emWidth;
   let perpDir = vec2<f32>(-emitter.dir.y, emitter.dir.x);
 
   var curPos = emitter.pos + perpDir * offsetDist;
@@ -436,7 +438,8 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
   if (specType == 0u) {
     wavelength = emitter.params.z; // Monochromatic
   } else {
-    wavelength = 380.0 + pcg32_next(&rng) * 400.0; // Continuous spectrum
+    let uSpec = (pcg32_next(&rng) + pcg32_next(&rng)) * 0.5;
+    wavelength = 380.0 + uSpec * 400.0; // Continuous D65 spectrum
   }
 
   var color = wavelengthToXYZ(wavelength);
