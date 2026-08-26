@@ -51,10 +51,10 @@
 - [x] Task: Phase Verification & Checkpoint (Refer to workflow.md) [74ef290]
 
 ## Phase 4: Web Worker Infrastructure & Scene Snapshot Pipeline
-- [~] Task: Write failing unit tests for scene snapshot serialization / freeze protocol for offline render context (`tests/offline/sceneSnapshot.test.ts`)
-  - [ ] Test deep freezing of scene graph state into clean immutable transfer payload
-  - [ ] Test reconstruction of optical boundary primitives inside worker environment
-- [ ] Task: Implement `src/engine/offline/sceneSnapshot.ts` and background worker dispatcher `src/engine/offline/renderWorker.ts`
+- [x] Task: Write failing unit tests for scene snapshot serialization / freeze protocol for offline render context (`tests/offline/sceneSnapshot.test.ts`) [dd1b81a]
+  - [x] Test deep freezing of scene graph state into clean immutable transfer payload
+  - [x] Test reconstruction of optical boundary primitives inside worker environment
+- [~] Task: Implement `src/engine/offline/sceneSnapshot.ts` and background worker dispatcher `src/engine/offline/renderWorker.ts`
   - [ ] Implement Web Worker entry point with chunked tile/photon packet processing
   - [ ] Implement main-thread worker dispatcher with transferable ArrayBuffer streaming
 - [ ] Task: Write failing unit tests for Radiance 32-bit `.hdr` binary encoder and HDR/PNG export pipeline (`tests/offline/hdrExporter.test.ts`)
