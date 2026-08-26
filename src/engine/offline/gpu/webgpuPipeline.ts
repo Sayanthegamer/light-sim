@@ -440,8 +440,7 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
   if (specType == 0u) {
     wavelength = emitter.params.z; // Monochromatic
   } else {
-    let uSpec = (pcg32_next(&rng) + pcg32_next(&rng)) * 0.5;
-    wavelength = 380.0 + uSpec * 400.0; // Continuous D65 spectrum
+    wavelength = 380.0 + pcg32_next(&rng) * 400.0; // Pure Equal-Energy White spectrum
   }
 
   var color = wavelengthToXYZ(wavelength);
@@ -476,9 +475,9 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
     }
 
     // Subtle physical volumetric in-scattering (forward-peaked Mie halo around beams)
-    let sigmaT = 0.0006;
-    let albedo = 0.6;
-    let g = 0.65;
+    let sigmaT = 0.0004;
+    let albedo = 0.5;
+    let g = 0.75;
 
     let xiScatter = pcg32_next(&rng);
     let scatterDist = -log(max(1e-7, 1.0 - xiScatter)) / sigmaT;
@@ -497,10 +496,9 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
       nextPos = blackHoles[0].center;
     }
 
-    // Output active line segment with length-normalized radiant flux
-    let segmentFlux = energy / max(1.0, closestT);
-    photonVertices[outSlot0] = PhotonVertex(curPos, wavelength, 0u, color, segmentFlux);
-    photonVertices[outSlot1] = PhotonVertex(nextPos, wavelength, 0u, color, segmentFlux);
+    // Output active line segment with radiant energy
+    photonVertices[outSlot0] = PhotonVertex(curPos, wavelength, 0u, color, energy);
+    photonVertices[outSlot1] = PhotonVertex(nextPos, wavelength, 0u, color, energy);
 
     curPos = nextPos;
     curDir = nextDir;
@@ -651,7 +649,7 @@ fn vs_main(@builtin(vertex_index) vertexIdx: u32) -> VertexOutput {
   let ndcY = 1.0 - ((v.pos.y - b.y) / (b.w - b.y)) * 2.0;
 
   out.position = vec4<f32>(ndcX, ndcY, 0.0, 1.0);
-  out.color = vec4<f32>(v.color * v.energy * 0.05, 1.0);
+  out.color = vec4<f32>(v.color * v.energy * 0.00015, 1.0);
   return out;
 }
 
