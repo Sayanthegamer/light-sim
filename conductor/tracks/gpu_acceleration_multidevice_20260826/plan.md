@@ -10,9 +10,9 @@ Implement a high-throughput WebGPU Compute-to-Raster photon transport accelerati
 - [x] Task: Implement WebGPU device initialization (`navigator.gpu`), feature detection, and context fallback handling [ae550c2]
     - [x] Create `src/engine/offline/gpu/webgpuContext.ts` with device request, loss handlers, and capability checks
     - [x] Write unit tests for WebGPU capability detection and mock fallback initialization
-- [ ] Task: Implement TypeScript encoders for `BVHNode`, `SegmentPrimitive`, `ArcPrimitive`, and `BlackHolePrimitive` with byte-exact stride tests
-    - [ ] Create `src/engine/offline/gpu/gpuPrimitiveLayout.ts` defining binary structures and typed array packing
-    - [ ] Write unit tests verifying byte offsets, struct sizes, and field alignments against WGSL specs
+- [x] Task: Implement TypeScript encoders for `BVHNode`, `SegmentPrimitive`, `ArcPrimitive`, and `BlackHolePrimitive` with byte-exact stride tests [b87729c]
+    - [x] Create `src/engine/offline/gpu/gpuPrimitiveLayout.ts` defining binary structures and typed array packing
+    - [x] Write unit tests verifying byte offsets, struct sizes, and field alignments against WGSL specs
 - [ ] Task: Implement 8-element short-stack 2D BVH builder on CPU for scene geometry
     - [ ] Create `src/engine/offline/gpu/gpuBvhBuilder.ts` to construct balanced bounding hierarchies from scene snapshots
     - [ ] Write unit tests verifying AABB containment, leaf indexing, and max depth bounds
