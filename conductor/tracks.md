@@ -16,6 +16,3 @@
 
 
 
----
-- [x] **Track: WebGPU Bind Group Validation Fix**
-  *Link: [./tracks/webgpu_bind_fix_20260826/index.md](./tracks/webgpu_bind_fix_20260826/index.md)*
