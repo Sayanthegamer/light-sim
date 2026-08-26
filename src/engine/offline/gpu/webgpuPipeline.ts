@@ -104,9 +104,8 @@ fn pcg32_init(seed1: u32, seed2: u32) -> RngState {
 fn pcg32_next(rng: ptr<function, RngState>) -> f32 {
   let oldstate = (*rng).state;
   (*rng).state = oldstate * 747796405u + (*rng).inc;
-  let xorshifted = (((oldstate >> 18u) ^ oldstate) >> 27u);
-  let rot = oldstate >> 59u;
-  let res = (xorshifted >> rot) | (xorshifted << ((~rot + 1u) & 31u));
+  let word = ((oldstate >> ((oldstate >> 28u) + 4u)) ^ oldstate) * 277803737u;
+  let res = (word >> 22u) ^ word;
   return f32(res) * (1.0 / 4294967296.0);
 }
 
