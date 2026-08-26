@@ -21,20 +21,25 @@ import {
 } from './volumetricMedium';
 import { advanceWavePhase } from './waveOptics';
 import { AccumulationTarget } from './accumulationTarget';
-import { solveRefraction, type RefractionResult } from '../optics/refraction';
+import { solveRefraction, cauchyIndex, type RefractionResult } from '../optics/refraction';
 
 export interface IOfflinePrism {
   id: number;
   vertices: IVec2[];
   glass?: string;
   n?: number;
+  cauchyA?: number;
+  cauchyB?: number;
 }
 
 export interface IOfflineLens {
   id: number;
   arcs: Arc2D[];
+  segments?: Segment2D[];
   glass?: string;
   n?: number;
+  cauchyA?: number;
+  cauchyB?: number;
 }
 
 export interface IOfflineBarrier {
@@ -132,8 +137,8 @@ export function extractScenePrimitives(scene: IOfflineSceneGeometry): {
         p2: { x: v2.x, y: v2.y },
         n1: 1.0,
         n2: nGlass,
-        cauchyA: nGlass,
-        cauchyB: 0.005
+        cauchyA: p.cauchyA ?? nGlass,
+        cauchyB: p.cauchyB ?? 4200
       });
     }
   }
@@ -143,6 +148,11 @@ export function extractScenePrimitives(scene: IOfflineSceneGeometry): {
     const l = scene.lenses[i];
     for (let j = 0; j < l.arcs.length; j++) {
       arcs.push(l.arcs[j]);
+    }
+    if (l.segments) {
+      for (let j = 0; j < l.segments.length; j++) {
+        segments.push(l.segments[j]);
+      }
     }
   }
 
@@ -278,8 +288,8 @@ export function tracePhotonPath(
     }
 
     // Dielectric interface (Refraction + Reflection with continuous Sellmeier dispersion)
-    const n1 = hit.n1 <= 1.05 ? 1.0 : hit.cauchyA + hit.cauchyB / Math.pow(wl * 0.001, 2);
-    const n2 = hit.n2 <= 1.05 ? 1.0 : hit.cauchyA + hit.cauchyB / Math.pow(wl * 0.001, 2);
+    const n1 = hit.n1 <= 1.05 ? 1.0 : cauchyIndex(wl, hit.cauchyA, hit.cauchyB);
+    const n2 = hit.n2 <= 1.05 ? 1.0 : cauchyIndex(wl, hit.cauchyA, hit.cauchyB);
 
     const inDir = { x: dirX, y: dirY };
     solveRefraction(refrResult, inDir, hit.normal, n1, n2);

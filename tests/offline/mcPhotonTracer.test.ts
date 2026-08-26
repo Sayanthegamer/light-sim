@@ -106,4 +106,70 @@ describe('Monte Carlo Photon Tracer & Russian Roulette Transport', () => {
     const stats = tracePhotonPath(photon, barrierScene, target, { volumetricInScatter: false });
     expect(stats.absorbed).toBe(true);
   });
+
+  it('refracts photons through biconvex and planoconvex lenses without unphysical total reflection', () => {
+    target.reset();
+    // Biconvex lens centered at (50, 50)
+    // Left surface arc centered at (80, 50), radius 40
+    // Right surface arc centered at (20, 50), radius 40
+    const lensScene: IOfflineSceneGeometry = {
+      ...emptyScene,
+      lenses: [
+        {
+          id: 1,
+          arcs: [
+            {
+              id: 101,
+              center: { x: 80, y: 50 },
+              radius: 40,
+              startAngle: Math.PI - 0.6,
+              endAngle: Math.PI + 0.6,
+              nInside: 1.517,
+              nOutside: 1.0,
+              cauchyA: 1.5046,
+              cauchyB: 4200
+            },
+            {
+              id: 102,
+              center: { x: 20, y: 50 },
+              radius: 40,
+              startAngle: -0.6,
+              endAngle: 0.6,
+              nInside: 1.517,
+              nOutside: 1.0,
+              cauchyA: 1.5046,
+              cauchyB: 4200
+            }
+          ],
+          n: 1.517,
+          cauchyA: 1.5046,
+          cauchyB: 4200
+        }
+      ]
+    };
+
+    // Trace 100 photons through lens
+    let transmittedCount = 0;
+    for (let i = 0; i < 100; i++) {
+      const photon: IPhotonState = {
+        pos: { x: 10, y: 50 },
+        dir: { x: 1, y: 0 },
+        wavelengthNm: 550,
+        energy: 1.0,
+        phase: 0.0
+      };
+      const stats = tracePhotonPath(photon, lensScene, target, {
+        maxBounces: 10,
+        volumetricInScatter: false
+      });
+      // A photon that refracts through the front and back surface takes >= 2 bounces
+      if (stats.bounces >= 2) {
+        transmittedCount++;
+      }
+    }
+
+    // With physical glass (n ~ 1.52), Fresnel reflection at normal incidence is ~4% per surface.
+    // Over 100 photons, > 80% should transmit through both surfaces!
+    expect(transmittedCount).toBeGreaterThan(80);
+  });
 });

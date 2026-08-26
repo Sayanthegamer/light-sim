@@ -83,13 +83,18 @@ export function freezeSceneSnapshot(
       prisms.push({
         id: Number(node.id) || i + 1,
         vertices: node.getObstaclePolygon(),
-        n: node.refractiveIndex
+        n: node.refractiveIndex,
+        cauchyA: node.cauchyA,
+        cauchyB: node.cauchyB
       });
     } else if (node instanceof LensNode) {
       lenses.push({
         id: Number(node.id) || i + 1,
         arcs: node.getBoundaryArcs(),
-        n: node.refractiveIndex
+        segments: node.getBoundarySegments(),
+        n: node.refractiveIndex,
+        cauchyA: node.cauchyA,
+        cauchyB: node.cauchyB
       });
     } else if (node instanceof BarrierNode) {
       const poly = node.getObstaclePolygon();
