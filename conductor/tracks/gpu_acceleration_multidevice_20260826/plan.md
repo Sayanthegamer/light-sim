@@ -98,9 +98,9 @@ Implement a high-throughput WebGPU Compute-to-Raster photon transport accelerati
 
 ## Phase 7: $C^\infty$ Relativistic Curvature Continuum & 4K Zero-GC Memory Budgeting
 
-- [ ] Task: Shift Schwarzschild integration threshold to $8 r_s$ with adaptive radial step sizing ($\Delta t \propto r$) in WGSL to eliminate $C^1$ boundary seams
-    - [ ] Update `tests/offline/relativisticAsymptotics.test.ts` to test $8 r_s$ threshold and continuous geodesic deflection
-    - [ ] Update `evaluateBlackHoleInteraction` in `webgpuPipeline.ts`
+- [x] Task: Shift Schwarzschild integration threshold to $8 r_s$ with adaptive radial step sizing ($\Delta t \propto r$) in WGSL to eliminate $C^1$ boundary seams [1c06daa]
+    - [x] Update `tests/offline/relativisticAsymptotics.test.ts` to test $8 r_s$ threshold and continuous geodesic deflection
+    - [x] Update `evaluateBlackHoleInteraction` in `webgpuPipeline.ts`
 - [ ] Task: Implement in-place zero-GC Welford mutation and strided variance telemetry sampling ($S = 64$) for 4K resolutions in `webgpuComputeDispatcher.ts`
     - [ ] Create/update unit tests in `tests/offline/epochAccumulator.test.ts` testing in-place mutation and strided sampling
     - [ ] Update `webgpuComputeDispatcher.ts` with static pre-allocated buffer mutation and strided variance calculation
