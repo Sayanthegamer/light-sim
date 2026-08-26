@@ -49,6 +49,7 @@ describe('Epoch-Based GPU Sub-Accumulation & Welford Host Consolidation', () => 
       fp32Buffer[0] += tinyDelta;
     }
     const fp32LostTotal = fp32Buffer[0] - initialFp32;
+    expect(fp32LostTotal).toBeGreaterThanOrEqual(0);
 
     // Welford consolidation in Double Precision:
     let welfordMean = baseValue;

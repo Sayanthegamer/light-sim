@@ -1,6 +1,5 @@
 import { describe, it, expect } from 'vitest';
 import {
-  PHOTON_TRANSPORT_WGSL,
   generatePhotonTransportWgsl
 } from '../../src/engine/offline/gpu/webgpuPipeline';
 
