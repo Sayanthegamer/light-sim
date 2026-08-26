@@ -50,7 +50,7 @@
   - [x] Implement Fresnel dielectric transmission/reflection branching and volume integration
 - [x] Task: Phase Verification & Checkpoint (Refer to workflow.md) [74ef290]
 
-## Phase 4: Web Worker Infrastructure & Scene Snapshot Pipeline
+## Phase 4: Web Worker Infrastructure & Scene Snapshot Pipeline [checkpoint: 93893d7]
 - [x] Task: Write failing unit tests for scene snapshot serialization / freeze protocol for offline render context (`tests/offline/sceneSnapshot.test.ts`) [dd1b81a]
   - [x] Test deep freezing of scene graph state into clean immutable transfer payload
   - [x] Test reconstruction of optical boundary primitives inside worker environment
@@ -60,13 +60,13 @@
 - [x] Task: Write failing unit tests for Radiance 32-bit `.hdr` binary encoder and HDR/PNG export pipeline (`tests/offline/hdrExporter.test.ts`) [2129d7f]
   - [x] Test Radiance `.hdr` (RGBE 32-bit) format encoding and header specification
   - [x] Test export data URL / Blob generation for PNG and HDR downloads
-- [~] Task: Implement `src/engine/offline/hdrExporter.ts`
-  - [ ] Implement high-efficiency RGBE 32-bit RLE encoder
-  - [ ] Implement browser file download triggers
-- [ ] Task: Phase Verification & Checkpoint (Refer to workflow.md)
+- [x] Task: Implement `src/engine/offline/hdrExporter.ts` [93893d7]
+  - [x] Implement high-efficiency RGBE 32-bit RLE encoder
+  - [x] Implement browser file download triggers
+- [x] Task: Phase Verification & Checkpoint (Refer to workflow.md) [93893d7]
 
 ## Phase 5: Production Render UI Dock, Modal & End-to-End Integration
-- [ ] Task: Implement `src/ui/RenderModal.svelte`
+- [~] Task: Implement `src/ui/RenderModal.svelte`
   - [ ] Build modal overlay with progressive canvas preview
   - [ ] Display live statistics (samples count, photons dispatched, samples/sec, elapsed time)
   - [ ] Add Pause, Resume, Cancel, Exposure/Tonemap controls, and Export HDR / Export PNG buttons
