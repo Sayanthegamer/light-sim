@@ -23,7 +23,7 @@ Implement a high-throughput WebGPU Compute-to-Raster photon transport accelerati
 
 ---
 
-## Phase 2: Complete Physical Optics WGSL Kernel & Floating-Point Accumulation Pipeline
+## Phase 2: Complete Physical Optics WGSL Kernel & Floating-Point Accumulation Pipeline [checkpoint: 87dc821]
 
 - [x] Task: Implement full physical optics in WGSL [9d6807c]
     - [x] Implement continuous CIE 1931 color matching and Cauchy dispersion solver in WGSL
@@ -36,7 +36,7 @@ Implement a high-throughput WebGPU Compute-to-Raster photon transport accelerati
 - [x] Task: Implement progressive accumulation ping-pong and direct float readback into `AccumulationTarget` [f33f403]
     - [x] Create `src/engine/offline/gpu/gpuAccumulator.ts` managing textures and staging readback buffers
     - [x] Implement direct `Float32Array` readback bridging GPU accumulation to `AccumulationTarget`
-- [ ] Task: Phase Verification & Checkpoint (Refer to workflow.md)
+- [x] Task: Phase Verification & Checkpoint (Refer to workflow.md) [87dc821]
 
 ---
 
