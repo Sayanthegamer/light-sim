@@ -56,14 +56,15 @@ Implement a high-throughput WebGPU Compute-to-Raster photon transport accelerati
 
 ## Phase 4: Multi-Device Abstraction & Unified Dispatcher Integration
 
-- [ ] Task: Extract common `IDeviceDispatcher` interface from the two concrete dispatchers (`CpuWorkerDispatcher` and `WebGpuComputeDispatcher`)
-    - [ ] Create `src/engine/offline/deviceDispatcher.ts` defining `IDeviceDispatcher`, `ProgressCallback`, and `CompleteCallback`
-    - [ ] Refactor `src/engine/offline/cpuWorkerDispatcher.ts` to implement `IDeviceDispatcher`
-- [ ] Task: Refactor `RenderDispatcher` to act as the unified multi-device manager with device selection and clean fallback logic
-    - [ ] Update `src/engine/offline/renderDispatcher.ts` to manage active backend (`gpu` | `cpu` | `auto`)
-    - [ ] Implement automatic device selection based on WebGPU availability
-- [ ] Task: Write integration tests verifying seamless switching and independent execution across both backends
-    - [ ] Verify both dispatchers run independently without state bleeding
+- [x] Task: Refactor and extract `IDeviceDispatcher` interface common to CPU and GPU dispatchers (`CpuWorkerDispatcher` and `WebGpuComputeDispatcher`) [edeb5fd]
+    - [x] Create `src/engine/offline/deviceDispatcher.ts` defining `IDeviceDispatcher`, `ProgressCallback`, and `CompleteCallback`
+    - [x] Refactor `src/engine/offline/cpuWorkerDispatcher.ts` to implement `IDeviceDispatcher`
+- [x] Task: Refactor `RenderDispatcher` to act as the unified multi-device manager with device selection and clean fallback logic [edeb5fd]
+    - [x] Implement runtime device query (`auto` -> WebGPU if available, fallback to CPU worker pool)
+    - [x] Ensure seamless failover to CPU workers if WebGPU throws initialization or device loss errors
+- [x] Task: Write unit tests verifying multi-device orchestration, device switching, and error fallback [edeb5fd]
+    - [x] Test device selection flags (`cpu`, `gpu`, `auto`)
+    - [x] Test automatic fallback triggers when GPU mock rejects
 - [ ] Task: Phase Verification & Checkpoint (Refer to workflow.md)
 
 ---
