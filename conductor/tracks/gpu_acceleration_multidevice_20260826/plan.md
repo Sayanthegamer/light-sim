@@ -13,9 +13,9 @@ Implement a high-throughput WebGPU Compute-to-Raster photon transport accelerati
 - [x] Task: Implement TypeScript encoders for `BVHNode`, `SegmentPrimitive`, `ArcPrimitive`, and `BlackHolePrimitive` with byte-exact stride tests [b87729c]
     - [x] Create `src/engine/offline/gpu/gpuPrimitiveLayout.ts` defining binary structures and typed array packing
     - [x] Write unit tests verifying byte offsets, struct sizes, and field alignments against WGSL specs
-- [ ] Task: Implement 8-element short-stack 2D BVH builder on CPU for scene geometry
-    - [ ] Create `src/engine/offline/gpu/gpuBvhBuilder.ts` to construct balanced bounding hierarchies from scene snapshots
-    - [ ] Write unit tests verifying AABB containment, leaf indexing, and max depth bounds
+- [x] Task: Implement 8-element short-stack 2D BVH builder on CPU for scene geometry [c50fc5f]
+    - [x] Create `src/engine/offline/gpu/gpuBvhBuilder.ts` to construct balanced bounding hierarchies from scene snapshots
+    - [x] Write unit tests verifying AABB containment, leaf indexing, and max depth bounds
 - [ ] Task: Build minimal WGSL Compute & Hardware Clip-Culling prototype with adaptive micro-batch pacing
     - [ ] Create `src/engine/offline/gpu/shaders/photonTransport.wgsl` and `clipRaster.wgsl`
     - [ ] Write test harness verifying pipeline creation, bind group creation, and dispatch execution
