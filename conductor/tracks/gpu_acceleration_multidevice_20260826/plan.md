@@ -40,7 +40,7 @@ Implement a high-throughput WebGPU Compute-to-Raster photon transport accelerati
 
 ---
 
-## Phase 3: Concrete WebGpuComputeDispatcher & Resilient Lifecycle
+## Phase 3: Concrete WebGpuComputeDispatcher & Resilient Lifecycle [checkpoint: e15bc9e]
 
 - [x] Task: Implement `WebGpuComputeDispatcher` with concrete progress reporting, adaptive micro-batch pacing, and cancellation/pause lifecycle [d1177cd]
     - [x] Create `src/engine/offline/gpu/webgpuComputeDispatcher.ts` implementing `start`, `pause`, `resume`, `cancel`
@@ -50,7 +50,7 @@ Implement a high-throughput WebGPU Compute-to-Raster photon transport accelerati
     - [x] Implement fallback notification triggering CPU worker fallback if GPU execution fails
 - [x] Task: Write unit tests covering dispatcher state machines, buffer cleanup, and progress aggregation [d1177cd]
     - [x] Test lifecycle states (IDLE, RUNNING, PAUSED, COMPLETE, CANCELLED)
-- [ ] Task: Phase Verification & Checkpoint (Refer to workflow.md)
+- [x] Task: Phase Verification & Checkpoint (Refer to workflow.md) [e15bc9e]
 
 ---
 
