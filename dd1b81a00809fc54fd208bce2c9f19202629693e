@@ -1,0 +1,1 @@
+Task: Write failing unit tests for scene snapshot serialization / freeze protocol for offline render context (tests/offline/sceneSnapshot.test.ts)
