@@ -14,6 +14,3 @@
 - [x] **Track: Black Hole Frustum Intersection, Splitting & Growable Pool Refactor**
   *Link: [black_hole_frustum_splitting_growable_pool_20260825](./tracks/black_hole_frustum_splitting_growable_pool_20260825/index.md)*
 
-- [x] **Track: Full GPU Acceleration & Independent Multi-Device Rendering**
-  *Link: [gpu_acceleration_multidevice_20260826](./tracks/gpu_acceleration_multidevice_20260826/index.md)*
-
