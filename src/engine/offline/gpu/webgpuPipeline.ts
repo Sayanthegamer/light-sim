@@ -465,8 +465,8 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
     else if (curDir.y < -1e-6) { boundDist = min(boundDist, (b.y - curPos.y) / curDir.y); }
 
     // Intersect scene geometry via short-stack BVH
-    var bestHit = traverseBVH(curPos, curDir);
-    var closestT = boundDist;
+    bestHit = traverseBVH(curPos, curDir);
+    closestT = boundDist;
     if (bestHit.hit && bestHit.t < boundDist) {
       closestT = bestHit.t;
     } else {

@@ -21,6 +21,12 @@ describe('WebGPU Pipeline Creation & Shader Validation', () => {
     expect(CLIP_RASTER_WGSL).toContain('outOfClip');
   });
 
+  it('does not contain WGSL variable redeclarations for bestHit and closestT', () => {
+    // A redeclaration in the loop like `var bestHit = traverseBVH` will cause WebGPU parsing to fail
+    expect(PHOTON_TRANSPORT_WGSL).not.toMatch(/var\s+bestHit\s*=\s*traverseBVH/);
+    expect(PHOTON_TRANSPORT_WGSL).not.toMatch(/var\s+closestT\s*=\s*boundDist/);
+  });
+
   it('initializes GpuPipelineManager with mocked device and creates storage buffers and bind groups', () => {
     const mockBuffer = {
       destroy: vi.fn()
