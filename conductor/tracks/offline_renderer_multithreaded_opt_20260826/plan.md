@@ -19,3 +19,6 @@
 - [x] Task: Update `RenderModal.svelte` with Thread Count selector (Auto / 2 / 4 / 8 / 16 / 32) and multi-threaded metrics 2aa6c1e
 - [x] Task: Execute end-to-end multi-threaded render benchmark verifying linear multi-core speedup and HDR export parity 2aa6c1e
 - [x] Task: Phase Verification & Checkpoint (Refer to workflow.md) 2aa6c1e
+
+## Phase: Review Fixes
+- [x] Task: Apply review suggestions 4917e6e
