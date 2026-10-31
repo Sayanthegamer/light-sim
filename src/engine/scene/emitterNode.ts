@@ -87,6 +87,19 @@ export class EmitterNode extends SceneNode {
     };
   }
 
+  /**
+   * Returns the 4 world-space vertices of the emitter housing box behind the aperture.
+   */
+  getHousingPolygon(): IVec2[] {
+    const halfW = Math.max(12, this.beamWidth * 0.5);
+    return [
+      this.localToWorld({ x: -24, y: -halfW }),
+      this.localToWorld({ x: 0, y: -halfW }),
+      this.localToWorld({ x: 0, y: halfW }),
+      this.localToWorld({ x: -24, y: halfW })
+    ];
+  }
+
   getBoundarySegments(): Segment2D[] {
     return [];
   }
@@ -105,8 +118,8 @@ export class EmitterNode extends SceneNode {
 
   containsPoint(worldPoint: IVec2): boolean {
     const local = this.worldToLocal(worldPoint);
-    // Emitter body is a small box behind the aperture: [-20, 0] in x, [-halfW, halfW] in y
-    const halfW = this.beamWidth * 0.5 + 8;
-    return local.x >= -24 && local.x <= 8 && local.y >= -halfW && local.y <= halfW;
+    // Forgiving hit box covering the housing behind the aperture and the aperture emission line
+    const halfW = Math.max(16, this.beamWidth * 0.5 + 10);
+    return local.x >= -28 && local.x <= 14 && local.y >= -halfW && local.y <= halfW;
   }
 }

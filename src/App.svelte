@@ -8,7 +8,7 @@
   import { BarrierNode } from './engine/scene/barrierNode';
   import { RenderState } from './engine/renderer/renderLoop';
   import { type SceneNode } from './engine/scene/sceneNode';
-  import { type GizmoHandle } from './engine/interaction/hitTester';
+  import { HandleType, type GizmoHandle } from './engine/interaction/hitTester';
   import { loadFromCurrentURL, syncToURL } from './engine/state/serializer';
   import { newtonPrismPreset } from './engine/presets/newtonPrism';
   import Dock from './ui/Dock.svelte';
@@ -20,6 +20,10 @@
   let engine = $state<OpticsEngine | null>(null);
   let selectedPresetName = $state<string>("Newton's Prism Dispersion");
   let showRenderModal = $state(false);
+  let showOutlines = $state(true);
+  let showGrid = $state(false);
+  let canvasCursor = $state('crosshair');
+  let sceneVersion = $state(0);
 
   let stats = $state<EngineStats>({
     fps: 60,
@@ -31,33 +35,61 @@
     renderState: RenderState.Interacting
   });
 
+  let sceneNodes = $state<SceneNode[]>([]);
   let selectedNode = $state<SceneNode | null>(null);
+  let hoveredNode = $state<SceneNode | null>(null);
+  let hoveredHandle = $state<HandleType | null>(null);
   let gizmoHandles = $state<GizmoHandle[]>([]);
 
   function updateSelectedNode() {
     if (!engine) return;
-    const node = engine.getGizmoController().getSelectedNode();
-    selectedNode = node;
-    gizmoHandles = engine.getGizmoController().getGizmoHandles();
+    const gc = engine.getGizmoController();
+    sceneNodes = [...engine.getScene().getAllNodes()];
+    selectedNode = gc.getSelectedNode();
+    hoveredNode = gc.getHoveredNode();
+    hoveredHandle = gc.getHoveredHandle();
+    canvasCursor = gc.getCursor();
+    gizmoHandles = gc.getGizmoHandles();
+    sceneVersion++;
+  }
+
+  function handleSelectNode(id: string) {
+    if (!engine) return;
+    engine.getGizmoController().selectNode(id);
+    updateSelectedNode();
   }
 
   function handleAddNode(type: string) {
     if (!engine) return;
     const scene = engine.getScene();
-    const cx = engine.getWidth() * 0.5;
-    const cy = engine.getHeight() * 0.5;
+    let cx = Math.round(engine.getWidth() * 0.5);
+    let cy = Math.round(engine.getHeight() * 0.5);
     const id = `${type}_${Date.now().toString(36)}`;
 
+    let spawnX = type === 'emitter' ? cx - 140 : cx;
+    let spawnY = cy;
+
+    // Offset slightly if another object already occupies the exact spawn point
+    const existing = scene.getAllNodes();
+    for (let attempt = 0; attempt < 8; attempt++) {
+      const collision = existing.some(
+        n => Math.hypot(n.position.x - spawnX, n.position.y - spawnY) < 42
+      );
+      if (!collision) break;
+      spawnX += 36;
+      spawnY += (attempt % 2 === 0 ? 28 : -28);
+    }
+
     if (type === 'emitter') {
-      scene.addNode(new EmitterNode(id, { x: cx - 100, y: cy }, 0));
+      scene.addNode(new EmitterNode(id, { x: spawnX, y: spawnY }, 0));
     } else if (type === 'prism') {
-      scene.addNode(new PrismNode(id, { x: cx, y: cy }, 0));
+      scene.addNode(new PrismNode(id, { x: spawnX, y: spawnY }, 0));
     } else if (type === 'lens') {
-      scene.addNode(new LensNode(id, { x: cx, y: cy }, 0));
+      scene.addNode(new LensNode(id, { x: spawnX, y: spawnY }, 0));
     } else if (type === 'black_hole') {
-      scene.addNode(new BlackHoleNode(id, { x: cx, y: cy }, 0));
+      scene.addNode(new BlackHoleNode(id, { x: spawnX, y: spawnY }, 0));
     } else if (type === 'barrier') {
-      scene.addNode(new BarrierNode(id, { x: cx, y: cy }, 0));
+      scene.addNode(new BarrierNode(id, { x: spawnX, y: spawnY }, 0));
     }
 
     engine.getGizmoController().selectNode(id);
@@ -97,6 +129,8 @@
 
   function handleKeyDown(e: KeyboardEvent) {
     if (!engine) return;
+    const tag = document.activeElement?.tagName;
+    if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') return;
 
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
       if (e.shiftKey) {
@@ -115,9 +149,15 @@
     } else if (e.key === ' ') {
       engine.setPaused(!engine.isPaused());
       e.preventDefault();
+    } else if (e.key.toLowerCase() === 'o') {
+      showOutlines = !showOutlines;
+      e.preventDefault();
+    } else if (e.key.toLowerCase() === 'g') {
+      showGrid = !showGrid;
+      e.preventDefault();
     } else if (e.key === 'Delete' || e.key === 'Backspace') {
       const active = engine.getGizmoController().getSelectedNode();
-      if (active && document.activeElement?.tagName !== 'INPUT') {
+      if (active) {
         handleDeleteNode(active.id);
         e.preventDefault();
       }
@@ -134,6 +174,9 @@
       onSceneChange: () => {
         updateSelectedNode();
         if (engine) syncToURL(engine.getScene());
+      },
+      onHoverChange: () => {
+        updateSelectedNode();
       }
     });
 
@@ -152,6 +195,7 @@
     const handleResize = () => {
       if (engine) {
         engine.resize(window.innerWidth, window.innerHeight);
+        updateSelectedNode();
       }
     };
 
@@ -170,21 +214,33 @@
   <!-- WebGL2 Fullscreen Canvas -->
   <canvas
     bind:this={canvasEl}
-    class="w-full h-full block cursor-crosshair"
+    style="cursor: {canvasCursor};"
+    class="w-full h-full block"
   ></canvas>
 
-  <!-- On-Canvas Vector Gizmo Overlay -->
+  <!-- On-Canvas Vector Gizmo & Element Outline Overlay -->
   <GizmoOverlay
+    nodes={sceneNodes}
     {selectedNode}
+    {hoveredNode}
     handles={gizmoHandles}
+    {hoveredHandle}
+    {showOutlines}
+    {showGrid}
+    {sceneVersion}
   />
 
   <!-- Floating Perimeter Dock Toolbars -->
   <Dock
     {engine}
     {stats}
+    nodes={sceneNodes}
+    {selectedNode}
     bind:selectedPresetName
+    bind:showOutlines
+    bind:showGrid
     onAddNode={handleAddNode}
+    onSelectNode={handleSelectNode}
     onResetScene={handleResetScene}
     onClearScene={handleClearScene}
     onOpenRenderModal={() => (showRenderModal = true)}
@@ -193,6 +249,7 @@
   <!-- Floating Context-Sensitive Properties Inspector -->
   <Inspector
     node={selectedNode}
+    {sceneVersion}
     onDelete={handleDeleteNode}
     onChange={() => {
       if (engine) {

@@ -387,8 +387,22 @@ export class LensNode extends SceneNode {
 
   containsPoint(worldPoint: IVec2): boolean {
     const local = this.worldToLocal(worldPoint);
-    const halfH = this.height * 0.5;
-    const halfT = this.thickness * 0.5 + 4;
-    return Math.abs(local.x) <= halfT && Math.abs(local.y) <= halfH;
+    const halfH = this.height * 0.5 + 8;
+    const halfT = Math.max(this.thickness * 0.5 + 10, 18);
+    if (Math.abs(local.x) <= halfT && Math.abs(local.y) <= halfH) {
+      return true;
+    }
+    const poly = this.getObstaclePolygon();
+    let inside = false;
+    const x = worldPoint.x;
+    const y = worldPoint.y;
+    for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+      const xi = poly[i].x, yi = poly[i].y;
+      const xj = poly[j].x, yj = poly[j].y;
+      if (((yi > y) !== (yj > y)) && (x < (xj - xi) * (y - yi) / (yj - yi) + xi)) {
+        inside = !inside;
+      }
+    }
+    return inside;
   }
 }

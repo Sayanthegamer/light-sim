@@ -20,14 +20,14 @@ export class BlackHoleNode extends SceneNode {
     super(id, 'black_hole', position, rotation);
     this.rs = options?.rs ?? 20;
     this.rInfluence = this.rs * 12;
-    this.boundingRadius = this.rInfluence;
+    this.boundingRadius = Math.max(28, this.rs * 1.5);
   }
 
   setRs(rs: number): void {
     if (this.rs !== rs) {
       this.rs = rs;
       this.rInfluence = rs * 12;
-      this.boundingRadius = this.rInfluence;
+      this.boundingRadius = Math.max(28, this.rs * 1.5);
       this.markDirty(DirtyFlag.Param);
     }
   }
@@ -63,6 +63,7 @@ export class BlackHoleNode extends SceneNode {
   containsPoint(worldPoint: IVec2): boolean {
     const dx = worldPoint.x - this.position.x;
     const dy = worldPoint.y - this.position.y;
-    return (dx * dx + dy * dy) <= (this.rs * this.rs);
+    const hitR = Math.max(this.rs + 8, 18);
+    return (dx * dx + dy * dy) <= (hitR * hitR);
   }
 }

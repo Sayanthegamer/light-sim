@@ -10,13 +10,19 @@
 
   let {
     node,
+    sceneVersion = 0,
     onDelete,
     onChange
   }: {
     node: SceneNode | null;
+    sceneVersion?: number;
     onDelete: (id: string) => void;
     onChange: () => void;
   } = $props();
+
+  let posX = $derived.by(() => { void sceneVersion; return node ? Math.round(node.position.x) : 0; });
+  let posY = $derived.by(() => { void sceneVersion; return node ? Math.round(node.position.y) : 0; });
+  let rotDeg = $derived.by(() => { void sceneVersion; return node ? getRotationDegrees(node.rotation) : 0; });
 
   let emitter = $derived(node?.type === 'emitter' ? (node as EmitterNode) : null);
   let prism = $derived(node?.type === 'prism' ? (node as PrismNode) : null);
@@ -87,8 +93,8 @@
           <span class="text-zinc-400">X:</span>
           <input
             type="number"
-            bind:value={node.position.x}
-            oninput={() => { node.markDirty(); onChange(); }}
+            value={posX}
+            oninput={(e) => { node.setPosition(Number((e.target as HTMLInputElement).value), node.position.y); onChange(); }}
             class="w-14 bg-transparent text-right font-mono text-zinc-100 focus:outline-none"
           />
         </label>
@@ -97,8 +103,8 @@
           <span class="text-zinc-400">Y:</span>
           <input
             type="number"
-            bind:value={node.position.y}
-            oninput={() => { node.markDirty(); onChange(); }}
+            value={posY}
+            oninput={(e) => { node.setPosition(node.position.x, Number((e.target as HTMLInputElement).value)); onChange(); }}
             class="w-14 bg-transparent text-right font-mono text-zinc-100 focus:outline-none"
           />
         </label>
@@ -107,13 +113,13 @@
       <div class="flex flex-col gap-1">
         <div class="flex items-center justify-between text-[11px]">
           <span class="text-zinc-400">Rotation:</span>
-          <span class="font-mono">{getRotationDegrees(node.rotation)}°</span>
+          <span class="font-mono">{rotDeg}°</span>
         </div>
         <input
           type="range"
           min="0"
           max="360"
-          value={getRotationDegrees(node.rotation)}
+          value={rotDeg}
           oninput={(e) => setRotationDegrees(Number((e.target as HTMLInputElement).value))}
           class="w-full h-1 bg-matte-800 rounded appearance-none accent-amber-400 cursor-pointer"
         />

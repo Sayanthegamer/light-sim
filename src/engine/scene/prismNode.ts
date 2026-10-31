@@ -141,6 +141,17 @@ export class PrismNode extends SceneNode {
 
       const intersect = ((yi > y) !== (yj > y)) && (x < (xj - xi) * (y - yi) / (yj - yi) + xi);
       if (intersect) inside = !inside;
+
+      // Also allow 8px edge proximity tolerance so clicking the border selects cleanly
+      const dx = xj - xi;
+      const dy = yj - yi;
+      const lenSq = dx * dx + dy * dy;
+      if (lenSq > 1e-4) {
+        const t = Math.max(0, Math.min(1, ((x - xi) * dx + (y - yi) * dy) / lenSq));
+        const px = xi + t * dx - x;
+        const py = yi + t * dy - y;
+        if (px * px + py * py <= 64) return true;
+      }
     }
 
     return inside;

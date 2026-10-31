@@ -33,6 +33,7 @@ export interface EngineOptions {
   initialPreset?: SerializedScene;
   onStatsUpdate?: (stats: EngineStats) => void;
   onSceneChange?: () => void;
+  onHoverChange?: () => void;
 }
 
 export class OpticsEngine {
@@ -107,6 +108,9 @@ export class OpticsEngine {
         this.commitHistorySnapshot();
         this.renderCoordinator.markDirty(false);
         this.options.onSceneChange?.();
+      },
+      onHoverChange: () => {
+        this.options.onHoverChange?.();
       }
     });
 
@@ -229,9 +233,11 @@ export class OpticsEngine {
 
     if (typeof window !== 'undefined') {
       window.addEventListener('pointermove', (e: PointerEvent) => {
+        const pos = getCanvasPos(e);
         if (this.gizmoController.isDragging()) {
-          const pos = getCanvasPos(e);
-          this.gizmoController.onPointerMove(pos.x, pos.y);
+          this.gizmoController.onPointerMove(pos.x, pos.y, e.shiftKey);
+        } else if (e.target === this.canvas) {
+          this.gizmoController.onPointerHover(pos.x, pos.y);
         }
       });
 

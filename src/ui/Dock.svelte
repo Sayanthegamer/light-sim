@@ -9,24 +9,38 @@
     Share2,
     Sun,
     Trash2,
-    Sparkles
+    Sparkles,
+    Eye,
+    Grid3x3,
+    Layers
   } from '@lucide/svelte';
   import { ALL_PRESETS } from '../engine/presets';
   import type { OpticsEngine, EngineStats } from '../engine/engine';
+  import type { SceneNode } from '../engine/scene/sceneNode';
 
   let {
     engine,
     stats,
+    nodes = [],
+    selectedNode = null,
     selectedPresetName = $bindable(),
+    showOutlines = $bindable(true),
+    showGrid = $bindable(false),
     onAddNode,
+    onSelectNode,
     onResetScene,
     onClearScene,
     onOpenRenderModal
   }: {
     engine: OpticsEngine | null;
     stats: EngineStats;
+    nodes?: SceneNode[];
+    selectedNode?: SceneNode | null;
     selectedPresetName: string;
+    showOutlines?: boolean;
+    showGrid?: boolean;
     onAddNode: (type: string) => void;
+    onSelectNode?: (id: string) => void;
     onResetScene: () => void;
     onClearScene: () => void;
     onOpenRenderModal?: () => void;
@@ -34,6 +48,7 @@
 
   let showAddMenu = $state(false);
   let showPresetsMenu = $state(false);
+  let showObjectsMenu = $state(false);
   let copyFeedback = $state(false);
 
   function togglePlayPause() {
@@ -73,7 +88,7 @@
 
 <!-- Top Perimeter Toolbar -->
 <header class="absolute top-3 left-3 right-3 flex items-center justify-between pointer-events-none z-20">
-  <!-- Left: Brand & Preset Selector -->
+  <!-- Left: Brand, Preset Selector & Scene Outliner -->
   <div class="flex items-center gap-2 pointer-events-auto bg-matte-900 border border-matte-800 rounded-lg px-3 py-1.5 shadow-2xl">
     <div class="flex items-center gap-2 pr-3 border-r border-matte-800">
       <Sun class="w-4 h-4 text-amber-400" />
@@ -84,7 +99,7 @@
     <div class="relative">
       <button
         type="button"
-        onclick={() => (showPresetsMenu = !showPresetsMenu)}
+        onclick={() => { showPresetsMenu = !showPresetsMenu; showObjectsMenu = false; showAddMenu = false; }}
         class="flex items-center gap-1.5 text-xs text-zinc-300 hover:text-white bg-matte-850 hover:bg-matte-800 border border-matte-800 px-2.5 py-1 rounded transition-colors"
       >
         <span class="font-medium">{selectedPresetName || 'Presets'}</span>
@@ -106,10 +121,70 @@
         </div>
       {/if}
     </div>
+
+    <!-- Scene Objects Outliner (Quickly locate/select any placed element in the dark) -->
+    <div class="relative">
+      <button
+        type="button"
+        title="Scene Objects List — click to locate and select any element"
+        onclick={() => { showObjectsMenu = !showObjectsMenu; showPresetsMenu = false; showAddMenu = false; }}
+        class="flex items-center gap-1.5 text-xs text-zinc-300 hover:text-white bg-matte-850 hover:bg-matte-800 border border-matte-800 px-2.5 py-1 rounded transition-colors"
+      >
+        <Layers class="w-3.5 h-3.5 text-sky-400" />
+        <span>Objects ({nodes.length})</span>
+        <span class="text-[10px] text-zinc-500">▼</span>
+      </button>
+
+      {#if showObjectsMenu}
+        <div class="absolute top-full left-0 mt-1.5 w-60 bg-matte-900 border border-matte-800 rounded-lg shadow-2xl p-1 z-30 flex flex-col gap-0.5 max-h-72 overflow-y-auto">
+          {#if nodes.length === 0}
+            <div class="px-2.5 py-2 text-xs text-zinc-500 text-center">No objects in scene</div>
+          {:else}
+            {#each nodes as n (n.id)}
+              <button
+                type="button"
+                onclick={() => { onSelectNode?.(n.id); showObjectsMenu = false; }}
+                class="flex items-center justify-between px-2.5 py-1.5 rounded text-xs transition-colors {selectedNode?.id === n.id ? 'bg-sky-950/60 text-sky-300 border border-sky-500/30' : 'hover:bg-matte-800 text-zinc-200'}"
+              >
+                <div class="flex items-center gap-2">
+                  <span class="w-2 h-2 rounded-full {n.type === 'emitter' ? 'bg-amber-400' : n.type === 'prism' ? 'bg-sky-400' : n.type === 'lens' ? 'bg-indigo-400' : n.type === 'black_hole' ? 'bg-purple-400' : 'bg-emerald-400'}"></span>
+                  <span class="font-medium capitalize">{n.type.replace('_', ' ')}</span>
+                </div>
+                <span class="text-[10px] font-mono text-zinc-400">({Math.round(n.position.x)}, {Math.round(n.position.y)})</span>
+              </button>
+            {/each}
+          {/if}
+        </div>
+      {/if}
+    </div>
   </div>
 
-  <!-- Right: Add Objects, Render, Share & Clear -->
+  <!-- Right: Guides, Add Objects, Render, Share & Clear -->
   <div class="flex items-center gap-2 pointer-events-auto bg-matte-900 border border-matte-800 rounded-lg px-2 py-1.5 shadow-2xl">
+    <!-- Outlines Toggle -->
+    <button
+      type="button"
+      title="Toggle Element Borders & Guides (O)"
+      onclick={() => (showOutlines = !showOutlines)}
+      class="flex items-center gap-1 text-xs px-2 py-1 rounded border transition-colors {showOutlines ? 'bg-sky-950/50 text-sky-300 border-sky-500/40' : 'bg-matte-850 text-zinc-400 border-matte-800 hover:text-zinc-200'}"
+    >
+      <Eye class="w-3.5 h-3.5" />
+      <span>Borders</span>
+    </button>
+
+    <!-- Grid Toggle -->
+    <button
+      type="button"
+      title="Toggle Optical Bench Grid (G)"
+      onclick={() => (showGrid = !showGrid)}
+      class="flex items-center gap-1 text-xs px-2 py-1 rounded border transition-colors {showGrid ? 'bg-indigo-950/50 text-indigo-300 border-indigo-500/40' : 'bg-matte-850 text-zinc-400 border-matte-800 hover:text-zinc-200'}"
+    >
+      <Grid3x3 class="w-3.5 h-3.5" />
+      <span>Grid</span>
+    </button>
+
+    <div class="h-4 w-px bg-matte-800"></div>
+
     <!-- Offline Production Render Button -->
     <button
       type="button"
@@ -125,7 +200,7 @@
     <div class="relative">
       <button
         type="button"
-        onclick={() => (showAddMenu = !showAddMenu)}
+        onclick={() => { showAddMenu = !showAddMenu; showPresetsMenu = false; showObjectsMenu = false; }}
         class="flex items-center gap-1 text-xs text-zinc-200 bg-matte-850 hover:bg-matte-800 border border-matte-800 px-2.5 py-1 rounded transition-colors"
       >
         <Plus class="w-3.5 h-3.5 text-emerald-400" />

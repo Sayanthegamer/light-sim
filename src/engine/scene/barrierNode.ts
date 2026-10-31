@@ -23,7 +23,7 @@ export class BarrierNode extends SceneNode {
     this.length = options?.length ?? 120;
     this.thickness = options?.thickness ?? 6;
     this.isMirror = options?.isMirror ?? false;
-    this.boundingRadius = Math.max(this.length * 0.6, this.thickness * 0.6);
+    this.boundingRadius = Math.max(this.length * 0.55, this.thickness * 0.6, 24);
   }
 
   setIsMirror(isMirror: boolean): void {
@@ -37,7 +37,7 @@ export class BarrierNode extends SceneNode {
     if (this.length !== length || this.thickness !== thickness) {
       this.length = length;
       this.thickness = thickness;
-      this.boundingRadius = Math.max(this.length * 0.6, this.thickness * 0.6);
+      this.boundingRadius = Math.max(this.length * 0.55, this.thickness * 0.6, 24);
       this.markDirty(DirtyFlag.Param);
     }
   }
@@ -85,7 +85,7 @@ export class BarrierNode extends SceneNode {
     const corners = [];
     const n = worldVerts.length;
     const baseId = hashString(this.id) % 1000000;
-    
+
     for (let i = 0; i < n; i++) {
       corners.push({
         x: worldVerts[i].x,
@@ -102,8 +102,8 @@ export class BarrierNode extends SceneNode {
 
   containsPoint(worldPoint: IVec2): boolean {
     const local = this.worldToLocal(worldPoint);
-    const halfL = this.length * 0.5 + 4;
-    const halfT = this.thickness * 0.5 + 4;
+    const halfL = this.length * 0.5 + 8;
+    const halfT = Math.max(this.thickness * 0.5 + 8, 14);
     return Math.abs(local.x) <= halfT && Math.abs(local.y) <= halfL;
   }
 }
