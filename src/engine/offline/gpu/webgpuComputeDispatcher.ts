@@ -38,7 +38,7 @@ export class WebGpuComputeDispatcher {
   private passCount = 0;
   private epochPassCount = 0;
   private epochCount = 0;
-  private readonly epochSize = 5; // Consolidate rgba16float into Float64Array every 10 passes to eliminate mantissa underflow
+  private epochSize = 5; // Consolidate rgba16float into Float64Array every 10 passes to eliminate mantissa underflow
   private masterAccumulator: Float64Array | null = null;
   private masterBuffer: Float32Array | null = null;
   private sampleCountMap: Uint32Array | null = null;
@@ -105,7 +105,11 @@ export class WebGpuComputeDispatcher {
       this.pipelineMgr = new GpuPipelineManager(device);
       this.accumulator = new GpuAccumulator(device, job.width, job.height);
 
-      const batchSize = job.config.batchPhotons ?? 50000;
+      const isFp32 = this.accumulator.format === 'rgba32float';
+      this.epochSize = isFp32 ? 10 : 1;
+      const batchSize = isFp32
+        ? (job.config.batchPhotons ?? 50000)
+        : Math.min(12500, job.config.batchPhotons ?? 12500);
       const maxBounces = Math.min(32, job.config.maxBounces ?? 32);
       const volumetric = job.config.volumetricInScatter ?? true;
       this.pipelineMgr.updateScene(job.scene, batchSize, maxBounces, volumetric);

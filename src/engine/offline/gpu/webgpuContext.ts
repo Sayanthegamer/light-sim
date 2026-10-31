@@ -10,6 +10,7 @@ export interface IWebGpuCapabilities {
   maxComputeWorkgroupSizeX: number;
   maxComputeInvocationsPerWorkgroup: number;
   hasFloat32Filterable: boolean;
+  hasFloat32Blendable: boolean;
   hasTimestampQuery: boolean;
 }
 
@@ -32,6 +33,7 @@ export class WebGpuContext {
       maxComputeWorkgroupSizeX: limits?.maxComputeWorkgroupSizeX ?? 256,
       maxComputeInvocationsPerWorkgroup: limits?.maxComputeInvocationsPerWorkgroup ?? 256,
       hasFloat32Filterable: device.features?.has('float32-filterable') ?? false,
+      hasFloat32Blendable: device.features?.has('float32-blendable' as GPUFeatureName) ?? false,
       hasTimestampQuery: device.features?.has('timestamp-query') ?? false
     };
 
@@ -90,7 +92,8 @@ export function isWebGpuSupported(): boolean {
 
 /**
  * Attempts to initialize a WebGPU context, acquiring adapter and device.
- * Returns null if WebGPU is unsupported or hardware initialization fails.
+ * Requests `float32-blendable` when supported so the GPU accumulator can blend
+ * directly in full 32-bit IEEE 754 precision (`rgba32float`) without 10-bit half-float ULP walls.
  */
 export async function initWebGpuContext(
   options?: GPURequestAdapterOptions
@@ -108,10 +111,13 @@ export async function initWebGpuContext(
       return null;
     }
 
-    // Determine optional supported features
+    // Request optional hardware features when supported by the adapter
     const requiredFeatures: GPUFeatureName[] = [];
     if (adapter.features?.has('float32-filterable')) {
       requiredFeatures.push('float32-filterable');
+    }
+    if (adapter.features?.has('float32-blendable' as GPUFeatureName)) {
+      requiredFeatures.push('float32-blendable' as GPUFeatureName);
     }
 
     const device = await adapter.requestDevice({

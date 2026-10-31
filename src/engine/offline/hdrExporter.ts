@@ -50,6 +50,9 @@ export function decodeRGBE(
 
 /**
  * Encodes an entire RGBA32F XYZ accumulation buffer into a standard Radiance .hdr binary file.
+ * Because `exposure` is pre-multiplied directly into the linear RGB pixel values before RGBE
+ * encoding, the Radiance header writes `EXPOSURE=1.0000` so external HDR viewers do not divide
+ * the pixels by `exposure` a second time.
  */
 export function encodeHDR(
   buffer: Float32Array,
@@ -60,7 +63,7 @@ export function encodeHDR(
   const headerStr =
     `#?RADIANCE\n` +
     `FORMAT=32-bit_rle_rgbe\n` +
-    `EXPOSURE=${exposure.toFixed(4)}\n\n` +
+    `EXPOSURE=1.0000\n\n` +
     `-Y ${height} +X ${width}\n`;
 
   const headerBytes = new TextEncoder().encode(headerStr);
@@ -80,7 +83,7 @@ export function encodeHDR(
     pixelBytes[byteOffset++] = ge;
     pixelBytes[byteOffset++] = be;
     pixelBytes[byteOffset++] = ee;
-  }
+    }
 
   const out = new Uint8Array(headerBytes.length + pixelBytes.length);
   out.set(headerBytes, 0);

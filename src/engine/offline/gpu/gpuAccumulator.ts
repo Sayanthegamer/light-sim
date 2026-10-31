@@ -65,11 +65,13 @@ export class GpuAccumulator {
   private readbackArray: Float32Array;
   private isReadingBack = false;
 
-  constructor(device: GPUDevice, width: number, height: number, format: GPUTextureFormat = 'rgba16float') {
+  constructor(device: GPUDevice, width: number, height: number, format?: GPUTextureFormat) {
+    const resolvedFormat: GPUTextureFormat =
+      format ?? (device.features?.has('float32-blendable' as GPUFeatureName) ? 'rgba32float' : 'rgba16float');
     this.device = device;
     this.width = Math.max(1, Math.floor(width));
     this.height = Math.max(1, Math.floor(height));
-    this.format = format;
+    this.format = resolvedFormat;
     this.readbackArray = new Float32Array(this.width * this.height * 4);
 
     this.initBuffers();

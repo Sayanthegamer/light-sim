@@ -83,8 +83,11 @@
       cachedImageData = ctx.createImageData(renderWidth, renderHeight);
     }
 
+    // Normalize accumulated multi-pass radiance to the 24-pass sweet-spot reference
+    // so brightness stays locked whether rendering 24 passes, 600 passes, or 5,000 passes.
+    const effectiveExposure = exposure * (24.0 / Math.max(1, passCount));
     target.buffer.set(latestBuffer);
-    target.resolveToImageData(cachedImageData.data, { exposure, tonemap, whitePoint });
+    target.resolveToImageData(cachedImageData.data, { exposure: effectiveExposure, tonemap, whitePoint });
     ctx.putImageData(cachedImageData, 0, 0);
   }
 
@@ -146,7 +149,8 @@
 
   function handleExportHDR() {
     if (!latestBuffer) return;
-    const blob = exportHDRBlob(latestBuffer, renderWidth, renderHeight, exposure);
+    const effectiveExposure = exposure * (24.0 / Math.max(1, passCount));
+    const blob = exportHDRBlob(latestBuffer, renderWidth, renderHeight, effectiveExposure);
     downloadBlob(blob, `render_${Date.now()}.hdr`);
   }
 

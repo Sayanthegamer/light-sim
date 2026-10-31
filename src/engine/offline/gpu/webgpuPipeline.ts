@@ -884,7 +884,9 @@ export class GpuPipelineManager {
         entryPoint: 'fs_main',
         targets: [
           {
-            format: 'rgba16float',
+            format: this.device.features?.has('float32-blendable' as GPUFeatureName)
+              ? 'rgba32float'
+              : 'rgba16float',
             blend: {
               color: {
                 srcFactor: 'one',
