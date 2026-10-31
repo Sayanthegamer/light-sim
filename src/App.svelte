@@ -62,7 +62,7 @@
 
     engine.getGizmoController().selectNode(id);
     engine.commitHistorySnapshot();
-    engine.getRenderCoordinator().markDirty(true);
+    engine.getRenderCoordinator().markDirty(false);
     syncToURL(scene);
     updateSelectedNode();
   }
@@ -72,7 +72,7 @@
     engine.getScene().removeNode(id);
     engine.getGizmoController().selectNode(null);
     engine.commitHistorySnapshot();
-    engine.getRenderCoordinator().markDirty(true);
+    engine.getRenderCoordinator().markDirty(false);
     syncToURL(engine.getScene());
     updateSelectedNode();
   }
@@ -90,7 +90,7 @@
     engine.getScene().clear();
     engine.getGizmoController().selectNode(null);
     engine.commitHistorySnapshot();
-    engine.getRenderCoordinator().markDirty(true);
+    engine.getRenderCoordinator().markDirty(false);
     syncToURL(engine.getScene());
     updateSelectedNode();
   }
@@ -140,7 +140,7 @@
     // Check URL hash for shared scene
     const urlScene = loadFromCurrentURL(initialEngine.getScene());
     if (urlScene) {
-      initialEngine.getRenderCoordinator().markDirty(true);
+      initialEngine.getRenderCoordinator().markDirty(false);
       selectedPresetName = 'Custom Shared Scene';
     }
 
@@ -196,7 +196,7 @@
     onDelete={handleDeleteNode}
     onChange={() => {
       if (engine) {
-        engine.getRenderCoordinator().markDirty(true);
+        engine.getRenderCoordinator().markDirty(false);
         syncToURL(engine.getScene());
         updateSelectedNode();
       }

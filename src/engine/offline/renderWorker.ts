@@ -73,6 +73,14 @@ let totalPhotonsDispatched = 0;
 let startTime = 0;
 let lastProgressReportTime = 0;
 
+const reusablePhoton: IPhotonState = {
+  pos: { x: 0, y: 0 },
+  dir: { x: 0, y: 0 },
+  wavelengthNm: 550,
+  energy: 1.0,
+  phase: 0.0
+};
+
 /**
  * Dispatches a batch of Monte Carlo photons from scene emitters.
  */
@@ -94,45 +102,41 @@ function processBatch(): void {
     return;
   }
 
-  const photon: IPhotonState = {
-    pos: { x: 0, y: 0 },
-    dir: { x: 0, y: 0 },
-    wavelengthNm: 550,
-    energy: 1.0,
-    phase: 0.0
+  // Calibrate per-photon weight by batchSize so 1 CPU pass matches 1 GPU pass in radiant intensity
+  const calibratedWeight = 12.0 / Math.max(100, batchSize);
+  const tracerOptions = {
+    maxBounces: job.config.maxBounces,
+    volumetricInScatter: job.config.volumetricInScatter,
+    primitives: currentPrimitives ?? undefined,
+    scratch: tracerScratch,
+    photonWeight: calibratedWeight
   };
 
   for (let i = 0; i < batchSize; i++) {
-    // Select emitter
     const emitterIdx = (Math.random() * numEmitters) | 0;
     const emitter = emitters[emitterIdx];
 
     // Sample spatial offset across emitter slit
-    const u = Math.random() - 0.5; // [-0.5, 0.5]
+    const u = Math.random() - 0.5;
     const halfW = emitter.width * u;
     const nx = -emitter.dir.y;
     const ny = emitter.dir.x;
 
-    photon.pos.x = emitter.pos.x + nx * halfW;
-    photon.pos.y = emitter.pos.y + ny * halfW;
-    photon.dir.x = emitter.dir.x;
-    photon.dir.y = emitter.dir.y;
+    reusablePhoton.pos.x = emitter.pos.x + nx * halfW;
+    reusablePhoton.pos.y = emitter.pos.y + ny * halfW;
+    reusablePhoton.dir.x = emitter.dir.x;
+    reusablePhoton.dir.y = emitter.dir.y;
 
     // Sample continuous spectral wavelength \lambda \sim [380, 780]
-    photon.wavelengthNm = sampleContinuousWavelength(
+    reusablePhoton.wavelengthNm = sampleContinuousWavelength(
       emitter.spectrumType,
       emitter.spectrumParam,
       Math.random()
     );
-    photon.energy = emitter.power;
-    photon.phase = Math.random() * 2.0 * Math.PI;
+    reusablePhoton.energy = emitter.power;
+    reusablePhoton.phase = Math.random() * 6.28318530718;
 
-    tracePhotonPath(photon, job.scene, target, {
-      maxBounces: job.config.maxBounces,
-      volumetricInScatter: job.config.volumetricInScatter,
-      primitives: currentPrimitives ?? undefined,
-      scratch: tracerScratch
-    });
+    tracePhotonPath(reusablePhoton, job.scene, target, tracerOptions);
   }
 
   totalPhotonsDispatched += batchSize;
@@ -141,9 +145,9 @@ function processBatch(): void {
   const now = performance.now();
   const elapsedSinceLastReport = now - lastProgressReportTime;
 
-  // Report progress every ~100ms or on target completion
+  // Report progress every ~120ms or on target completion
   const isComplete = passCount >= job.config.targetSamples;
-  if (elapsedSinceLastReport >= 100 || isComplete) {
+  if (elapsedSinceLastReport >= 120 || isComplete) {
     postProgress(isComplete);
     lastProgressReportTime = now;
   }
@@ -151,7 +155,6 @@ function processBatch(): void {
   if (isComplete) {
     isRunning = false;
   } else if (!isPaused && !isCancelled) {
-    // Schedule next batch on worker event loop
     setTimeout(processBatch, 0);
   }
 }

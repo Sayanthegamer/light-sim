@@ -229,16 +229,18 @@
         <div class="flex flex-col gap-1">
           <div class="flex items-center justify-between text-[11px]">
             <span class="text-zinc-400">Cauchy B (Dispersion):</span>
-            <span class="font-mono">{prism.cauchyB.toFixed(4)}</span>
+            <span class="font-mono">{Math.round(prism.cauchyB)} nm²</span>
           </div>
           <input
             type="range"
-            min="0.0"
-            max="0.015"
-            step="0.0005"
+            min="0"
+            max="15000"
+            step="100"
             value={prism.cauchyB}
             oninput={(e) => {
-              prism.setCauchy(prism.cauchyA, Number((e.target as HTMLInputElement).value));
+              const newB = Number((e.target as HTMLInputElement).value);
+              const newA = Math.max(1.0, prism.refractiveIndex - newB / (587.6 * 587.6));
+              prism.setCauchy(newA, newB);
               onChange();
             }}
             class="w-full h-1 bg-matte-800 rounded appearance-none accent-cyan-400 cursor-pointer"

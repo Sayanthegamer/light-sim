@@ -31,8 +31,9 @@ export class PrismNode extends SceneNode {
       { x: 0, y: 35 }
     ];
     this.refractiveIndex = options?.refractiveIndex ?? 1.517; // Crown Glass
-    this.cauchyA = options?.cauchyA ?? 1.5046;
     this.cauchyB = options?.cauchyB ?? 4200;
+    const effB = this.cauchyB > 0 && this.cauchyB < 1.0 ? this.cauchyB * 1e6 : this.cauchyB;
+    this.cauchyA = options?.cauchyA ?? (this.refractiveIndex - effB / (587.6 * 587.6));
     this.isDispersive = options?.isDispersive ?? true;
     this.updateBoundingRadius();
   }
@@ -49,7 +50,9 @@ export class PrismNode extends SceneNode {
 
   setRefractiveIndex(n: number): void {
     if (this.refractiveIndex !== n) {
+      const delta = n - this.refractiveIndex;
       this.refractiveIndex = n;
+      this.cauchyA = Math.max(1.0, this.cauchyA + delta);
       this.markDirty(DirtyFlag.Param);
     }
   }
@@ -109,7 +112,7 @@ export class PrismNode extends SceneNode {
     const corners = [];
     const n = worldVerts.length;
     const baseId = hashString(this.id) % 1000000;
-    
+
     for (let i = 0; i < n; i++) {
       corners.push({
         x: worldVerts[i].x,

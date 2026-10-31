@@ -70,6 +70,9 @@ export function createHitResult(): HitResult {
   };
 }
 
+// Reusable module-level scratch hit result to avoid per-ray heap allocation in findClosestIntersection
+const scratchClosestCandidate: HitResult = createHitResult();
+
 /**
  * Solves analytic 2D ray to line-segment intersection.
  * Mutates `out` result in place to prevent garbage collection.
@@ -84,8 +87,20 @@ export function intersectRaySegment(
   const dx = ray.dir.x;
   const dy = ray.dir.y;
 
-  const sx = segment.p2.x - segment.p1.x;
-  const sy = segment.p2.y - segment.p1.y;
+  const p1x = segment.p1.x;
+  const p1y = segment.p1.y;
+  const p2x = segment.p2.x;
+  const p2y = segment.p2.y;
+
+  // Fast directional half-space reject: if both endpoints are behind the ray origin along ray.dir
+  const d1 = (p1x - ox) * dx + (p1y - oy) * dy;
+  const d2 = (p2x - ox) * dx + (p2y - oy) * dy;
+  if (d1 <= 0 && d2 <= 0) {
+    return false;
+  }
+
+  const sx = p2x - p1x;
+  const sy = p2y - p1y;
 
   const segLenSq = sx * sx + sy * sy;
   if (segLenSq < EPSILON * EPSILON) {
@@ -97,13 +112,17 @@ export function intersectRaySegment(
     return false; // Ray is parallel to segment
   }
 
-  const deltaX = segment.p1.x - ox;
-  const deltaY = segment.p1.y - oy;
+  const invDenom = 1.0 / denom;
+  const deltaX = p1x - ox;
+  const deltaY = p1y - oy;
 
-  const t = (deltaX * sy - deltaY * sx) / denom;
-  const u = (deltaX * dy - deltaY * dx) / denom;
+  const t = (deltaX * sy - deltaY * sx) * invDenom;
+  if (t <= EPSILON) {
+    return false;
+  }
 
-  if (t > EPSILON && u >= 0.0 && u <= 1.0) {
+  const u = (deltaX * dy - deltaY * dx) * invDenom;
+  if (u >= 0.0 && u <= 1.0) {
     out.hit = true;
     out.t = t;
     out.point.x = ox + t * dx;
@@ -115,9 +134,9 @@ export function intersectRaySegment(
     out.isMirror = segment.isMirror ?? false;
 
     // Normal orthogonal to segment
-    const segLen = Math.sqrt(sx * sx + sy * sy);
-    let nx = -sy / segLen;
-    let ny = sx / segLen;
+    const invSegLen = 1.0 / Math.sqrt(segLenSq);
+    let nx = -sy * invSegLen;
+    let ny = sx * invSegLen;
 
     const dotRayNorm = dx * nx + dy * ny;
     if (dotRayNorm > 0) {
@@ -144,26 +163,20 @@ export function intersectRaySegment(
  * Checks if an angle in radians lies within an angular arc sector [startAngle, endAngle].
  */
 function isAngleInArc(angle: number, startAngle: number, endAngle: number): boolean {
-  // Normalize angle to [0, 2pi)
-  let a = angle % TWO_PI;
-  if (a < 0) {
-    a += TWO_PI;
-  }
-
-  let s = startAngle % TWO_PI;
-  if (s < 0) {
-    s += TWO_PI;
-  }
-
-  let e = endAngle % TWO_PI;
-  if (e < 0) {
-    e += TWO_PI;
-  }
-
   // Full circle check
   if (Math.abs(endAngle - startAngle) >= TWO_PI - 1e-6) {
     return true;
   }
+
+  // Normalize angles to [0, 2pi)
+  let a = angle % TWO_PI;
+  if (a < 0) a += TWO_PI;
+
+  let s = startAngle % TWO_PI;
+  if (s < 0) s += TWO_PI;
+
+  let e = endAngle % TWO_PI;
+  if (e < 0) e += TWO_PI;
 
   if (s <= e) {
     return a >= s - 1e-6 && a <= e + 1e-6;
@@ -197,18 +210,23 @@ export function intersectRayArc(
   const deltaX = ox - cx;
   const deltaY = oy - cy;
 
-  // Since direction is normalized, a = 1
-  const b = 2.0 * (dx * deltaX + dy * deltaY);
+  // Since direction is normalized, a = 1; use half-b formulation
+  const halfB = dx * deltaX + dy * deltaY;
   const c = deltaX * deltaX + deltaY * deltaY - r * r;
 
-  const discriminant = b * b - 4.0 * c;
-  if (discriminant < 0) {
+  // If ray origin is outside circle (c > 0) and moving away from center (halfB >= 0), cannot hit
+  if (c > 0 && halfB >= 0) {
+    return false;
+  }
+
+  const disc = halfB * halfB - c;
+  if (disc < 0) {
     return false; // No geometric intersection
   }
 
-  const sqrtDisc = Math.sqrt(discriminant);
-  const t1 = (-b - sqrtDisc) * 0.5;
-  const t2 = (-b + sqrtDisc) * 0.5;
+  const sqrtDisc = Math.sqrt(disc);
+  const t1 = -halfB - sqrtDisc;
+  const t2 = -halfB + sqrtDisc;
 
   let chosenT = -1;
 
@@ -240,7 +258,7 @@ export function intersectRayArc(
     out.point.x = px;
     out.point.y = py;
     out.elementId = arc.id;
-    out.cauchyA = arc.cauchyA ?? arc.nInside;
+    out.cauchyA = arc.cauchyA ?? Math.max(arc.nInside, arc.nOutside);
     out.cauchyB = arc.cauchyB ?? 0.0;
     out.isBarrier = arc.isBarrier ?? false;
     out.isMirror = arc.isMirror ?? false;
@@ -273,6 +291,7 @@ export function intersectRayArc(
 
 /**
  * Finds the closest intersection for a ray across an array of flat segments and circular arcs.
+ * Zero-allocation implementation using module-level scratch candidate.
  */
 export function findClosestIntersection(
   out: HitResult,
@@ -283,20 +302,20 @@ export function findClosestIntersection(
   out.hit = false;
   out.t = Infinity;
 
-  const tempHit = createHitResult();
-
-  for (let i = 0; i < segments.length; i++) {
-    if (intersectRaySegment(tempHit, ray, segments[i])) {
-      if (tempHit.t < out.t) {
-        copyHitResult(out, tempHit);
+  const numSegs = segments.length;
+  for (let i = 0; i < numSegs; i++) {
+    if (intersectRaySegment(scratchClosestCandidate, ray, segments[i])) {
+      if (scratchClosestCandidate.t < out.t) {
+        copyHitResult(out, scratchClosestCandidate);
       }
     }
   }
 
-  for (let j = 0; j < arcs.length; j++) {
-    if (intersectRayArc(tempHit, ray, arcs[j])) {
-      if (tempHit.t < out.t) {
-        copyHitResult(out, tempHit);
+  const numArcs = arcs.length;
+  for (let j = 0; j < numArcs; j++) {
+    if (intersectRayArc(scratchClosestCandidate, ray, arcs[j])) {
+      if (scratchClosestCandidate.t < out.t) {
+        copyHitResult(out, scratchClosestCandidate);
       }
     }
   }

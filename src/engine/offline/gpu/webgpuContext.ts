@@ -114,9 +114,29 @@ export async function initWebGpuContext(
       requiredFeatures.push('float32-filterable');
     }
 
-    const device = await adapter.requestDevice({
+    // Request higher storage buffer limits when supported by hardware
+    const requiredLimits: Record<string, number> = {};
+    if (adapter.limits?.maxStorageBufferBindingSize) {
+      requiredLimits.maxStorageBufferBindingSize = Math.min(
+        adapter.limits.maxStorageBufferBindingSize,
+        268435456 // Up to 256 MB
+      );
+    }
+    if (adapter.limits?.maxBufferSize) {
+      requiredLimits.maxBufferSize = Math.min(
+        adapter.limits.maxBufferSize,
+        268435456
+      );
+    }
+
+    const deviceDescriptor: GPUDeviceDescriptor = {
       requiredFeatures
-    });
+    };
+    if (Object.keys(requiredLimits).length > 0) {
+      deviceDescriptor.requiredLimits = requiredLimits;
+    }
+
+    const device = await adapter.requestDevice(deviceDescriptor);
 
     return new WebGpuContext(adapter, device);
   } catch (err) {

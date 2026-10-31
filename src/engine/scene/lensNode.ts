@@ -43,8 +43,9 @@ export class LensNode extends SceneNode {
     this.height = options?.height ?? 80;
     this.thickness = options?.thickness ?? 20;
     this.refractiveIndex = options?.refractiveIndex ?? 1.517;
-    this.cauchyA = options?.cauchyA ?? 1.5046;
     this.cauchyB = options?.cauchyB ?? 4200;
+    const effB = this.cauchyB > 0 && this.cauchyB < 1.0 ? this.cauchyB * 1e6 : this.cauchyB;
+    this.cauchyA = options?.cauchyA ?? (this.refractiveIndex - effB / (587.6 * 587.6));
     this.updateBoundingRadius();
   }
 
@@ -89,7 +90,9 @@ export class LensNode extends SceneNode {
 
   setRefractiveIndex(n: number): void {
     if (this.refractiveIndex !== n) {
+      const delta = n - this.refractiveIndex;
       this.refractiveIndex = n;
+      this.cauchyA = Math.max(1.0, this.cauchyA + delta);
       this.markDirty(DirtyFlag.Param);
     }
   }
@@ -291,7 +294,7 @@ export class LensNode extends SceneNode {
       leftEdgeX = cx1 + Math.sqrt(Math.max(0, r1 * r1 - hHalf * hHalf));
       rightEdgeX = this.thickness * 0.5;
     }
-    
+
     const pts = [
       { x: leftEdgeX, y: hHalf },
       { x: rightEdgeX, y: hHalf },
@@ -312,8 +315,8 @@ export class LensNode extends SceneNode {
     const steps = 16;
     const hHalf = this.height * 0.5;
 
-    let r1 = Math.max(this.radius1, hHalf + 1);
-    let r2 = Math.max(this.radius2, hHalf + 1);
+    const r1 = Math.max(this.radius1, hHalf + 1);
+    const r2 = Math.max(this.radius2, hHalf + 1);
     let cx1, cx2, angleHalf1, angleHalf2;
 
     if (this.lensType === LensType.Biconvex) {
@@ -351,7 +354,7 @@ export class LensNode extends SceneNode {
     } else if (this.lensType === LensType.Planoconvex) {
       cx1 = -(Math.sqrt(Math.max(0, r1 * r1 - hHalf * hHalf)) - this.thickness * 0.5);
       angleHalf1 = Math.asin(Math.min(1.0, hHalf / r1));
-      
+
       // Left flat face (top to bottom)
       verts.push(this.localToWorld({ x: -this.thickness * 0.5, y: hHalf }));
       verts.push(this.localToWorld({ x: -this.thickness * 0.5, y: -hHalf }));

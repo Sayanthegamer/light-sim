@@ -202,7 +202,8 @@ export function buildGpuBVH(
       if (it.aabbMax.y > maxY) maxY = it.aabbMax.y;
     }
 
-    if (itemList.length === 1 || depth >= 7) {
+    // Up to depth 8 supports 128 leaf primitives in a balanced binary tree
+    if (itemList.length === 1 || depth >= 8) {
       return {
         aabbMin: { x: minX, y: minY },
         aabbMax: { x: maxX, y: maxY },
@@ -254,7 +255,6 @@ export function buildGpuBVH(
 
   function flattenNode(node: IInternalBvhNode): number {
     const nodeIndex = flatNodes.length;
-    // Reserve slot
     const flatNode: IGpuBVHNode = {
       aabbMin: node.aabbMin,
       aabbMax: node.aabbMax,

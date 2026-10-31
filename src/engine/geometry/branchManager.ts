@@ -281,8 +281,9 @@ export class BranchManager {
   ): BeamFrustum[] {
     const activeFrustums: BeamFrustum[] = [];
 
-    // Queue of frustums to process
+    // O(1) cursor-indexed queue of frustums to process
     const queue: BeamFrustum[] = [];
+    let qHead = 0;
 
     // Allocate root from pool
     const root = this.allocateFrustum();
@@ -292,8 +293,8 @@ export class BranchManager {
     copyBeamFrustum(root, initial);
     queue.push(root);
 
-    while (queue.length > 0) {
-      const current = queue.shift()!;
+    while (qHead < queue.length) {
+      const current = queue[qHead++];
       if (this.shouldCull(current)) {
         continue;
       }
@@ -407,7 +408,6 @@ export class BranchManager {
 
               activeFrustums.push(current);
 
-              // Geodesic integration directly from boundary entry points
               const resL = traceGeodesicWithTermination(
                 this.reusableTrajL,
                 { origin: current.leftHit, dir: current.leftRay.dir },
@@ -480,7 +480,6 @@ export class BranchManager {
 
               activeFrustums.push(current);
 
-              // Geodesic integration directly from boundary entry points
               const resL = traceGeodesicWithTermination(
                 this.reusableTrajL,
                 { origin: current.leftHit, dir: current.leftRay.dir },
@@ -541,7 +540,6 @@ export class BranchManager {
 
         activeFrustums.push(current);
 
-        // Trace left and right geodesics using unified traceGeodesicWithTermination
         const resL = traceGeodesicWithTermination(
           this.reusableTrajL,
           { origin: current.leftHit, dir: current.leftRay.dir },
@@ -553,12 +551,10 @@ export class BranchManager {
           closestBH
         );
 
-        // Emit curved ribbon mesh
         if (onRibbon && this.reusableTrajL.pointCount >= 2 && this.reusableTrajR.pointCount >= 2) {
           onRibbon(this.reusableTrajL, this.reusableTrajR, current, closestBH);
         }
 
-        // Ray continuation: if both rays escape the gravity well, spawn an escaped downstream frustum
         if (
           resL.reason === TerminationReason.Escaped &&
           resR.reason === TerminationReason.Escaped &&
@@ -588,7 +584,6 @@ export class BranchManager {
           queue.push(escapedChild);
         }
 
-        // Black hole absorbed/deflected the beam; do not continue straight into occluded obstacle
         continue;
       }
 
@@ -653,12 +648,10 @@ export class BranchManager {
         current.rightHit.y = current.rightRay.origin.y + current.rightRay.dir.y * maxDistance;
       }
 
-      // If neither hit, beam continues into void and terminates
       if (!hasLeftHit && !hasRightHit) {
         continue;
       }
 
-      // If either hit an opaque barrier, do not spawn children
       if (
         (hasLeftHit && this.leftHitResult.isBarrier) ||
         (hasRightHit && this.rightHitResult.isBarrier)
@@ -666,7 +659,7 @@ export class BranchManager {
         continue;
       }
 
-      // Calculate refractive indices (with Cauchy dispersion if spectral)
+      // Calculate refractive indices (with Cauchy dispersion applied towhichever side is glass > 1.05)
       let leftN1 = hasLeftHit ? this.leftHitResult.n1 : 1.0;
       let leftN2 = hasLeftHit ? this.leftHitResult.n2 : 1.0;
       let rightN1 = hasRightHit ? this.rightHitResult.n1 : 1.0;
@@ -675,17 +668,20 @@ export class BranchManager {
       if (current.dispersionU >= 0) {
         const wl = dispersionUToWavelength(current.dispersionU);
         if (hasLeftHit && this.leftHitResult.cauchyB > 0) {
-          leftN2 = cauchyIndex(wl, this.leftHitResult.cauchyA, this.leftHitResult.cauchyB);
+          const dispN = cauchyIndex(wl, this.leftHitResult.cauchyA, this.leftHitResult.cauchyB);
+          if (leftN1 > 1.05) leftN1 = dispN;
+          if (leftN2 > 1.05) leftN2 = dispN;
         }
         if (hasRightHit && this.rightHitResult.cauchyB > 0) {
-          rightN2 = cauchyIndex(wl, this.rightHitResult.cauchyA, this.rightHitResult.cauchyB);
+          const dispN = cauchyIndex(wl, this.rightHitResult.cauchyA, this.rightHitResult.cauchyB);
+          if (rightN1 > 1.05) rightN1 = dispN;
+          if (rightN2 > 1.05) rightN2 = dispN;
         }
       }
 
       const primaryHit = hasLeftHit ? this.leftHitResult : this.rightHitResult;
 
       if (primaryHit.isMirror) {
-        // Ideal specular mirror: 100% reflection with independent left/right normals
         if (current.depth + 1 < MAX_BOUNCE_DEPTH) {
           if (hasLeftHit) {
             solveRefraction(
@@ -757,7 +753,7 @@ export class BranchManager {
         );
       }
 
-      // Handle partial boundary hit fallback (e.g. beam partially grazing boundary)
+      // Handle partial boundary hit fallback
       if (hasLeftHit && !hasRightHit) {
         this.rightRefractionResult.reflectedDir.x = this.leftRefractionResult.reflectedDir.x;
         this.rightRefractionResult.reflectedDir.y = this.leftRefractionResult.reflectedDir.y;

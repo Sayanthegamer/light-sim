@@ -60,6 +60,10 @@ export class OpticsEngine {
   bloomIntensity = 0.25;
   scatterWeight = 1.0;
 
+  private lastExposure = 1.0;
+  private lastHaze = 0.35;
+  private lastBloom = 0.25;
+
   // Performance telemetry
   private stats: EngineStats = {
     fps: 60,
@@ -151,9 +155,10 @@ export class OpticsEngine {
 
   loadPreset(preset: SerializedScene): void {
     deserializeFromJSON(JSON.stringify(preset), this.scene);
+    this.scene.markDirty();
     this.historyManager.clear();
     this.commitHistorySnapshot();
-    this.renderCoordinator.markDirty(true);
+    this.renderCoordinator.markDirty(false);
     this.options.onSceneChange?.();
   }
 
@@ -174,7 +179,8 @@ export class OpticsEngine {
     const json = this.historyManager.undo();
     if (json) {
       deserializeFromJSON(json, this.scene);
-      this.renderCoordinator.markDirty(true);
+      this.scene.markDirty();
+      this.renderCoordinator.markDirty(false);
       this.options.onSceneChange?.();
     }
   }
@@ -183,7 +189,8 @@ export class OpticsEngine {
     const json = this.historyManager.redo();
     if (json) {
       deserializeFromJSON(json, this.scene);
-      this.renderCoordinator.markDirty(true);
+      this.scene.markDirty();
+      this.renderCoordinator.markDirty(false);
       this.options.onSceneChange?.();
     }
   }
@@ -199,6 +206,7 @@ export class OpticsEngine {
     this.glManager.resizeFramebuffer(this.beamFbo, this.width, this.height);
     this.glManager.resizeFramebuffer(this.maskFbo, this.width, this.height);
     this.renderCoordinator.resize(this.width, this.height);
+    this.scene.markDirty();
   }
 
   private attachPointerListeners(): void {
@@ -340,8 +348,10 @@ export class OpticsEngine {
   renderFrame(): void {
     const t0 = performance.now();
 
-    // 1. CPU Ray Solving
-    this.solveLightField();
+    // 1. CPU Ray Solving (skip redundant CPU re-triangulation during static settling frames if scene is clean)
+    if (this.scene.isDirty() || this.vboPacker.getVertexCount() === 0) {
+      this.solveLightField();
+    }
 
     // 2. GPU Pass 1: Forward Beam Quad Rasterization
     this.renderCoordinator.beamPass.begin(this.beamFbo, this.width, this.height);
@@ -395,7 +405,23 @@ export class OpticsEngine {
         this.options.onStatsUpdate?.(this.stats);
       }
 
-      if (!this.isPausedFlag || this.scene.isDirty()) {
+      const postProcChanged =
+        this.exposure !== this.lastExposure ||
+        this.hazeDensity !== this.lastHaze ||
+        this.bloomIntensity !== this.lastBloom;
+
+      if (postProcChanged) {
+        this.lastExposure = this.exposure;
+        this.lastHaze = this.hazeDensity;
+        this.lastBloom = this.bloomIntensity;
+        this.renderCoordinator.markDirty(false);
+      }
+
+      if (
+        this.scene.isDirty() ||
+        postProcChanged ||
+        (!this.isPausedFlag && !this.renderCoordinator.isSleeping())
+      ) {
         this.renderFrame();
       }
 

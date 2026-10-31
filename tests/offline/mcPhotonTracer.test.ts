@@ -108,11 +108,35 @@ describe('Monte Carlo Photon Tracer & Russian Roulette Transport', () => {
     expect(stats.absorbed).toBe(true);
   });
 
+  it('captures photons aimed directly at a Schwarzschild black hole event horizon', () => {
+    target.reset();
+    const bhScene: IOfflineSceneGeometry = {
+      ...emptyScene,
+      blackHoles: [
+        {
+          id: 1,
+          center: { x: 50, y: 50 },
+          rs: 10,
+          rInfluence: 120
+        }
+      ]
+    };
+
+    const photon: IPhotonState = {
+      pos: { x: 10, y: 50 },
+      dir: { x: 1, y: 0 },
+      wavelengthNm: 550,
+      energy: 1.0,
+      phase: 0.0
+    };
+
+    const stats = tracePhotonPath(photon, bhScene, target, { volumetricInScatter: false });
+    expect(stats.absorbed).toBe(true);
+    expect(target.getTotalSamples()).toBeGreaterThan(0);
+  });
+
   it('refracts photons through biconvex and planoconvex lenses without unphysical total reflection', () => {
     target.reset();
-    // Biconvex lens centered at (50, 50)
-    // Left surface arc centered at (80, 50), radius 40
-    // Right surface arc centered at (20, 50), radius 40
     const lensScene: IOfflineSceneGeometry = {
       ...emptyScene,
       lenses: [
@@ -149,7 +173,6 @@ describe('Monte Carlo Photon Tracer & Russian Roulette Transport', () => {
       ]
     };
 
-    // Trace 100 photons through lens
     let transmittedCount = 0;
     for (let i = 0; i < 100; i++) {
       const photon: IPhotonState = {
@@ -163,14 +186,11 @@ describe('Monte Carlo Photon Tracer & Russian Roulette Transport', () => {
         maxBounces: 10,
         volumetricInScatter: false
       });
-      // A photon that refracts through the front and back surface takes >= 2 bounces
       if (stats.bounces >= 2) {
         transmittedCount++;
       }
     }
 
-    // With physical glass (n ~ 1.52), Fresnel reflection at normal incidence is ~4% per surface.
-    // Over 100 photons, > 80% should transmit through both surfaces!
     expect(transmittedCount).toBeGreaterThan(80);
   });
 
@@ -193,7 +213,6 @@ describe('Monte Carlo Photon Tracer & Russian Roulette Transport', () => {
       ]
     };
 
-    // Pre-extract primitives once
     const precomputed = extractScenePrimitives(prismScene);
     expect(precomputed.segments.length).toBe(3);
     expect(precomputed.arcs.length).toBe(0);
@@ -206,11 +225,9 @@ describe('Monte Carlo Photon Tracer & Russian Roulette Transport', () => {
       phase: 0.0
     };
 
-    // Pass pre-extracted primitives directly with an empty dummy scene geometry
-    // To prove that it uses the precomputed primitives rather than extracting from the scene
     const dummyEmptyScene: IOfflineSceneGeometry = {
       ...emptyScene,
-      prisms: [] // Empty! If it re-extracted from scene, it would have 0 segments and photon wouldn't hit anything
+      prisms: []
     };
 
     const stats = tracePhotonPath(photon, dummyEmptyScene, target, {
@@ -219,7 +236,6 @@ describe('Monte Carlo Photon Tracer & Russian Roulette Transport', () => {
       primitives: precomputed
     });
 
-    // If precomputed primitives were used, the photon hit the prism segment
     expect(stats.bounces).toBeGreaterThan(0);
     expect(target.getTotalSamples()).toBeGreaterThan(0);
   });

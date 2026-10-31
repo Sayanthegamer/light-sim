@@ -16,6 +16,31 @@ export const TextureUsage = {
   RENDER_ATTACHMENT: 0x10
 };
 
+/**
+ * Fast IEEE 754 Float16 (half-precision) to Float32 decoder.
+ */
+export function decodeFloat16(half: number): number {
+  const h = half | 0;
+  const sign = (h & 0x8000) ? -1 : 1;
+  const exp = (h >> 10) & 0x1f;
+  const mant = h & 0x3ff;
+
+  if (exp === 0) {
+    if (mant === 0) return sign * 0.0;
+    return sign * Math.pow(2, -14) * (mant / 1024);
+  }
+  if (exp === 31) {
+    return mant === 0 ? sign * Infinity : NaN;
+  }
+  return sign * Math.pow(2, exp - 15) * (1 + mant / 1024);
+}
+
+// Precomputed 65,536-entry Float16-to-Float32 LUT for O(1) zero-branch readback decoding
+const FLOAT16_LUT = new Float32Array(65536);
+for (let i = 0; i < 65536; i++) {
+  FLOAT16_LUT[i] = decodeFloat16(i);
+}
+
 export class GpuAccumulator {
   readonly device: GPUDevice;
   readonly width: number;
@@ -28,6 +53,7 @@ export class GpuAccumulator {
   private passCount = 0;
   private needsClear = true;
   private readbackArray: Float32Array;
+  private isReadingBack = false;
 
   constructor(device: GPUDevice, width: number, height: number, format: GPUTextureFormat = 'rgba16float') {
     this.device = device;
@@ -69,7 +95,7 @@ export class GpuAccumulator {
   /**
    * Dispatches photon compute shader and rasterizes lines into accumulation target.
    */
-  renderPass(pipelineMgr: GpuPipelineManager, maxBounces = 32): void {
+  renderPass(pipelineMgr: GpuPipelineManager, maxBounces?: number): void {
     const computePipeline = pipelineMgr.getComputePipeline();
     const renderPipeline = pipelineMgr.getRenderPipeline();
     const computeBindGroup = pipelineMgr.getComputeBindGroup();
@@ -88,6 +114,7 @@ export class GpuAccumulator {
 
     // 1. Compute Pass: Generate Photon Trajectories
     const batchSize = pipelineMgr.getBatchSize();
+    const bounces = maxBounces ?? pipelineMgr.getMaxBounces();
     const workgroupCount = Math.ceil(batchSize / 64);
 
     const computePass = commandEncoder.beginComputePass({
@@ -107,7 +134,7 @@ export class GpuAccumulator {
       colorAttachments: [
         {
           view: this.accumulationView,
-          clearValue: { r: 0.0, g: 0.0, b: 0.0, a: 1.0 },
+          clearValue: { r: 0.0, g: 0.0, b: 0.0, a: 0.0 },
           loadOp,
           storeOp: 'store'
         }
@@ -117,7 +144,7 @@ export class GpuAccumulator {
     renderPass.setPipeline(renderPipeline);
     renderPass.setBindGroup(0, renderBindGroup);
 
-    const totalVertices = batchSize * maxBounces * 2;
+    const totalVertices = batchSize * bounces * 2;
     renderPass.draw(totalVertices, 1, 0, 0);
     renderPass.end();
 
@@ -129,10 +156,11 @@ export class GpuAccumulator {
    * Asynchronously reads back GPU accumulation texture data into a Float32Array.
    */
   async readbackToFloat32Array(): Promise<Float32Array> {
-    if (!this.accumulationTexture || !this.stagingBuffer) {
+    if (!this.accumulationTexture || !this.stagingBuffer || this.isReadingBack) {
       return this.readbackArray;
     }
 
+    this.isReadingBack = true;
     const bytesPerPixel = this.format === 'rgba32float' ? 16 : 8;
     const unalignedBytesPerRow = this.width * bytesPerPixel;
     const bytesPerRow = Math.ceil(unalignedBytesPerRow / 256) * 256;
@@ -150,26 +178,30 @@ export class GpuAccumulator {
       const mode = typeof GPUMapMode !== 'undefined' ? GPUMapMode.READ : 1;
       await this.stagingBuffer.mapAsync(mode);
       const mappedRange = this.stagingBuffer.getMappedRange();
+      const rowFloats = this.width * 4;
 
       if (this.format === 'rgba32float') {
         const floatView = new Float32Array(mappedRange);
         const strideFloats = bytesPerRow / 4;
         for (let y = 0; y < this.height; y++) {
           const srcRow = y * strideFloats;
-          const dstRow = y * this.width * 4;
-          for (let x = 0; x < this.width * 4; x++) {
-            this.readbackArray[dstRow + x] = floatView[srcRow + x];
+          const dstRow = y * rowFloats;
+          for (let x = 0; x < rowFloats; x++) {
+            const val = floatView[srcRow + x];
+            this.readbackArray[dstRow + x] = Number.isFinite(val) ? val : 0.0;
           }
         }
       } else {
-        // rgba16float: decode half-float to single-precision float32
+        // rgba16float: decode half-float to single-precision float32 via fast lookup table
         const uint16View = new Uint16Array(mappedRange);
         const strideWords = bytesPerRow / 2;
         for (let y = 0; y < this.height; y++) {
           const srcRow = y * strideWords;
-          const dstRow = y * this.width * 4;
-          for (let x = 0; x < this.width * 4; x++) {
-            this.readbackArray[dstRow + x] = decodeFloat16(uint16View[srcRow + x]);
+          const dstRow = y * rowFloats;
+          for (let x = 0; x < rowFloats; x++) {
+            const halfWord = uint16View[srcRow + x] | 0;
+            const decoded = FLOAT16_LUT[halfWord & 0xffff];
+            this.readbackArray[dstRow + x] = Number.isFinite(decoded) ? decoded : 0.0;
           }
         }
       }
@@ -177,6 +209,8 @@ export class GpuAccumulator {
       this.stagingBuffer.unmap();
     } catch (err) {
       console.warn('GPU Accumulator readback failed:', err);
+    } finally {
+      this.isReadingBack = false;
     }
 
     return this.readbackArray;
@@ -197,22 +231,4 @@ export class GpuAccumulator {
     this.accumulationView = null;
     this.stagingBuffer = null;
   }
-}
-
-/**
- * Fast IEEE 754 Float16 (half-precision) to Float32 decoder.
- */
-export function decodeFloat16(half: number): number {
-  const sign = (half & 0x8000) ? -1 : 1;
-  const exp = (half >> 10) & 0x1f;
-  const mant = half & 0x3ff;
-
-  if (exp === 0) {
-    if (mant === 0) return sign * 0.0;
-    return sign * Math.pow(2, -14) * (mant / 1024);
-  }
-  if (exp === 31) {
-    return mant === 0 ? sign * Infinity : NaN;
-  }
-  return sign * Math.pow(2, exp - 15) * (1 + mant / 1024);
 }

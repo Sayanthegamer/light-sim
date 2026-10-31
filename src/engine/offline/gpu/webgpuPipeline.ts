@@ -44,7 +44,7 @@ struct SegmentPrimitive {
 struct ArcPrimitive {
   center: vec2<f32>,
   radius: f32,
-  nGlass: f32,
+  nGlass: f32,       // > 0 convex (glass inside), < 0 concave (glass outside)
   angles: vec2<f32>, // startAngle, endAngle
   cauchy: vec2<f32>, // cauchyA, cauchyB
 };
@@ -63,7 +63,7 @@ struct EmitterPrimitive {
 struct UniformSceneConfig {
   bounds: vec4<f32>,     // minX, minY, maxX, maxY
   counts: vec4<u32>,     // numBVH, numSegments, numArcs, numBlackHoles
-  params: vec4<f32>,     // seed, maxBounces, russianRouletteThreshold, pad
+  params: vec4<f32>,     // seed, maxBounces, russianRouletteThresholdOrSigmaT, passSeed
   renderDim: vec2<f32>,  // width, height
   batchPhotons: u32,
   emitterCount: u32,
@@ -117,6 +117,9 @@ fn gaussian(x: f32, mu: f32, sigma1: f32, sigma2: f32) -> f32 {
 }
 
 fn wavelengthToXYZ(wl: f32) -> vec3<f32> {
+  if (wl < 360.0 || wl > 830.0) {
+    return vec3<f32>(0.0, 0.0, 0.0);
+  }
   let x = 1.056 * gaussian(wl, 599.8, 37.9, 31.0)
         + 0.362 * gaussian(wl, 442.0, 16.0, 26.7)
         - 0.065 * gaussian(wl, 501.1, 20.4, 18.9);
@@ -139,7 +142,24 @@ fn wavelengthToRGB(lambda: f32) -> vec3<f32> {
 }
 
 fn evaluateCauchy(lambdaNm: f32, a: f32, b: f32) -> f32 {
-  return a + (b / (lambdaNm * lambdaNm));
+  let effB = select(b, b * 1000000.0, b > 0.0 && b < 1.0);
+  let clampedWl = clamp(lambdaNm, 380.0, 780.0);
+  return a + (effB / (clampedWl * clampedWl));
+}
+
+// D65 relative spectral power distribution for importance sampling
+fn sampleD65WavelengthWgsl(rng: ptr<function, RngState>) -> f32 {
+  // 2-step rejection sampling matching D65 daylight SPD curve
+  for (var iter = 0u; iter < 4u; iter = iter + 1u) {
+    let wl = 380.0 + pcg32_next(rng) * 400.0;
+    let u = (wl - 560.0) / 100.0;
+    let hump = (wl - 460.0) / 30.0;
+    let pdf = clamp((1.0 - 0.15 * u + 0.1 * exp(-0.5 * hump * hump)) / 1.35, 0.05, 1.0);
+    if (pcg32_next(rng) <= pdf) {
+      return wl;
+    }
+  }
+  return 380.0 + pcg32_next(rng) * 400.0;
 }
 
 // Ray-Segment Intersection
@@ -195,11 +215,30 @@ fn intersectRaySegment(origin: vec2<f32>, dir: vec2<f32>, seg: SegmentPrimitive)
   return hit;
 }
 
-// Ray-Arc Intersection
+fn isAngleInArcWgsl(angle: f32, startAngle: f32, endAngle: f32) -> bool {
+  let twoPi = 6.28318530718;
+  if (abs(endAngle - startAngle) >= twoPi - 1e-5) {
+    return true;
+  }
+  let a = angle - floor(angle / twoPi) * twoPi;
+  let s = startAngle - floor(startAngle / twoPi) * twoPi;
+  let e = endAngle - floor(endAngle / twoPi) * twoPi;
+
+  if (s <= e) {
+    return a >= s - 1e-5 && a <= e + 1e-5;
+  }
+  return a >= s - 1e-5 || a <= e + 1e-5;
+}
+
+// Ray-Arc Intersection (tests both quadratic roots t1 and t2 against angular sector & supports concave/convex)
 fn intersectRayArc(origin: vec2<f32>, dir: vec2<f32>, arc: ArcPrimitive) -> HitInfo {
   var hit: HitInfo;
   hit.hit = false;
   hit.t = 1e9;
+
+  if (arc.radius < 1e-4) {
+    return hit;
+  }
 
   let oc = origin - arc.center;
   let b = dot(oc, dir);
@@ -211,50 +250,54 @@ fn intersectRayArc(origin: vec2<f32>, dir: vec2<f32>, arc: ArcPrimitive) -> HitI
   }
 
   let sqrtDisc = sqrt(disc);
-  var t = -b - sqrtDisc;
-  if (t < 1e-4) {
-    t = -b + sqrtDisc;
+  let t1 = -b - sqrtDisc;
+  let t2 = -b + sqrtDisc;
+
+  var chosenT = -1.0;
+
+  if (t1 > 1e-4) {
+    let p1 = origin + dir * t1 - arc.center;
+    let ang1 = atan2(p1.y, p1.x);
+    if (isAngleInArcWgsl(ang1, arc.angles.x, arc.angles.y)) {
+      chosenT = t1;
+    }
   }
 
-  if (t > 1e-4) {
-    let p = origin + dir * t;
+  if (chosenT < 0.0 && t2 > 1e-4) {
+    let p2 = origin + dir * t2 - arc.center;
+    let ang2 = atan2(p2.y, p2.x);
+    if (isAngleInArcWgsl(ang2, arc.angles.x, arc.angles.y)) {
+      chosenT = t2;
+    }
+  }
+
+  if (chosenT > 1e-4) {
+    let p = origin + dir * chosenT;
     let local = p - arc.center;
-    var ang = atan2(local.y, local.x);
+    hit.hit = true;
+    hit.t = chosenT;
+    let n = normalize(local);
+    let isBackFace = (dot(dir, n) > 0.0);
+    hit.normal = select(n, -n, isBackFace);
 
-    // Normalize angle to [0, 2pi]
-    let twoPi = 6.28318530718;
-    var start = arc.angles.x;
-    var end = arc.angles.y;
+    let glassN = abs(arc.nGlass);
+    let isConcave = (arc.nGlass < 0.0);
+    let nInside = select(glassN, 1.0, isConcave);
+    let nOutside = select(1.0, glassN, isConcave);
 
-    if (start < 0.0) { start = start + twoPi; }
-    if (end < 0.0) { end = end + twoPi; }
-    if (ang < 0.0) { ang = ang + twoPi; }
-
-    var inside = false;
-    if (start <= end) {
-      inside = (ang >= start && ang <= end);
+    if (isBackFace) {
+      // Ray moving from inside circle to outside circle
+      hit.n1 = nInside;
+      hit.n2 = nOutside;
     } else {
-      inside = (ang >= start || ang <= end);
+      // Ray moving from outside circle to inside circle
+      hit.n1 = nOutside;
+      hit.n2 = nInside;
     }
-
-    if (inside) {
-      hit.hit = true;
-      hit.t = t;
-      let n = normalize(local);
-      let isBackFace = (dot(dir, n) > 0.0);
-      hit.normal = select(n, -n, isBackFace);
-      if (isBackFace) {
-        hit.n1 = arc.nGlass;
-        hit.n2 = 1.0;
-      } else {
-        hit.n1 = 1.0;
-        hit.n2 = arc.nGlass;
-      }
-      hit.cauchyA = arc.cauchy.x;
-      hit.cauchyB = arc.cauchy.y;
-      hit.isBarrier = false;
-      hit.isMirror = false;
-    }
+    hit.cauchyA = arc.cauchy.x;
+    hit.cauchyB = arc.cauchy.y;
+    hit.isBarrier = false;
+    hit.isMirror = false;
   }
 
   return hit;
@@ -262,8 +305,10 @@ fn intersectRayArc(origin: vec2<f32>, dir: vec2<f32>, arc: ArcPrimitive) -> HitI
 
 // Bounding Box Slab Intersection
 fn intersectAABB(origin: vec2<f32>, dir: vec2<f32>, aabbMin: vec2<f32>, aabbMax: vec2<f32>) -> bool {
-  let invDirX = 1.0 / select(dir.x, 1e-6, abs(dir.x) < 1e-6);
-  let invDirY = 1.0 / select(dir.y, 1e-6, abs(dir.y) < 1e-6);
+  let safeX = select(dir.x, select(-1e-6, 1e-6, dir.x >= 0.0), abs(dir.x) < 1e-6);
+  let safeY = select(dir.y, select(-1e-6, 1e-6, dir.y >= 0.0), abs(dir.y) < 1e-6);
+  let invDirX = 1.0 / safeX;
+  let invDirY = 1.0 / safeY;
 
   var t1 = (aabbMin.x - origin.x) * invDirX;
   var t2 = (aabbMax.x - origin.x) * invDirX;
@@ -298,6 +343,9 @@ fn stepSchwarzschildGeodesic(pos: vec2<f32>, dir: vec2<f32>, center: vec2<f32>, 
 
   let midRVec = midPos - center;
   let midR = length(midRVec);
+  if (midR <= rs) {
+    return vec4<f32>(midPos, 0.0, 0.0);
+  }
   let midR5 = midR * midR * midR * midR * midR;
   let midAccel = -1.5 * rs * L2 * midRVec / midR5;
 
@@ -340,15 +388,14 @@ fn evaluateBlackHoleInteraction(pos: vec2<f32>, dir: vec2<f32>, bh: BlackHolePri
   return stepSchwarzschildGeodesic(pos, dir, bh.center, rs, min(dt, dynamicDt));
 }
 
-// 8-Element Short-Stack BVH Traversal
+// 8-Element Short-Stack BVH Traversal with Child Pre-Testing
 fn traverseBVH(origin: vec2<f32>, dir: vec2<f32>) -> HitInfo {
   var bestHit: HitInfo;
   bestHit.hit = false;
   bestHit.t = 1e9;
 
   let numNodes = config.counts.x;
-  if (numNodes == 0u) {
-    // Linear fallback if no BVH nodes
+  if (numNodes <= 1u) {
     let numSegs = config.counts.y;
     for (var s = 0u; s < numSegs; s = s + 1u) {
       let h = intersectRaySegment(origin, dir, segments[s]);
@@ -368,17 +415,11 @@ fn traverseBVH(origin: vec2<f32>, dir: vec2<f32>) -> HitInfo {
 
   var stack: array<u32, 8>;
   var stackPtr = 0u;
-  stack[stackPtr] = 0u;
-  stackPtr = stackPtr + 1u;
+  var curIdx = 0u;
+  var hasCurrent = intersectAABB(origin, dir, bvhNodes[0].aabbMin, bvhNodes[0].aabbMax);
 
-  while (stackPtr > 0u) {
-    stackPtr = stackPtr - 1u;
-    let nodeIdx = stack[stackPtr];
-    let node = bvhNodes[nodeIdx];
-
-    if (!intersectAABB(origin, dir, node.aabbMin, node.aabbMax)) {
-      continue;
-    }
+  while (hasCurrent) {
+    let node = bvhNodes[curIdx];
 
     if (node.leftChild == 0u) {
       // Leaf Node
@@ -393,13 +434,36 @@ fn traverseBVH(origin: vec2<f32>, dir: vec2<f32>) -> HitInfo {
           bestHit = h;
         }
       }
+      if (stackPtr > 0u) {
+        stackPtr = stackPtr - 1u;
+        curIdx = stack[stackPtr];
+      } else {
+        hasCurrent = false;
+      }
     } else {
-      // Internal Node: push children to stack (max 8)
-      if (stackPtr < 7u) {
-        stack[stackPtr] = node.rightChildOrCount;
-        stackPtr = stackPtr + 1u;
-        stack[stackPtr] = node.leftChild;
-        stackPtr = stackPtr + 1u;
+      // Internal Node: pre-test children so at most 1 child is pushed to stack per level
+      let leftIdx = node.leftChild;
+      let rightIdx = node.rightChildOrCount;
+      let hitL = intersectAABB(origin, dir, bvhNodes[leftIdx].aabbMin, bvhNodes[leftIdx].aabbMax);
+      let hitR = intersectAABB(origin, dir, bvhNodes[rightIdx].aabbMin, bvhNodes[rightIdx].aabbMax);
+
+      if (hitL && hitR) {
+        if (stackPtr < 8u) {
+          stack[stackPtr] = rightIdx;
+          stackPtr = stackPtr + 1u;
+        }
+        curIdx = leftIdx;
+      } else if (hitL) {
+        curIdx = leftIdx;
+      } else if (hitR) {
+        curIdx = rightIdx;
+      } else {
+        if (stackPtr > 0u) {
+          stackPtr = stackPtr - 1u;
+          curIdx = stack[stackPtr];
+        } else {
+          hasCurrent = false;
+        }
       }
     }
   }
@@ -426,9 +490,7 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
   let emitter = emitters[emIdx];
 
   let emWidth = emitter.params.x;
-  let u1 = pcg32_next(&rng);
-  let u2 = pcg32_next(&rng);
-  let offsetDist = (u1 + u2 - 1.0) * 0.5 * emWidth;
+  let offsetDist = (pcg32_next(&rng) - 0.5) * emWidth;
   let perpDir = vec2<f32>(-emitter.dir.y, emitter.dir.x);
 
   var curPos = emitter.pos + perpDir * offsetDist;
@@ -439,34 +501,42 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
   let specType = u32(emitter.params.y);
   if (specType == 0u) {
     wavelength = emitter.params.z; // Monochromatic
+  } else if (specType == 1u) {
+    wavelength = sampleD65WavelengthWgsl(&rng); // D65 Daylight
   } else {
-    wavelength = 380.0 + pcg32_next(&rng) * 400.0; // Pure Equal-Energy White spectrum
+    wavelength = 380.0 + pcg32_next(&rng) * 400.0; // Continuous spectrum
   }
 
   var color = wavelengthToXYZ(wavelength);
 
-  // 2. Trace Bounces
+  // Volumetric medium configuration from config.params.z
+  let paramZ = config.params.z;
+  let sigmaT = select(paramZ, 0.0005, paramZ >= 0.05);
+  let albedo = 0.8;
+  let g = 0.25;
+
+  // 2. Trace Bounces & Relativistic Geodesics
   var bounce = 0u;
   var scatterCount = 0u;
-  while (bounce < maxBounces && energy > 0.005) {
+  let numBH = config.counts.w;
+
+  while (bounce < maxBounces && energy > 0.002) {
     let outSlot0 = baseVertexIdx + bounce * 2u;
     let outSlot1 = baseVertexIdx + bounce * 2u + 1u;
 
-    // Find closest intersection
-    var closestT = 1000.0;
-    var bestHit: HitInfo;
-    bestHit.hit = false;
-
     // Boundary check
-    var boundDist = 1000.0;
+    var boundDist = 2000.0;
     let b = config.bounds;
     if (curDir.x > 1e-6) { boundDist = min(boundDist, (b.z - curPos.x) / curDir.x); }
     else if (curDir.x < -1e-6) { boundDist = min(boundDist, (b.x - curPos.x) / curDir.x); }
     if (curDir.y > 1e-6) { boundDist = min(boundDist, (b.w - curPos.y) / curDir.y); }
     else if (curDir.y < -1e-6) { boundDist = min(boundDist, (b.y - curPos.y) / curDir.y); }
+    boundDist = max(0.0, boundDist);
 
     // Intersect scene geometry via short-stack BVH
+    var bestHit: HitInfo;
     bestHit = traverseBVH(curPos, curDir);
+    var closestT = 2000.0;
     closestT = boundDist;
     if (bestHit.hit && bestHit.t < boundDist) {
       closestT = bestHit.t;
@@ -474,35 +544,104 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
       bestHit.hit = false;
     }
 
-    // Subtle physical volumetric in-scattering (forward-peaked Mie halo around beams)
-    let sigmaT = 0.0006;
-    let albedo = 0.6;
-    let g = 0.65;
+    // Relativistic Black Hole Geodesic Check
+    var activeBhIdx = -1;
+    var bhEntryT = closestT;
+    if (numBH > 0u) {
+      let bh0 = blackHoles[0];
+      for (var bi = 0u; bi < numBH; bi = bi + 1u) {
+        let bh = select(blackHoles[bi], bh0, bi == 0u);
+        let oc = curPos - bh.center;
+        let r = length(oc);
+        let rInf = bh.radii.y;
+        if (r < rInf - 1e-2) {
+          activeBhIdx = i32(bi);
+          bhEntryT = 0.0;
+          break;
+        } else {
+          // Check ray entry into rInfluence sphere
+          let bDot = dot(oc, curDir);
+          let cVal = dot(oc, oc) - rInf * rInf;
+          let disc = bDot * bDot - cVal;
+          if (disc > 0.0) {
+            let tEnter = -bDot - sqrt(disc);
+            if (tEnter > 1e-3 && tEnter < bhEntryT) {
+              bhEntryT = tEnter;
+              activeBhIdx = i32(bi);
+            } else if (r <= rInf + 1e-2 && bDot < 0.0) {
+              bhEntryT = 0.0;
+              activeBhIdx = i32(bi);
+              break;
+            }
+          }
+        }
+      }
+    }
 
-    let xiScatter = pcg32_next(&rng);
-    let scatterDist = -log(max(1e-7, 1.0 - xiScatter)) / sigmaT;
+    // Case A: Ray is currently inside a black hole influence sphere -> Step curved geodesic
+    if (activeBhIdx >= 0 && bhEntryT <= 1e-3) {
+      let bh = blackHoles[u32(activeBhIdx)];
+      let rNow = length(curPos - bh.center);
+      let rs = bh.radii.x;
+      let stepDt = min(closestT, clamp(0.25 * rNow, max(1.0, 0.2 * rs), 20.0));
+      let geoStep = evaluateBlackHoleInteraction(curPos, curDir, bh, stepDt);
+      let nextPos = geoStep.xy;
+      let nextDir = geoStep.zw;
+
+      // Gravitational redshift modulation near black hole
+      let rNext = length(nextPos - bh.center);
+      let redshiftRatio = 1.0 / sqrt(max(0.01, 1.0 - rs / max(rs * 1.001, rNext)));
+      let shiftedWl = wavelength * clamp(redshiftRatio, 1.0, 1.35);
+      let shiftedColor = wavelengthToXYZ(shiftedWl);
+
+      photonVertices[outSlot0] = PhotonVertex(curPos, shiftedWl, 0u, shiftedColor, energy);
+      photonVertices[outSlot1] = PhotonVertex(nextPos, shiftedWl, 0u, shiftedColor, energy);
+
+      curPos = nextPos;
+      curDir = nextDir;
+      bounce = bounce + 1u;
+
+      if (length(curDir) < 0.1 || rNext <= rs) {
+        energy = 0.0;
+        break;
+      }
+      continue;
+    }
+
+    // Case B: Ray approaches a black hole influence boundary before hitting an obstacle
+    var entersBhBoundary = false;
+    if (activeBhIdx >= 0 && bhEntryT < closestT) {
+      closestT = bhEntryT;
+      bestHit.hit = false;
+      entersBhBoundary = true;
+    }
+
+    // Volumetric in-scattering check
     var didScatter = false;
-    if (scatterDist < closestT && scatterCount < 2u) {
-      closestT = scatterDist;
-      didScatter = true;
+    if (sigmaT > 1e-6 && scatterCount < 3u) {
+      let xiScatter = pcg32_next(&rng);
+      let scatterDist = -log(max(1e-7, 1.0 - xiScatter)) / sigmaT;
+      if (scatterDist < closestT) {
+        closestT = scatterDist;
+        didScatter = true;
+        entersBhBoundary = false;
+      }
     }
 
-    let straightNextPos = curPos + curDir * closestT;
-    var nextPos = straightNextPos;
-    var nextDir = curDir;
+    let nextPos = curPos + curDir * closestT;
 
-    // Dummy read to prevent WebGPU from optimizing out the blackHoles binding (binding 3)
-    if (config.counts.w > 999999u) {
-      nextPos = blackHoles[0].center;
-    }
-
-    // Output active line segment with length-normalized radiant flux
-    let segmentFlux = energy / max(1.0, closestT);
+    // Output active line segment with unattenuated photon radiant flux (hardware line rasterizer handles per-pixel coverage)
+    let segmentFlux = energy;
     photonVertices[outSlot0] = PhotonVertex(curPos, wavelength, 0u, color, segmentFlux);
     photonVertices[outSlot1] = PhotonVertex(nextPos, wavelength, 0u, color, segmentFlux);
 
     curPos = nextPos;
-    curDir = nextDir;
+
+    if (entersBhBoundary) {
+      curPos = curPos + curDir * 0.05;
+      bounce = bounce + 1u;
+      continue;
+    }
 
     if (didScatter) {
       scatterCount = scatterCount + 1u;
@@ -519,20 +658,14 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
       bounce = bounce + 1u;
 
       if (energy < 0.1) {
-        if (pcg32_next(&rng) > energy * 10.0) {
+        let pSurvive = max(0.1, energy * 10.0);
+        if (pcg32_next(&rng) > pSurvive) {
           energy = 0.0;
           break;
         }
-        energy = 0.1;
+        energy = energy / pSurvive;
       }
       continue;
-    }
-
-    if (length(curDir) < 0.1) {
-      // Absorbed by event horizon
-      energy = 0.0;
-      bounce = bounce + 1u;
-      break;
     }
 
     if (!bestHit.hit) {
@@ -549,25 +682,25 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
 
     if (bestHit.isMirror) {
       curDir = reflect(curDir, bestHit.normal);
-      curPos = curPos + curDir * 0.01;
+      curPos = curPos + bestHit.normal * 0.002;
       bounce = bounce + 1u;
       continue;
     }
 
-    // Dielectric Refraction / Reflection
+    // Dielectric Refraction / Reflection with continuous Cauchy dispersion
     let n1 = select(1.0, evaluateCauchy(wavelength, bestHit.cauchyA, bestHit.cauchyB), bestHit.n1 > 1.05);
     let n2 = select(1.0, evaluateCauchy(wavelength, bestHit.cauchyA, bestHit.cauchyB), bestHit.n2 > 1.05);
     let eta = n1 / n2;
 
-    let cosI = -dot(bestHit.normal, curDir);
+    let cosI = clamp(-dot(bestHit.normal, curDir), 0.0, 1.0);
     let sinT2 = eta * eta * (1.0 - cosI * cosI);
 
-    if (sinT2 > 1.0) {
+    if (sinT2 >= 1.0) {
       // Total Internal Reflection (TIR)
       curDir = reflect(curDir, bestHit.normal);
-      curPos = curPos + curDir * 0.01;
+      curPos = curPos + bestHit.normal * 0.002;
     } else {
-      let cosT = sqrt(1.0 - sinT2);
+      let cosT = sqrt(max(0.0, 1.0 - sinT2));
       let rPerp = (n1 * cosI - n2 * cosT) / (n1 * cosI + n2 * cosT);
       let rPar = (n2 * cosI - n1 * cosT) / (n2 * cosI + n1 * cosT);
       let R = 0.5 * (rPerp * rPerp + rPar * rPar);
@@ -575,10 +708,10 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
       let xi = pcg32_next(&rng);
       if (xi < R) {
         curDir = reflect(curDir, bestHit.normal);
-        curPos = curPos + curDir * 0.01;
+        curPos = curPos + bestHit.normal * 0.002;
       } else {
         curDir = normalize(eta * curDir + (eta * cosI - cosT) * bestHit.normal);
-        curPos = curPos + curDir * 0.01;
+        curPos = curPos - bestHit.normal * 0.002;
       }
     }
 
@@ -639,7 +772,7 @@ fn vs_main(@builtin(vertex_index) vertexIdx: u32) -> VertexOutput {
   let v = photonVertices[vertexIdx];
 
   // Hardware Clip-Culling: Discard dead segments with w=0 out-of-clip coordinates
-  if (v.flags != 0u || v.energy <= 1e-4) {
+  if (v.flags != 0u || v.energy <= 1e-6) {
     out.position = vec4<f32>(2.0, 2.0, 0.0, 0.0); // outOfClip
     out.color = vec4<f32>(0.0, 0.0, 0.0, 0.0);
     return out;
@@ -649,8 +782,10 @@ fn vs_main(@builtin(vertex_index) vertexIdx: u32) -> VertexOutput {
   let ndcX = ((v.pos.x - b.x) / (b.z - b.x)) * 2.0 - 1.0;
   let ndcY = 1.0 - ((v.pos.y - b.y) / (b.w - b.y)) * 2.0;
 
+  // Normalize per-photon radiance by batchPhotons so every pass contributes consistent physical flux
+  let photonWeight = (v.energy * 12.0) / f32(max(100u, config.batchPhotons));
   out.position = vec4<f32>(ndcX, ndcY, 0.0, 1.0);
-  out.color = vec4<f32>(v.color * v.energy * 0.05, 1.0);
+  out.color = vec4<f32>(v.color * photonWeight, photonWeight);
   return out;
 }
 
@@ -668,9 +803,11 @@ export class GpuPipelineManager {
   private bindGroupCompute: GPUBindGroup | null = null;
   private bindGroupRender: GPUBindGroup | null = null;
 
-  private batchSize = 100000;
-  private minBatchSize = 25000;
-  private maxBatchSize = 500000;
+  private batchSize = 50000;
+  private allocatedBatchSize = 65536;
+  private maxBounces = 32;
+  private minBatchSize = 10000;
+  private maxBatchSize = 250000;
 
   constructor(device: GPUDevice) {
     this.device = device;
@@ -681,8 +818,25 @@ export class GpuPipelineManager {
     return this.batchSize;
   }
 
+  getMaxBounces(): number {
+    return this.maxBounces;
+  }
+
   setBatchSize(size: number): void {
-    this.batchSize = Math.max(this.minBatchSize, Math.min(this.maxBatchSize, size));
+    const cap = this.buffers.vertices ? this.allocatedBatchSize : this.maxBatchSize;
+    this.batchSize = Math.max(this.minBatchSize, Math.min(cap, size));
+    this.syncBatchSizeUniform();
+  }
+
+  private syncBatchSizeUniform(): void {
+    if (this.buffers.uniform) {
+      // Offset 56 bytes = uint32 index 14 (config.batchPhotons)
+      this.device.queue.writeBuffer(
+        this.buffers.uniform,
+        56,
+        new Uint32Array([this.batchSize])
+      );
+    }
   }
 
   /**
@@ -691,7 +845,6 @@ export class GpuPipelineManager {
   updatePassSeed(passIndex: number): void {
     if (this.buffers.uniform) {
       // Offset 44 bytes = float index 11 (config.params.w)
-      // Use positive 23-bit integer to guarantee exact precision in Float32 mantissa and non-negative u32 in WGSL
       const passSeed = ((passIndex * 1664525 + 1013904223) ^ Math.floor(Math.random() * 0x7fffff)) & 0x7fffff;
       this.device.queue.writeBuffer(
         this.buffers.uniform,
@@ -702,14 +855,17 @@ export class GpuPipelineManager {
   }
 
   /**
-   * Dynamically adjusts micro-batch size based on frame execution time to sustain ~60 FPS.
+   * Dynamically adjusts micro-batch size based on frame execution time while respecting allocated buffer bounds.
    */
   adjustBatchPacing(elapsedMs: number): void {
     const targetMs = 12.0;
+    const cap = this.buffers.vertices ? this.allocatedBatchSize : this.maxBatchSize;
     if (elapsedMs < targetMs * 0.7) {
-      this.batchSize = Math.min(this.maxBatchSize, Math.floor(this.batchSize * 1.25));
+      this.batchSize = Math.min(cap, Math.floor(this.batchSize * 1.25));
+      this.syncBatchSizeUniform();
     } else if (elapsedMs > targetMs * 1.5) {
       this.batchSize = Math.max(this.minBatchSize, Math.floor(this.batchSize * 0.8));
+      this.syncBatchSizeUniform();
     }
   }
 
@@ -770,10 +926,31 @@ export class GpuPipelineManager {
   /**
    * Uploads scene SSBOs and rebuilds bind groups for the current scene snapshot.
    */
-  updateScene(scene: IOfflineSceneGeometry, batchPhotons = this.batchSize, maxBounces = 32): void {
-    this.batchSize = batchPhotons;
+  updateScene(
+    scene: IOfflineSceneGeometry,
+    batchPhotons = this.batchSize,
+    maxBounces = 32,
+    volumetricInScatter = true
+  ): void {
+    this.maxBounces = Math.max(4, Math.min(64, maxBounces));
+
+    // Respect device maxStorageBufferBindingSize (default 128 MB = 134,217,728 bytes)
+    const maxStorageBytes = this.device.limits?.maxStorageBufferBindingSize ?? 134217728;
+    const bytesPerPhoton = this.maxBounces * 2 * PHOTON_VERTEX_STRIDE_BYTES;
+    const maxHardwarePhotons = Math.max(1024, Math.floor(maxStorageBytes / bytesPerPhoton));
+
+    this.batchSize = Math.min(batchPhotons, maxHardwarePhotons);
+    this.allocatedBatchSize = Math.min(
+      maxHardwarePhotons,
+      Math.max(this.batchSize * 2, 65536)
+    );
+
     const bvhResult = buildGpuBVH(scene);
-    const packed = packSceneBuffers(scene, this.batchSize, maxBounces);
+    const packed = packSceneBuffers(scene, this.batchSize, this.maxBounces, Date.now(), volumetricInScatter);
+
+    // Enable hardware BVH in UniformSceneConfig (uUints[4] = numBVH)
+    const uUints = new Uint32Array(packed.uniformBuffer);
+    uUints[4] = bvhResult.nodeCount;
 
     this.destroyBuffers();
 
@@ -792,8 +969,8 @@ export class GpuPipelineManager {
     });
     this.device.queue.writeBuffer(this.buffers.uniform, 0, packed.uniformBuffer);
 
-    // Output Photon Vertex Buffer
-    const vertexBufferSize = this.batchSize * maxBounces * 2 * PHOTON_VERTEX_STRIDE_BYTES;
+    // Output Photon Vertex Buffer sized to allocatedBatchSize to allow safe dynamic batch pacing
+    const vertexBufferSize = this.allocatedBatchSize * this.maxBounces * 2 * PHOTON_VERTEX_STRIDE_BYTES;
     this.buffers.vertices = this.device.createBuffer({
       label: 'photonVertices',
       size: vertexBufferSize,

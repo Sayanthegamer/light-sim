@@ -1,8 +1,11 @@
 import { describe, it, expect } from 'vitest';
 import {
   PHOTON_TRANSPORT_WGSL,
+  CLIP_RASTER_WGSL,
   generatePhotonTransportWgsl
 } from '../../src/engine/offline/gpu/webgpuPipeline';
+import { packSceneBuffers } from '../../src/engine/offline/gpu/gpuPrimitiveLayout';
+import { type IOfflineSceneGeometry } from '../../src/engine/offline/mcPhotonTracer';
 
 describe('Physical Optics WGSL Kernel Completeness & Accuracy', () => {
   it('generates complete physical optics shader containing arc intersections, Fresnel math, and Schwarzschild geodesics', () => {
@@ -37,5 +40,47 @@ describe('Physical Optics WGSL Kernel Completeness & Accuracy', () => {
     expect(wgsl).toContain('let rPerp = (n1 * cosI - n2 * cosT) / (n1 * cosI + n2 * cosT)');
     expect(wgsl).toContain('let rPar = (n2 * cosI - n1 * cosT) / (n2 * cosI + n1 * cosT)');
     expect(wgsl).toContain('let R = 0.5 * (rPerp * rPerp + rPar * rPar)');
+  });
+
+  it('tests both quadratic roots t1 and t2 in intersectRayArc and supports concave lens negative nGlass flag', () => {
+    const wgsl = PHOTON_TRANSPORT_WGSL;
+    expect(wgsl).toContain('let t1 = -b - sqrtDisc');
+    expect(wgsl).toContain('let t2 = -b + sqrtDisc');
+    expect(wgsl).toContain('let isConcave = (arc.nGlass < 0.0)');
+
+    // Verify concave lens arc packing encodes negative nOutside so WGSL distinguishes concave from convex
+    const scene: IOfflineSceneGeometry = {
+      bounds: { minX: 0, minY: 0, maxX: 800, maxY: 600 },
+      emitters: [],
+      prisms: [],
+      lenses: [
+        {
+          id: 1,
+          arcs: [
+            {
+              id: 10,
+              center: { x: 200, y: 300 },
+              radius: 100,
+              startAngle: -0.5,
+              endAngle: 0.5,
+              nInside: 1.0,
+              nOutside: 1.62
+            }
+          ]
+        }
+      ],
+      barriers: [],
+      blackHoles: []
+    };
+
+    const packed = packSceneBuffers(scene, 1000);
+    const arcFloats = new Float32Array(packed.arcBuffer);
+    expect(arcFloats[3]).toBeCloseTo(-1.62, 4);
+  });
+
+  it('preserves unattenuated segmentFlux in compute shader and normalizes by batchPhotons in vertex shader', () => {
+    expect(PHOTON_TRANSPORT_WGSL).toContain('let segmentFlux = energy;');
+    expect(PHOTON_TRANSPORT_WGSL).not.toContain('energy / max(1.0, closestT)');
+    expect(CLIP_RASTER_WGSL).toContain('config.batchPhotons');
   });
 });

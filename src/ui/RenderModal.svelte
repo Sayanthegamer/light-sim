@@ -50,21 +50,47 @@
   let tonemap = $state<'reinhard' | 'aces' | 'linear'>('reinhard');
   let whitePoint = $state(4.0);
 
-  // Render Resolution (1/2 or 1x)
+  // Render Resolution
   let renderWidth = $derived(Math.min(1920, Math.max(640, Math.floor(viewportWidth))));
   let renderHeight = $derived(Math.min(1080, Math.max(480, Math.floor(viewportHeight))));
 
   let latestBuffer: Float32Array | null = null;
+  let cachedImageData: ImageData | null = null;
+  let previewRafId: number | null = null;
 
-  function updatePreview() {
+  function schedulePreviewUpdate() {
+    if (previewRafId !== null) return;
+    if (typeof requestAnimationFrame !== 'undefined') {
+      previewRafId = requestAnimationFrame(() => {
+        previewRafId = null;
+        updatePreviewNow();
+      });
+    } else {
+      updatePreviewNow();
+    }
+  }
+
+  function updatePreviewNow() {
     if (!previewCanvas || !latestBuffer || !target) return;
     const ctx = previewCanvas.getContext('2d');
     if (!ctx) return;
 
-    const imgData = ctx.createImageData(renderWidth, renderHeight);
+    if (
+      !cachedImageData ||
+      cachedImageData.width !== renderWidth ||
+      cachedImageData.height !== renderHeight
+    ) {
+      cachedImageData = ctx.createImageData(renderWidth, renderHeight);
+    }
+
     target.buffer.set(latestBuffer);
-    target.resolveToImageData(imgData.data, { exposure, tonemap, whitePoint });
-    ctx.putImageData(imgData, 0, 0);
+    target.resolveToImageData(cachedImageData.data, {
+      exposure,
+      tonemap,
+      whitePoint,
+      passCount: Math.max(1, passCount)
+    });
+    ctx.putImageData(cachedImageData, 0, 0);
   }
 
   function startRender() {
@@ -74,9 +100,10 @@
     dispatcher = new MultiDeviceDispatcher();
 
     const activeThreads = threadCount === 0 ? hardwareConcurrency : threadCount;
+    const batchPhotons = computeDevice === 'cpu' ? 20000 : 50000;
     const job: IOfflineRenderJob = freezeSceneSnapshot(sceneGraph, renderWidth, renderHeight, {
       targetSamples: targetPasses,
-      batchPhotons: 50000,
+      batchPhotons,
       volumetricInScatter: true,
       threadCount: activeThreads
     });
@@ -96,13 +123,13 @@
         elapsedMs = progress.elapsedMs;
         latestBuffer = progress.renderedBuffer;
         if (progress.device) activeDevice = progress.device;
-        updatePreview();
+        schedulePreviewUpdate();
       },
       (buffer, _sampleCountMap, finalElapsedMs) => {
         isComplete = true;
         elapsedMs = finalElapsedMs;
         latestBuffer = buffer;
-        updatePreview();
+        updatePreviewNow();
       }
     );
   }
@@ -125,7 +152,8 @@
 
   function handleExportHDR() {
     if (!latestBuffer) return;
-    const blob = exportHDRBlob(latestBuffer, renderWidth, renderHeight, exposure);
+    const normalizedExposure = exposure / Math.max(1, passCount);
+    const blob = exportHDRBlob(latestBuffer, renderWidth, renderHeight, normalizedExposure);
     downloadBlob(blob, `render_${Date.now()}.hdr`);
   }
 
@@ -139,13 +167,16 @@
   });
 
   onDestroy(() => {
+    if (previewRafId !== null && typeof cancelAnimationFrame !== 'undefined') {
+      cancelAnimationFrame(previewRafId);
+    }
     dispatcher?.cancel();
   });
 
   $effect(() => {
     // Re-resolve preview whenever post-processing sliders change
     if (exposure || tonemap || whitePoint) {
-      updatePreview();
+      schedulePreviewUpdate();
     }
   });
 </script>

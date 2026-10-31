@@ -2,8 +2,8 @@
  * Continuous Spectral Monte Carlo Sampler & Sellmeier Dispersion Library
  *
  * Provides physical Planck blackbody radiation curves, D65 daylight spectra,
- * continuous CIE 1931 XYZ tristimulus integrals, and 3-term Sellmeier equations
- * for high-precision physical optics.
+ * continuous CIE 1931 XYZ tristimulus integrals, precomputed CDF lookup tables,
+ * and 3-term Sellmeier equations for high-precision physical optics.
  */
 
 import { clamp } from '../math/vec2';
@@ -59,7 +59,7 @@ export const SELLMEIER_GLASSES: Record<string, ISellmeierCoefficients> = {
     C2: 0.1060 * 0.1060,
     C3: 0.0
   },
-  // Schott SF11 (Dense Dense Flint - High Dispersion)
+  // Schott SF11 (Dense Flint - High Dispersion)
   FLINT_SF11: {
     B1: 1.73759695,
     B2: 0.313747346,
@@ -79,12 +79,14 @@ export const SELLMEIER_GLASSES: Record<string, ISellmeierCoefficients> = {
   }
 };
 
+const MIN_WL = 380;
+const MAX_WL = 780;
+const CDF_STEPS = 160;
+const CDF_STEP_SIZE = (MAX_WL - MIN_WL) / CDF_STEPS;
+
 /**
  * Evaluates the refractive index n(\lambda) using the 3-term Sellmeier equation:
  * n^2(\lambda) = 1 + \sum_{i=1}^3 \frac{B_i \lambda^2}{\lambda^2 - C_i}
- *
- * @param glass Glass name in catalog or custom coefficient set
- * @param wavelengthNm Wavelength in nanometers (e.g. 587.6 nm for yellow helium d-line)
  */
 export function evaluateSellmeierIndex(
   glass: string | ISellmeierCoefficients,
@@ -106,12 +108,6 @@ export function evaluateSellmeierIndex(
 
 /**
  * Planck Blackbody Spectral Radiance B(\lambda, T)
- * Physical equation: B(\lambda, T) = \frac{2 h c^2}{\lambda^5} \frac{1}{e^{h c / (\lambda k_B T)} - 1}
- *
- * Scaled and normalized for stable computation without numerical underflow/overflow.
- *
- * @param wavelengthNm Wavelength in nanometers [380, 780]
- * @param temperatureK Blackbody temperature in Kelvin (e.g. 3000K incandescent, 5800K solar, 6500K daylight)
  */
 export function planckRadiation(wavelengthNm: number, temperatureK: number): number {
   const wlMeters = wavelengthNm * 1e-9;
@@ -123,114 +119,98 @@ export function planckRadiation(wavelengthNm: number, temperatureK: number): num
   const c2 = (h * c) / kB;
 
   const exponent = c2 / (wlMeters * temperatureK);
-  if (exponent > 100.0) return 0.0; // Negligible tail
+  if (exponent > 100.0) return 0.0;
 
   const denom = Math.exp(exponent) - 1.0;
   if (denom <= 0.0) return 0.0;
 
-  // Relative intensity scaled
-  const val = (c1 / Math.pow(wlMeters, 5.0)) / denom;
-  return val;
+  return (c1 / Math.pow(wlMeters, 5.0)) / denom;
 }
 
 /**
  * Approximates standard CIE D65 Daylight spectrum SPD at wavelength \lambda.
  */
 export function d65Radiation(wavelengthNm: number): number {
-  // Approximate D65 relative spectral distribution across visible range
-  const wl = clamp(wavelengthNm, 380, 780);
+  const wl = clamp(wavelengthNm, MIN_WL, MAX_WL);
   const u = (wl - 560.0) / 100.0;
-  // D65 is roughly flat across 400-700 with a slight hump near 450-480nm and gentle slope
-  return Math.max(0.1, 100.0 * (1.0 - 0.15 * u + 0.1 * Math.exp(-0.5 * Math.pow((wl - 460) / 30, 2))));
+  const d = (wl - 460.0) / 30.0;
+  return Math.max(0.1, 100.0 * (1.0 - 0.15 * u + 0.1 * Math.exp(-0.5 * d * d)));
+}
+
+// Precomputed D65 CDF lookup table (zero per-photon allocation!)
+const D65_CDF = new Float32Array(CDF_STEPS + 1);
+let d65TotalIntegral = 0;
+for (let i = 0; i < CDF_STEPS; i++) {
+  const wl = MIN_WL + (i + 0.5) * CDF_STEP_SIZE;
+  d65TotalIntegral += d65Radiation(wl) * CDF_STEP_SIZE;
+  D65_CDF[i + 1] = d65TotalIntegral;
+}
+
+// Cached Planck Blackbody CDF tables keyed by rounded temperature (K)
+const PLANCK_CDF_CACHE = new Map<number, { cdf: Float32Array; total: number }>();
+
+function getPlanckCdf(temperatureK: number): { cdf: Float32Array; total: number } {
+  const key = Math.max(100, Math.round(temperatureK));
+  let entry = PLANCK_CDF_CACHE.get(key);
+  if (entry) return entry;
+
+  if (PLANCK_CDF_CACHE.size > 64) {
+    PLANCK_CDF_CACHE.clear();
+  }
+
+  const cdf = new Float32Array(CDF_STEPS + 1);
+  let total = 0;
+  for (let i = 0; i < CDF_STEPS; i++) {
+    const wl = MIN_WL + (i + 0.5) * CDF_STEP_SIZE;
+    total += planckRadiation(wl, key) * CDF_STEP_SIZE;
+    cdf[i + 1] = total;
+  }
+
+  entry = { cdf, total };
+  PLANCK_CDF_CACHE.set(key, entry);
+  return entry;
+}
+
+function sampleFromCdf(cdf: Float32Array, totalIntegral: number, xi: number): number {
+  const clampedXi = clamp(xi, 0.0, 1.0);
+  if (totalIntegral <= 0) {
+    return MIN_WL + clampedXi * (MAX_WL - MIN_WL);
+  }
+
+  const target = clampedXi * totalIntegral;
+  let low = 0;
+  let high = CDF_STEPS;
+  while (low < high) {
+    const mid = (low + high) >> 1;
+    if (cdf[mid + 1] < target) {
+      low = mid + 1;
+    } else {
+      high = mid;
+    }
+  }
+
+  const baseWl = MIN_WL + low * CDF_STEP_SIZE;
+  const val0 = cdf[low];
+  const val1 = cdf[low + 1];
+  const frac = val1 > val0 ? (target - val0) / (val1 - val0) : 0.5;
+
+  return clamp(baseWl + frac * CDF_STEP_SIZE, MIN_WL, MAX_WL);
 }
 
 /**
  * Samples a continuous wavelength \lambda \sim [380, 780] nm from a Planck Blackbody curve
- * using precalculated or numerical cumulative distribution function (CDF) inversion.
+ * using cached CDF inversion.
  */
 export function samplePlanckWavelength(temperatureK: number, xi: number): number {
-  const clampedXi = clamp(xi, 0.0, 1.0);
-  const steps = 80;
-  const minWl = 380;
-  const maxWl = 780;
-  const stepSize = (maxWl - minWl) / steps;
-
-  // Build temporary running integral
-  let totalIntegral = 0;
-  const cdf = new Float32Array(steps + 1);
-  cdf[0] = 0;
-
-  for (let i = 0; i < steps; i++) {
-    const wl = minWl + (i + 0.5) * stepSize;
-    const rad = planckRadiation(wl, temperatureK);
-    totalIntegral += rad * stepSize;
-    cdf[i + 1] = totalIntegral;
-  }
-
-  if (totalIntegral <= 0) {
-    return minWl + clampedXi * (maxWl - minWl);
-  }
-
-  const target = clampedXi * totalIntegral;
-  // Binary search target in CDF
-  let low = 0;
-  let high = steps;
-  while (low < high) {
-    const mid = (low + high) >> 1;
-    if (cdf[mid + 1] < target) {
-      low = mid + 1;
-    } else {
-      high = mid;
-    }
-  }
-
-  const baseWl = minWl + low * stepSize;
-  const val0 = cdf[low];
-  const val1 = cdf[low + 1];
-  const frac = val1 > val0 ? (target - val0) / (val1 - val0) : 0.5;
-
-  return clamp(baseWl + frac * stepSize, minWl, maxWl);
+  const { cdf, total } = getPlanckCdf(temperatureK);
+  return sampleFromCdf(cdf, total, xi);
 }
 
 /**
- * Samples a continuous wavelength \lambda \sim [380, 780] nm according to D65 Daylight SPD.
+ * Samples a continuous wavelength \lambda \sim [380, 780] nm according to precomputed D65 Daylight SPD.
  */
 export function sampleD65Wavelength(xi: number): number {
-  const clampedXi = clamp(xi, 0.0, 1.0);
-  const steps = 80;
-  const minWl = 380;
-  const maxWl = 780;
-  const stepSize = (maxWl - minWl) / steps;
-
-  let totalIntegral = 0;
-  const cdf = new Float32Array(steps + 1);
-  cdf[0] = 0;
-
-  for (let i = 0; i < steps; i++) {
-    const wl = minWl + (i + 0.5) * stepSize;
-    const rad = d65Radiation(wl);
-    totalIntegral += rad * stepSize;
-    cdf[i + 1] = totalIntegral;
-  }
-
-  const target = clampedXi * totalIntegral;
-  let low = 0;
-  let high = steps;
-  while (low < high) {
-    const mid = (low + high) >> 1;
-    if (cdf[mid + 1] < target) {
-      low = mid + 1;
-    } else {
-      high = mid;
-    }
-  }
-
-  const baseWl = minWl + low * stepSize;
-  const val0 = cdf[low];
-  const val1 = cdf[low + 1];
-  const frac = val1 > val0 ? (target - val0) / (val1 - val0) : 0.5;
-
-  return clamp(baseWl + frac * stepSize, minWl, maxWl);
+  return sampleFromCdf(D65_CDF, d65TotalIntegral, xi);
 }
 
 /**
@@ -243,15 +223,55 @@ export function sampleContinuousWavelength(
 ): number {
   switch (spectrumType) {
     case 'monochromatic':
-      return clamp(param, 380, 780);
+      return clamp(param, MIN_WL, MAX_WL);
     case 'blackbody':
       return samplePlanckWavelength(param || 6500, xi);
     case 'd65':
       return sampleD65Wavelength(xi);
     case 'uniform':
     default:
-      return 380 + clamp(xi, 0.0, 1.0) * (780 - 380);
+      return MIN_WL + clamp(xi, 0.0, 1.0) * (MAX_WL - MIN_WL);
   }
+}
+
+// Precomputed 0.5nm-step CIE 1931 XYZ lookup table for [380, 780] nm (801 entries * 3 floats)
+const XYZ_LUT_STEPS = 800;
+const XYZ_LUT = new Float32Array((XYZ_LUT_STEPS + 1) * 3);
+for (let i = 0; i <= XYZ_LUT_STEPS; i++) {
+  const wl = MIN_WL + i * 0.5;
+  const xyz = wavelengthToXYZ(wl);
+  XYZ_LUT[i * 3 + 0] = xyz.x;
+  XYZ_LUT[i * 3 + 1] = xyz.y;
+  XYZ_LUT[i * 3 + 2] = xyz.z;
+}
+
+/**
+ * Zero-allocation CIE 1931 XYZ sample evaluation into an existing target object.
+ */
+export function wavelengthSampleToXYZInto(
+  out: IXyzColor,
+  wavelengthNm: number,
+  energy: number
+): IXyzColor {
+  if (wavelengthNm < 360 || wavelengthNm > 830 || energy <= 0) {
+    out.x = 0;
+    out.y = 0;
+    out.z = 0;
+    return out;
+  }
+  const clamped = clamp(wavelengthNm, MIN_WL, MAX_WL);
+  const idxF = (clamped - MIN_WL) * 2.0;
+  const idx0 = idxF | 0;
+  const idx1 = idx0 < XYZ_LUT_STEPS ? idx0 + 1 : idx0;
+  const frac = idxF - idx0;
+
+  const base0 = idx0 * 3;
+  const base1 = idx1 * 3;
+
+  out.x = (XYZ_LUT[base0 + 0] + frac * (XYZ_LUT[base1 + 0] - XYZ_LUT[base0 + 0])) * energy;
+  out.y = (XYZ_LUT[base0 + 1] + frac * (XYZ_LUT[base1 + 1] - XYZ_LUT[base0 + 1])) * energy;
+  out.z = (XYZ_LUT[base0 + 2] + frac * (XYZ_LUT[base1 + 2] - XYZ_LUT[base0 + 2])) * energy;
+  return out;
 }
 
 /**
@@ -275,16 +295,14 @@ export function spectralPowerToXYZ(
   spd: (wavelengthNm: number) => number,
   steps: number = 40
 ): IXyzColor {
-  const minWl = 380;
-  const maxWl = 780;
-  const stepSize = (maxWl - minWl) / steps;
+  const stepSize = (MAX_WL - MIN_WL) / steps;
 
   let x = 0;
   let y = 0;
   let z = 0;
 
   for (let i = 0; i < steps; i++) {
-    const wl = minWl + (i + 0.5) * stepSize;
+    const wl = MIN_WL + (i + 0.5) * stepSize;
     const power = spd(wl);
     if (power > 0) {
       const match = wavelengthToXYZ(wl);

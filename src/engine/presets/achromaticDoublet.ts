@@ -38,10 +38,10 @@ export const achromaticDoubletPreset: SerializedScene = {
     {
       id: 'lens_flint_concave',
       type: 'lens',
-      position: { x: 330, y: 300 },
+      position: { x: 345, y: 300 },
       rotation: 0.0,
       params: {
-        lensType: LensType.Biconvex,
+        lensType: LensType.Biconcave,
         radius1: 120,
         radius2: 120,
         height: 80,

@@ -2,11 +2,11 @@
  * Monte Carlo Bidirectional Photon / Wave Transport Kernel
  *
  * Implements physical continuous spectral photon transport, volumetric in-scattering,
- * exact Sellmeier Fresnel refraction / Russian Roulette stochastic branching, and
- * 32-bit float accumulation target splatting.
+ * curved Schwarzschild relativistic geodesics, exact Sellmeier/Cauchy Fresnel refraction,
+ * Russian Roulette stochastic branching, and 32-bit float accumulation target splatting.
  */
 
-import { type IVec2 } from '../math/vec2';
+import { type IVec2, smoothstep, clamp } from '../math/vec2';
 import {
   type Segment2D,
   type Arc2D,
@@ -15,7 +15,11 @@ import {
   createHitResult,
   findClosestIntersection
 } from '../geometry/intersections';
-import { evaluateSellmeierIndex, wavelengthSampleToXYZ } from './spectralSampler';
+import {
+  evaluateSellmeierIndex,
+  wavelengthSampleToXYZInto,
+  type IXyzColor
+} from './spectralSampler';
 import {
   type IVolumeMedium,
   sampleFreeFlightDistance,
@@ -104,6 +108,7 @@ export interface ITracerScratchContext {
   refrResult: RefractionResult;
   ray: Ray2D;
   inDir: IVec2;
+  sampleXYZ: IXyzColor;
 }
 
 export function createTracerScratchContext(): ITracerScratchContext {
@@ -120,7 +125,8 @@ export function createTracerScratchContext(): ITracerScratchContext {
       origin: { x: 0, y: 0 },
       dir: { x: 0, y: 0 }
     },
-    inDir: { x: 0, y: 0 }
+    inDir: { x: 0, y: 0 },
+    sampleXYZ: { x: 0, y: 0, z: 0 }
   };
 }
 
@@ -130,6 +136,7 @@ export interface ITracerOptions {
   volumetricInScatter?: boolean;
   primitives?: IResolvedScenePrimitives;
   scratch?: ITracerScratchContext;
+  photonWeight?: number;
 }
 
 /**
@@ -157,6 +164,9 @@ export function extractScenePrimitives(scene: IOfflineSceneGeometry): IResolvedS
   for (let i = 0; i < scene.prisms.length; i++) {
     const p = scene.prisms[i];
     const nGlass = p.glass ? evaluateSellmeierIndex(p.glass, 587.6) : (p.n ?? 1.5);
+    const cauchyB = p.cauchyB ?? 4200;
+    const effB = cauchyB > 0 && cauchyB < 1.0 ? cauchyB * 1e6 : cauchyB;
+    const cauchyA = p.cauchyA ?? (nGlass - effB / (587.6 * 587.6));
     const numVerts = p.vertices.length;
 
     for (let j = 0; j < numVerts; j++) {
@@ -168,8 +178,8 @@ export function extractScenePrimitives(scene: IOfflineSceneGeometry): IResolvedS
         p2: { x: v2.x, y: v2.y },
         n1: 1.0,
         n2: nGlass,
-        cauchyA: p.cauchyA ?? nGlass,
-        cauchyB: p.cauchyB ?? 4200
+        cauchyA,
+        cauchyB: effB
       });
     }
   }
@@ -190,6 +200,8 @@ export function extractScenePrimitives(scene: IOfflineSceneGeometry): IResolvedS
   return { segments, arcs };
 }
 
+const defaultScratch = createTracerScratchContext();
+
 /**
  * Traces a single photon wave packet through the scene using Russian Roulette Monte Carlo transport.
  */
@@ -201,22 +213,18 @@ export function tracePhotonPath(
 ): IPhotonTraceStats {
   const maxBounces = options?.maxBounces ?? 64;
   const enableVolumetrics = options?.volumetricInScatter ?? true;
+  const photonWeight = options?.photonWeight ?? 0.01;
 
-  const precomputed = options?.primitives;
-  const segments = precomputed ? precomputed.segments : extractScenePrimitives(scene).segments;
-  const arcs = precomputed ? precomputed.arcs : extractScenePrimitives(scene).arcs;
+  const precomputed = options?.primitives ?? extractScenePrimitives(scene);
+  const segments = precomputed.segments;
+  const arcs = precomputed.arcs;
 
-  const scratch = options?.scratch;
-  const hit = scratch ? scratch.hit : createHitResult();
-  const refrResult = scratch ? scratch.refrResult : {
-    refractedDir: { x: 0, y: 0 },
-    reflectedDir: { x: 0, y: 0 },
-    R: 0,
-    T: 0,
-    isTIR: false
-  };
-  const scratchRay = scratch ? scratch.ray : { origin: { x: 0, y: 0 }, dir: { x: 0, y: 0 } };
-  const scratchInDir = scratch ? scratch.inDir : { x: 0, y: 0 };
+  const scratch = options?.scratch ?? defaultScratch;
+  const hit = scratch.hit;
+  const refrResult = scratch.refrResult;
+  const scratchRay = scratch.ray;
+  const scratchInDir = scratch.inDir;
+  const sampleXYZ = scratch.sampleXYZ;
 
   let curX = photon.pos.x;
   let curY = photon.pos.y;
@@ -227,20 +235,23 @@ export function tracePhotonPath(
   const wl = photon.wavelengthNm;
 
   let bounces = 0;
+  let geodesicSteps = 0;
   let scattered = false;
   let absorbed = false;
 
   const b = scene.bounds;
   const medium = scene.medium;
+  const blackHoles = scene.blackHoles;
+  const numBH = blackHoles ? blackHoles.length : 0;
 
-  while (bounces < maxBounces && energy > 1e-4) {
+  while (bounces < maxBounces && geodesicSteps < 256 && energy > 1e-4) {
     // 1. Find geometric collision
     scratchRay.origin.x = curX;
     scratchRay.origin.y = curY;
     scratchRay.dir.x = dirX;
     scratchRay.dir.y = dirY;
     const hasHit = findClosestIntersection(hit, scratchRay, segments, arcs);
-    let dist = hasHit ? hit.t : 1000.0;
+    let dist = hasHit ? hit.t : 2000.0;
 
     // Boundary distance check
     let boundDist = Infinity;
@@ -253,14 +264,120 @@ export function tracePhotonPath(
       dist = boundDist;
     }
 
+    // 1.5. Check Black Hole Gravitational Field Intersection / Stepping
+    let activeBh: IOfflineBlackHole | null = null;
+    let bhEntryT = dist;
+
+    if (numBH > 0) {
+      for (let bi = 0; bi < numBH; bi++) {
+        const bh = blackHoles[bi];
+        const ocX = curX - bh.center.x;
+        const ocY = curY - bh.center.y;
+        const rSq = ocX * ocX + ocY * ocY;
+        const rInf = bh.rInfluence;
+
+        if (rSq < (rInf - 1e-2) * (rInf - 1e-2)) {
+          activeBh = bh;
+          bhEntryT = 0;
+          break;
+        } else {
+          const halfB = ocX * dirX + ocY * dirY;
+          const cVal = rSq - rInf * rInf;
+          const disc = halfB * halfB - cVal;
+          if (disc > 0) {
+            const tEnter = -halfB - Math.sqrt(disc);
+            if (tEnter > 1e-3 && tEnter < bhEntryT) {
+              bhEntryT = tEnter;
+              activeBh = bh;
+            } else if (rSq <= (rInf + 1e-2) * (rInf + 1e-2) && halfB < 0) {
+              bhEntryT = 0;
+              activeBh = bh;
+              break;
+            }
+          }
+        }
+      }
+    }
+
+    // If photon is inside a black hole's influence radius, integrate curved Schwarzschild geodesic step
+    if (activeBh !== null && bhEntryT <= 1e-3) {
+      const rx = curX - activeBh.center.x;
+      const ry = curY - activeBh.center.y;
+      const rSq = rx * rx + ry * ry;
+      const r = Math.sqrt(rSq);
+      const rs = activeBh.rs;
+
+      if (r <= rs) {
+        absorbed = true;
+        break;
+      }
+
+      const stepDt = Math.min(dist, clamp(0.25 * r, Math.max(1.0, 0.2 * rs), 20.0));
+      const rFadeStart = 10.0 * rs;
+      const fade = r > rFadeStart ? smoothstep(activeBh.rInfluence, rFadeStart, r) : 1.0;
+      const mag1 = -(2.25 * rs * fade) / (rSq * r);
+      const acc1X = rx * mag1;
+      const acc1Y = ry * mag1;
+
+      const midX = curX + dirX * (0.5 * stepDt) + acc1X * (0.25 * stepDt * stepDt);
+      const midY = curY + dirY * (0.5 * stepDt) + acc1Y * (0.25 * stepDt * stepDt);
+      const mrx = midX - activeBh.center.x;
+      const mry = midY - activeBh.center.y;
+      const mrSq = mrx * mrx + mry * mry;
+      const mr = Math.sqrt(mrSq);
+
+      if (mr <= rs) {
+        absorbed = true;
+        break;
+      }
+
+      const mFade = mr > rFadeStart ? smoothstep(activeBh.rInfluence, rFadeStart, mr) : 1.0;
+      const mag2 = -(2.25 * rs * mFade) / (mrSq * mr);
+      const acc2X = mrx * mag2;
+      const acc2Y = mry * mag2;
+
+      const nextX = curX + dirX * stepDt + acc1X * (0.5 * stepDt * stepDt);
+      const nextY = curY + dirY * stepDt + acc1Y * (0.5 * stepDt * stepDt);
+      let nextDirX = dirX + acc2X * stepDt;
+      let nextDirY = dirY + acc2Y * stepDt;
+      const dLen = Math.hypot(nextDirX, nextDirY) || 1.0;
+      nextDirX /= dLen;
+      nextDirY /= dLen;
+
+      const nextR = Math.hypot(nextX - activeBh.center.x, nextY - activeBh.center.y);
+      const redshift = 1.0 / Math.sqrt(Math.max(0.01, 1.0 - rs / Math.max(rs * 1.001, nextR)));
+      const shiftedWl = wl * clamp(redshift, 1.0, 1.35);
+
+      wavelengthSampleToXYZInto(sampleXYZ, shiftedWl, energy * photonWeight);
+      target.splatLine(curX, curY, nextX, nextY, sampleXYZ, 1.0);
+
+      curX = nextX;
+      curY = nextY;
+      dirX = nextDirX;
+      dirY = nextDirY;
+      geodesicSteps++;
+
+      if (nextR <= rs) {
+        absorbed = true;
+        break;
+      }
+      continue;
+    }
+
+    let entersBhBoundary = false;
+    if (activeBh !== null && bhEntryT < dist) {
+      dist = bhEntryT;
+      entersBhBoundary = true;
+    }
+
     // 2. Volumetric in-scattering check
     let didScatter = false;
-    let scatterDist = Infinity;
     if (enableVolumetrics && medium && medium.sigmaT > 1e-6) {
-      scatterDist = sampleFreeFlightDistance(medium.sigmaT, Math.random());
+      const scatterDist = sampleFreeFlightDistance(medium.sigmaT, Math.random());
       if (scatterDist < dist) {
         dist = scatterDist;
         didScatter = true;
+        entersBhBoundary = false;
       }
     }
 
@@ -268,16 +385,22 @@ export function tracePhotonPath(
     const nextX = curX + dirX * dist;
     const nextY = curY + dirY * dist;
 
-    // Splat path into accumulation target
-    const sampleXYZ = wavelengthSampleToXYZ(wl, energy * 0.1);
-    target.splatLine(curX, curY, nextX, nextY, sampleXYZ, energy);
+    // Splat path into accumulation target (uniform per-pixel irradiance)
+    wavelengthSampleToXYZInto(sampleXYZ, wl, energy * photonWeight);
+    target.splatLine(curX, curY, nextX, nextY, sampleXYZ, 1.0);
 
     phase = advanceWavePhase(phase, dist, wl);
     curX = nextX;
     curY = nextY;
 
+    if (entersBhBoundary) {
+      curX += dirX * 0.05;
+      curY += dirY * 0.05;
+      geodesicSteps++;
+      continue;
+    }
+
     if (didScatter && medium) {
-      // Photon scattered inside medium
       scattered = true;
       const newDir = sampleScatteringDirection2D(
         dirX,
@@ -321,12 +444,12 @@ export function tracePhotonPath(
       const dot = dirX * hit.normal.x + dirY * hit.normal.y;
       dirX -= 2.0 * dot * hit.normal.x;
       dirY -= 2.0 * dot * hit.normal.y;
-      curX += hit.normal.x * 1e-2;
-      curY += hit.normal.y * 1e-2;
+      curX += hit.normal.x * 2e-3;
+      curY += hit.normal.y * 2e-3;
       continue;
     }
 
-    // Dielectric interface (Refraction + Reflection with continuous Sellmeier dispersion)
+    // Dielectric interface (Refraction + Reflection with continuous Sellmeier/Cauchy dispersion)
     const n1 = hit.n1 <= 1.05 ? 1.0 : cauchyIndex(wl, hit.cauchyA, hit.cauchyB);
     const n2 = hit.n2 <= 1.05 ? 1.0 : cauchyIndex(wl, hit.cauchyA, hit.cauchyB);
 
@@ -340,14 +463,14 @@ export function tracePhotonPath(
       // Reflect
       dirX = refrResult.reflectedDir.x;
       dirY = refrResult.reflectedDir.y;
-      curX += hit.normal.x * 1e-2;
-      curY += hit.normal.y * 1e-2;
+      curX += hit.normal.x * 2e-3;
+      curY += hit.normal.y * 2e-3;
     } else {
       // Transmit
       dirX = refrResult.refractedDir.x;
       dirY = refrResult.refractedDir.y;
-      curX -= hit.normal.x * 1e-2;
-      curY -= hit.normal.y * 1e-2;
+      curX -= hit.normal.x * 2e-3;
+      curY -= hit.normal.y * 2e-3;
     }
 
     // Russian Roulette survival

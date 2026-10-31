@@ -38,9 +38,10 @@ export class WebGpuComputeDispatcher {
   private passCount = 0;
   private epochPassCount = 0;
   private epochCount = 0;
-  private readonly epochSize = 500;
+  private readonly epochSize = 128; // Flush rgba16float before saturation/mantissa drift
   private masterAccumulator: Float64Array | null = null;
   private masterBuffer: Float32Array | null = null;
+  private sampleCountMap: Uint32Array | null = null;
   private varianceDelta = 0;
   private totalPhotonsEmitted = 0;
   private startTime = 0;
@@ -82,9 +83,11 @@ export class WebGpuComputeDispatcher {
     this.isRunning = true;
     this.isPaused = false;
 
-    const numPixels = job.width * job.height * 4;
-    this.masterAccumulator = new Float64Array(numPixels);
-    this.masterBuffer = new Float32Array(numPixels);
+    const numPixels = job.width * job.height;
+    const numElements = numPixels * 4;
+    this.masterAccumulator = new Float64Array(numElements);
+    this.masterBuffer = new Float32Array(numElements);
+    this.sampleCountMap = new Uint32Array(numPixels);
     this.varianceDelta = 0;
 
     try {
@@ -102,8 +105,10 @@ export class WebGpuComputeDispatcher {
       this.pipelineMgr = new GpuPipelineManager(device);
       this.accumulator = new GpuAccumulator(device, job.width, job.height);
 
-      const batchSize = job.config.batchPhotons ?? 100000;
-      this.pipelineMgr.updateScene(job.scene, batchSize);
+      const batchSize = job.config.batchPhotons ?? 50000;
+      const maxBounces = Math.min(32, job.config.maxBounces ?? 32);
+      const volumetric = job.config.volumetricInScatter ?? true;
+      this.pipelineMgr.updateScene(job.scene, batchSize, maxBounces, volumetric);
 
       this.state = 'RUNNING';
       this.scheduleNextStep();
@@ -156,8 +161,6 @@ export class WebGpuComputeDispatcher {
       return;
     }
 
-    const frameStart = performance.now();
-
     try {
       // Execute compute + raster pass on GPU
       this.accumulator.renderPass(this.pipelineMgr);
@@ -166,38 +169,41 @@ export class WebGpuComputeDispatcher {
       const currentBatch = this.pipelineMgr.getBatchSize();
       this.totalPhotonsEmitted += currentBatch;
 
-      const frameEnd = performance.now();
-      const frameElapsed = frameEnd - frameStart;
-      this.pipelineMgr.adjustBatchPacing(frameElapsed);
-
       const targetSamples = this.currentJob.config.targetSamples ?? 100;
       const isComplete = this.passCount >= targetSamples;
       const isEpochBoundary = this.epochPassCount >= this.epochSize;
 
-      // Handle Epoch consolidation & Welford host update
+      const now = performance.now();
+      const timeSinceReport = now - this.lastReportTime;
+      const shouldReport = isComplete || timeSinceReport >= 100;
+
+      // Consolidate epoch into double-precision masterAccumulator
       if (isEpochBoundary || isComplete) {
+        const readStart = performance.now();
         const epochBuffer = await this.accumulator.readbackToFloat32Array();
+        const readElapsed = performance.now() - readStart;
+        this.pipelineMgr.adjustBatchPacing(readElapsed);
+
         this.epochCount++;
-        const k = this.epochCount;
+        const totalElements = this.masterAccumulator!.length;
+        const consolidatedPasses = this.passCount - this.epochPassCount;
+        const newTotalPasses = this.passCount;
+        const invTotalPasses = 1.0 / Math.max(1, newTotalPasses);
 
         let sqDiffSum = 0;
-        const totalElements = this.masterAccumulator!.length;
-
-        // Welford sample-weighted incremental mean: mean_k = mean_{k-1} + (X_epoch / epochPasses - mean_{k-1}) / k
-        const epochWeight = 1.0 / Math.max(1, this.epochPassCount);
-        const invK = 1.0 / k;
-        for (let i = 0; i < totalElements; i++) {
-          const sampleVal = epochBuffer[i] * epochWeight;
-          const oldMean = this.masterAccumulator![i];
-          const diff = sampleVal - oldMean;
-          const newMean = oldMean + diff * invK;
-          this.masterAccumulator![i] = newMean;
-          this.masterBuffer![i] = (newMean * this.passCount) as number;
-        }
-
-        // Strided variance sampling for 4K real-time telemetry (capped at ~16k probe points)
         const stride = Math.max(1, Math.floor(totalElements / 16384));
         let sampleCount = 0;
+
+        for (let i = 0; i < totalElements; i++) {
+          const oldMean = this.masterAccumulator![i];
+          const prevSum = oldMean * consolidatedPasses;
+          const newSum = prevSum + epochBuffer[i];
+          const newMean = newSum * invTotalPasses;
+          this.masterAccumulator![i] = newMean;
+          this.masterBuffer![i] = newSum;
+        }
+
+        const epochWeight = 1.0 / Math.max(1, this.epochPassCount);
         for (let i = 0; i < totalElements; i += stride) {
           const sampleVal = epochBuffer[i] * epochWeight;
           const diff = sampleVal - this.masterAccumulator![i];
@@ -207,31 +213,39 @@ export class WebGpuComputeDispatcher {
 
         this.varianceDelta = sqDiffSum / Math.max(1, sampleCount);
 
-        // Reset GPU VRAM texture for the next epoch to prevent mantissa underflow
+        // Reset GPU VRAM texture for the next epoch to prevent rgba16float mantissa underflow
         if (!isComplete) {
           this.accumulator.reset();
           this.epochPassCount = 0;
         }
       }
 
-      // Periodically report progress or when complete
-      const now = performance.now();
-      const timeSinceReport = now - this.lastReportTime;
-
-      if (isComplete || timeSinceReport >= 100) {
-        this.lastReportTime = now;
-        const totalElapsedMs = now - this.startTime;
+      if (shouldReport) {
+        this.lastReportTime = performance.now();
+        const totalElapsedMs = this.lastReportTime - this.startTime;
         const photonsPerSec = (this.totalPhotonsEmitted / Math.max(1, totalElapsedMs)) * 1000;
 
-        let displayBuffer = this.masterBuffer;
-        if (this.epochCount === 0) {
-          displayBuffer = await this.accumulator.readbackToFloat32Array();
+        // If we are mid-epoch, combine the consolidated masterAccumulator with the live partial GPU epoch
+        if (this.epochPassCount > 0 && !isComplete) {
+          const readStart = performance.now();
+          const liveEpochBuf = await this.accumulator.readbackToFloat32Array();
+          const readElapsed = performance.now() - readStart;
+          this.pipelineMgr.adjustBatchPacing(readElapsed);
+
+          const consolidatedPasses = this.passCount - this.epochPassCount;
+          const totalElements = this.masterBuffer!.length;
+          if (consolidatedPasses === 0) {
+            this.masterBuffer!.set(liveEpochBuf);
+          } else {
+            for (let i = 0; i < totalElements; i++) {
+              this.masterBuffer![i] = this.masterAccumulator![i] * consolidatedPasses + liveEpochBuf[i];
+            }
+          }
         }
 
-        const sampleCountMap = new Uint32Array(this.currentJob.width * this.currentJob.height);
-        sampleCountMap.fill(this.passCount);
+        this.sampleCountMap!.fill(this.passCount);
 
-        if (this.onProgress) {
+        if (this.onProgress && this.masterBuffer && this.sampleCountMap) {
           this.onProgress({
             jobId: this.currentJob.jobId,
             pass: this.passCount,
@@ -239,16 +253,16 @@ export class WebGpuComputeDispatcher {
             photonsEmitted: this.totalPhotonsEmitted,
             photonsPerSec,
             elapsedMs: totalElapsedMs,
-            renderedBuffer: displayBuffer!,
-            sampleCountMap
+            renderedBuffer: this.masterBuffer,
+            sampleCountMap: this.sampleCountMap
           });
         }
 
         if (isComplete) {
           this.state = 'COMPLETE';
           this.isRunning = false;
-          if (this.onComplete) {
-            this.onComplete(displayBuffer!, sampleCountMap, totalElapsedMs);
+          if (this.onComplete && this.masterBuffer && this.sampleCountMap) {
+            this.onComplete(this.masterBuffer, this.sampleCountMap, totalElapsedMs);
           }
           this.cleanup();
           return;

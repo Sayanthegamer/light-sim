@@ -43,7 +43,7 @@ export interface IGpuSegment {
 export interface IGpuArc {
   center: IVec2;
   radius: number;
-  nGlass: number;
+  nGlass: number; // Positive when glass is inside circle (convex), negative when glass is outside circle (concave)
   startAngle: number;
   endAngle: number;
   cauchyA: number;
@@ -173,7 +173,8 @@ export function packSceneBuffers(
   scene: IOfflineSceneGeometry,
   batchPhotons: number,
   maxBounces = 32,
-  seed = Date.now()
+  seed = Date.now(),
+  volumetricInScatter = true
 ): IPackedSceneBuffers {
   // 1. Extract and serialize segments (Barriers + Prisms + Lens segments)
   const segments: IGpuSegment[] = [];
@@ -196,8 +197,9 @@ export function packSceneBuffers(
   for (let i = 0; i < scene.prisms.length; i++) {
     const p = scene.prisms[i];
     const nGlass = p.glass ? evaluateSellmeierIndex(p.glass, 587.6) : (p.n ?? 1.5);
-    const cauchyA = p.cauchyA ?? nGlass;
     const cauchyB = p.cauchyB ?? 4200;
+    const effB = cauchyB > 0 && cauchyB < 1.0 ? cauchyB * 1e6 : cauchyB;
+    const cauchyA = p.cauchyA ?? (nGlass - effB / (587.6 * 587.6));
     const n = p.vertices.length;
 
     for (let j = 0; j < n; j++) {
@@ -209,7 +211,7 @@ export function packSceneBuffers(
         n1: 1.0,
         n2: nGlass,
         cauchyA,
-        cauchyB,
+        cauchyB: effB,
         id: p.id
       });
     }
@@ -217,16 +219,25 @@ export function packSceneBuffers(
 
   for (let i = 0; i < scene.lenses.length; i++) {
     const l = scene.lenses[i];
+    const lensN = l.glass ? evaluateSellmeierIndex(l.glass, 587.6) : (l.n ?? 1.5);
+    const lensB = l.cauchyB ?? 4200;
+    const effLensB = lensB > 0 && lensB < 1.0 ? lensB * 1e6 : lensB;
+    const lensA = l.cauchyA ?? (lensN - effLensB / (587.6 * 587.6));
+
     if (l.segments) {
       for (let j = 0; j < l.segments.length; j++) {
         const seg = l.segments[j];
+        const segB = seg.cauchyB ?? effLensB;
+        const effSegB = segB > 0 && segB < 1.0 ? segB * 1e6 : segB;
         segments.push({
           p1: seg.p1,
           p2: seg.p2,
           n1: seg.n1,
           n2: seg.n2,
-          cauchyA: seg.cauchyA ?? 1.5,
-          cauchyB: seg.cauchyB ?? 4200,
+          cauchyA: seg.cauchyA ?? lensA,
+          cauchyB: effSegB,
+          isBarrier: seg.isBarrier,
+          isMirror: seg.isMirror,
           id: seg.id
         });
       }
@@ -241,25 +252,35 @@ export function packSceneBuffers(
     encodeSegment(segFloats, segUints, i, segments[i]);
   }
 
-  // 2. Extract and serialize arcs (Lenses)
+  // 2. Extract and serialize arcs (Lenses: both convex and concave)
   const arcs: IGpuArc[] = [];
   for (let i = 0; i < scene.lenses.length; i++) {
     const l = scene.lenses[i];
     const nGlass = l.glass ? evaluateSellmeierIndex(l.glass, 587.6) : (l.n ?? 1.5);
-    const cauchyA = l.cauchyA ?? nGlass;
     const cauchyB = l.cauchyB ?? 4200;
+    const effB = cauchyB > 0 && cauchyB < 1.0 ? cauchyB * 1e6 : cauchyB;
+    const cauchyA = l.cauchyA ?? (nGlass - effB / (587.6 * 587.6));
 
     for (let j = 0; j < l.arcs.length; j++) {
       const a = l.arcs[j];
-      const arcGlass = (a as any).nGlass ?? (a as any).nInside ?? nGlass;
+      let encodedGlass = (a as any).nGlass;
+      if (encodedGlass === undefined) {
+        const nIn = a.nInside ?? nGlass;
+        const nOut = a.nOutside ?? 1.0;
+        // Negative sign flag encodes concave lens surface (air inside circle, glass outside circle)
+        encodedGlass = nOut > nIn ? -nOut : nIn;
+      }
+      const arcB = a.cauchyB ?? effB;
+      const effArcB = arcB > 0 && arcB < 1.0 ? arcB * 1e6 : arcB;
+
       arcs.push({
         center: a.center,
         radius: a.radius,
-        nGlass: arcGlass,
+        nGlass: encodedGlass,
         startAngle: a.startAngle,
         endAngle: a.endAngle,
         cauchyA: a.cauchyA ?? cauchyA,
-        cauchyB: a.cauchyB ?? cauchyB,
+        cauchyB: effArcB,
         id: l.id
       });
     }
@@ -316,14 +337,21 @@ export function packSceneBuffers(
   uFloats[2] = scene.bounds.maxX;
   uFloats[3] = scene.bounds.maxY;
 
-  uUints[4] = 0; // numBVH
+  uUints[4] = 0; // numBVH (populated when BVH is bound in GpuPipelineManager)
   uUints[5] = segments.length;
   uUints[6] = arcs.length;
   uUints[7] = scene.blackHoles.length;
 
   uFloats[8] = seed;
   uFloats[9] = maxBounces;
-  uFloats[10] = 0.1; // russianRouletteThreshold
+  // params.z: if volumetricInScatter is disabled, pass 0.0; if medium has sigmaT, pass sigmaT; otherwise default 0.1
+  if (!volumetricInScatter) {
+    uFloats[10] = 0.0;
+  } else if (scene.medium && scene.medium.sigmaT > 0 && scene.medium.sigmaT < 0.05) {
+    uFloats[10] = scene.medium.sigmaT;
+  } else {
+    uFloats[10] = 0.1;
+  }
   uFloats[11] = 0; // passSeed (updated dynamically per pass)
 
   uFloats[12] = scene.bounds.maxX - scene.bounds.minX;

@@ -24,11 +24,13 @@ export interface RefractionResult {
 
 /**
  * Evaluates Cauchy's empirical formula for refractive index:
- * n(\lambda) = A + B / \lambda^2 (where \lambda is in nanometers)
+ * n(\lambda) = A + B / \lambda^2 (where \lambda is in nanometers).
+ * Automatically normalizes B if specified in \mu m^2 (0 < B < 1.0) vs nm^2.
  */
 export function cauchyIndex(wavelengthNm: number, A: number, B: number): number {
   const wl = clamp(wavelengthNm, WAVELENGTH_VIOLET, WAVELENGTH_RED);
-  return A + B / (wl * wl);
+  const effB = B > 0.0 && B < 1.0 ? B * 1e6 : B;
+  return A + effB / (wl * wl);
 }
 
 /**
@@ -137,10 +139,14 @@ export function solveRefraction(
   result.refractedDir.y = eta * incidentDir.y + factor * normY;
   Vec2.normalize(result.refractedDir, result.refractedDir);
 
-  const fresnel = fresnelCoefficients(cosI, n1, n2);
-  result.isTIR = fresnel.isTIR;
-  result.R = fresnel.R;
-  result.T = fresnel.T;
+  // Inlined Fresnel calculation to avoid allocating a FresnelResult object on every refraction
+  const rs = (n1 * cosI - n2 * cosT) / (n1 * cosI + n2 * cosT);
+  const rp = (n2 * cosI - n1 * cosT) / (n2 * cosI + n1 * cosT);
+  const R = clamp(0.5 * (rs * rs + rp * rp), 0.0, 1.0);
+
+  result.isTIR = false;
+  result.R = R;
+  result.T = 1.0 - R;
 
   return result;
 }
