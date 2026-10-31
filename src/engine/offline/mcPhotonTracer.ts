@@ -246,7 +246,7 @@ export function tracePhotonPath(
     scratchRay.dir.x = dirX;
     scratchRay.dir.y = dirY;
     const hasHit = findClosestIntersection(hit, scratchRay, segments, arcs);
-    let dist = hasHit ? hit.t : 1000.0;
+    let dist = hasHit ? hit.t : 10000.0;
 
     // Boundary distance check
     let boundDist = Infinity;

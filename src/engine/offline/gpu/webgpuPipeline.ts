@@ -505,12 +505,12 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
     let outSlot1 = baseVertexIdx + bounce * 2u + 1u;
 
     // Find closest intersection
-    var closestT = 1000.0;
+    var closestT = 10000.0;
     var bestHit: HitInfo;
     bestHit.hit = false;
 
     // Boundary check
-    var boundDist = 1000.0;
+    var boundDist = 10000.0;
     let b = config.bounds;
     if (curDir.x > 1e-6) { boundDist = min(boundDist, (b.z - curPos.x) / curDir.x); }
     else if (curDir.x < -1e-6) { boundDist = min(boundDist, (b.x - curPos.x) / curDir.x); }
