@@ -194,15 +194,24 @@
 
     const handleResize = () => {
       if (engine) {
-        engine.resize(window.innerWidth, window.innerHeight);
+        const w = canvasEl?.clientWidth || window.innerWidth;
+        const h = canvasEl?.clientHeight || window.innerHeight;
+        engine.resize(w, h);
         updateSelectedNode();
       }
     };
+
+    let resizeObserver: ResizeObserver | null = null;
+    if (typeof ResizeObserver !== 'undefined') {
+      resizeObserver = new ResizeObserver(() => handleResize());
+      resizeObserver.observe(canvasEl);
+    }
 
     window.addEventListener('resize', handleResize);
     window.addEventListener('keydown', handleKeyDown);
 
     return () => {
+      resizeObserver?.disconnect();
       window.removeEventListener('resize', handleResize);
       window.removeEventListener('keydown', handleKeyDown);
       initialEngine.dispose();

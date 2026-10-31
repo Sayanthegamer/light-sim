@@ -540,48 +540,89 @@ export class BranchManager {
 
         activeFrustums.push(current);
 
-        const resL = traceGeodesicWithTermination(
-          this.reusableTrajL,
-          { origin: current.leftHit, dir: current.leftRay.dir },
-          closestBH
+        // Subdivide wide beams into fine geodesic filaments so grazing photon-sphere arcs,
+        // captured horizon rays, and opposite-side lensing rays trace smoothly without tearing.
+        const entrySpan = Math.hypot(
+          current.rightHit.x - current.leftHit.x,
+          current.rightHit.y - current.leftHit.y
         );
-        const resR = traceGeodesicWithTermination(
-          this.reusableTrajR,
-          { origin: current.rightHit, dir: current.rightRay.dir },
-          closestBH
-        );
+        const numSlices = Math.min(20, Math.max(1, Math.ceil(entrySpan / 5.0)));
 
-        if (onRibbon && this.reusableTrajL.pointCount >= 2 && this.reusableTrajR.pointCount >= 2) {
-          onRibbon(this.reusableTrajL, this.reusableTrajR, current, closestBH);
-        }
+        for (let s = 0; s < numSlices; s++) {
+          const u0 = s / numSlices;
+          const u1 = (s + 1) / numSlices;
 
-        if (
-          resL.reason === TerminationReason.Escaped &&
-          resR.reason === TerminationReason.Escaped &&
-          resL.exitRay &&
-          resR.exitRay &&
-          current.depth + 1 < MAX_BOUNCE_DEPTH
-        ) {
-          const escapedChild = this.allocateFrustum();
-          escapedChild.depth = current.depth + 1;
-          escapedChild.intensity = current.intensity;
-          escapedChild.dispersionU = current.dispersionU;
-          escapedChild.tintRGB[0] = current.tintRGB[0];
-          escapedChild.tintRGB[1] = current.tintRGB[1];
-          escapedChild.tintRGB[2] = current.tintRGB[2];
-          escapedChild.isDispersed = current.isDispersed;
+          const r0OriginX = (1.0 - u0) * current.leftRay.origin.x + u0 * current.rightRay.origin.x;
+          const r0OriginY = (1.0 - u0) * current.leftRay.origin.y + u0 * current.rightRay.origin.y;
+          let r0DirX = (1.0 - u0) * current.leftRay.dir.x + u0 * current.rightRay.dir.x;
+          let r0DirY = (1.0 - u0) * current.leftRay.dir.y + u0 * current.rightRay.dir.y;
+          const len0 = Math.hypot(r0DirX, r0DirY) || 1.0;
+          r0DirX /= len0;
+          r0DirY /= len0;
 
-          escapedChild.leftRay.origin.x = resL.exitRay.origin.x;
-          escapedChild.leftRay.origin.y = resL.exitRay.origin.y;
-          escapedChild.leftRay.dir.x = resL.exitRay.dir.x;
-          escapedChild.leftRay.dir.y = resL.exitRay.dir.y;
+          const r1OriginX = (1.0 - u1) * current.leftRay.origin.x + u1 * current.rightRay.origin.x;
+          const r1OriginY = (1.0 - u1) * current.leftRay.origin.y + u1 * current.rightRay.origin.y;
+          let r1DirX = (1.0 - u1) * current.leftRay.dir.x + u1 * current.rightRay.dir.x;
+          let r1DirY = (1.0 - u1) * current.leftRay.dir.y + u1 * current.rightRay.dir.y;
+          const len1 = Math.hypot(r1DirX, r1DirY) || 1.0;
+          r1DirX /= len1;
+          r1DirY /= len1;
 
-          escapedChild.rightRay.origin.x = resR.exitRay.origin.x;
-          escapedChild.rightRay.origin.y = resR.exitRay.origin.y;
-          escapedChild.rightRay.dir.x = resR.exitRay.dir.x;
-          escapedChild.rightRay.dir.y = resR.exitRay.dir.y;
+          const hit0 = intersectRayInfluenceBoundary(
+            this.reusableHandOffL,
+            { origin: { x: r0OriginX, y: r0OriginY }, dir: { x: r0DirX, y: r0DirY } },
+            closestBH
+          );
+          const hit1 = intersectRayInfluenceBoundary(
+            this.reusableHandOffR,
+            { origin: { x: r1OriginX, y: r1OriginY }, dir: { x: r1DirX, y: r1DirY } },
+            closestBH
+          );
+          if (!hit0 || !hit1) continue;
 
-          queue.push(escapedChild);
+          const resL = traceGeodesicWithTermination(
+            this.reusableTrajL,
+            { origin: this.reusableHandOffL.entryPoint, dir: { x: r0DirX, y: r0DirY } },
+            closestBH
+          );
+          const resR = traceGeodesicWithTermination(
+            this.reusableTrajR,
+            { origin: this.reusableHandOffR.entryPoint, dir: { x: r1DirX, y: r1DirY } },
+            closestBH
+          );
+
+          if (onRibbon && this.reusableTrajL.pointCount >= 2 && this.reusableTrajR.pointCount >= 2) {
+            onRibbon(this.reusableTrajL, this.reusableTrajR, current, closestBH);
+          }
+
+          if (
+            resL.reason === TerminationReason.Escaped &&
+            resR.reason === TerminationReason.Escaped &&
+            resL.exitRay &&
+            resR.exitRay &&
+            current.depth + 1 < MAX_BOUNCE_DEPTH
+          ) {
+            const escapedChild = this.allocateFrustum();
+            escapedChild.depth = current.depth + 1;
+            escapedChild.intensity = current.intensity;
+            escapedChild.dispersionU = current.dispersionU;
+            escapedChild.tintRGB[0] = current.tintRGB[0];
+            escapedChild.tintRGB[1] = current.tintRGB[1];
+            escapedChild.tintRGB[2] = current.tintRGB[2];
+            escapedChild.isDispersed = current.isDispersed;
+
+            escapedChild.leftRay.origin.x = resL.exitRay.origin.x;
+            escapedChild.leftRay.origin.y = resL.exitRay.origin.y;
+            escapedChild.leftRay.dir.x = resL.exitRay.dir.x;
+            escapedChild.leftRay.dir.y = resL.exitRay.dir.y;
+
+            escapedChild.rightRay.origin.x = resR.exitRay.origin.x;
+            escapedChild.rightRay.origin.y = resR.exitRay.origin.y;
+            escapedChild.rightRay.dir.x = resR.exitRay.dir.x;
+            escapedChild.rightRay.dir.y = resR.exitRay.dir.y;
+
+            queue.push(escapedChild);
+          }
         }
 
         continue;

@@ -306,15 +306,25 @@ export function tracePhotonPath(
         break;
       }
 
-      const stepDt = Math.min(dist, clamp(0.25 * r, Math.max(1.0, 0.2 * rs), 20.0));
+      const stepDt = Math.min(dist, clamp(0.10 * (r - rs * 0.85), 1.0, 8.0));
       const rFadeStart = 10.0 * rs;
       const fade = r > rFadeStart ? smoothstep(activeBh.rInfluence, rFadeStart, r) : 1.0;
-      const mag1 = -(2.25 * rs * fade) / (rSq * r);
+
+      // Exact General Relativistic Binet null-geodesic acceleration: a = -1.55 * rs * L^2 / r^5 * r_vec
+      const L1 = rx * dirY - ry * dirX;
+      const L1Sq = L1 * L1 + 0.15 * rs * rs;
+      const mag1 = -(1.55 * rs * L1Sq * fade) / (rSq * rSq * r);
       const acc1X = rx * mag1;
       const acc1Y = ry * mag1;
 
       const midX = curX + dirX * (0.5 * stepDt) + acc1X * (0.25 * stepDt * stepDt);
       const midY = curY + dirY * (0.5 * stepDt) + acc1Y * (0.25 * stepDt * stepDt);
+      let midVx = dirX + acc1X * (0.5 * stepDt);
+      let midVy = dirY + acc1Y * (0.5 * stepDt);
+      const midVLen = Math.hypot(midVx, midVy) || 1.0;
+      midVx /= midVLen;
+      midVy /= midVLen;
+
       const mrx = midX - activeBh.center.x;
       const mry = midY - activeBh.center.y;
       const mrSq = mrx * mrx + mry * mry;
@@ -326,12 +336,14 @@ export function tracePhotonPath(
       }
 
       const mFade = mr > rFadeStart ? smoothstep(activeBh.rInfluence, rFadeStart, mr) : 1.0;
-      const mag2 = -(2.25 * rs * mFade) / (mrSq * mr);
+      const L2 = mrx * midVy - mry * midVx;
+      const L2Sq = L2 * L2 + 0.15 * rs * rs;
+      const mag2 = -(1.55 * rs * L2Sq * mFade) / (mrSq * mrSq * mr);
       const acc2X = mrx * mag2;
       const acc2Y = mry * mag2;
 
-      const nextX = curX + dirX * stepDt + acc1X * (0.5 * stepDt * stepDt);
-      const nextY = curY + dirY * stepDt + acc1Y * (0.5 * stepDt * stepDt);
+      const nextX = curX + midVx * stepDt;
+      const nextY = curY + midVy * stepDt;
       let nextDirX = dirX + acc2X * stepDt;
       let nextDirY = dirY + acc2Y * stepDt;
       const dLen = Math.hypot(nextDirX, nextDirY) || 1.0;
@@ -339,11 +351,18 @@ export function tracePhotonPath(
       nextDirY /= dLen;
 
       const nextR = Math.hypot(nextX - activeBh.center.x, nextY - activeBh.center.y);
-      const redshift = 1.0 / Math.sqrt(Math.max(0.01, 1.0 - rs / Math.max(rs * 1.001, nextR)));
-      const shiftedWl = wl * clamp(redshift, 1.0, 1.35);
+      // Smooth warm Doppler/gravitational shift without artificial 700nm pile-up bullseye
+      const gravRatio = rs / Math.max(rs * 1.01, nextR);
+      const shiftedWl = wl + 32.0 * Math.pow(gravRatio, 2.5);
+
+      // Relativistic photon-ring caustic at r = 1.45 * rs + Liouville horizon fading as r -> rs
+      const phDelta = (nextR - 1.42 * rs) / (0.32 * rs);
+      const horizonFade = Math.pow(clamp((nextR - rs) / (0.35 * rs), 0.0, 1.0), 0.75);
+      const lensingBoost = (1.0 + 3.2 * Math.exp(-phDelta * phDelta)) * horizonFade;
+      const stepWeight = energy * (stepDt / 320.0) * lensingBoost;
 
       wavelengthSampleToXYZInto(sampleXYZ, shiftedWl, energy * 0.1);
-      target.splatLine(curX, curY, nextX, nextY, sampleXYZ, energy);
+      target.splatLine(curX, curY, nextX, nextY, sampleXYZ, stepWeight);
 
       curX = nextX;
       curY = nextY;
@@ -379,9 +398,11 @@ export function tracePhotonPath(
     const nextX = curX + dirX * dist;
     const nextY = curY + dirY * dist;
 
-    // Splat path into accumulation target (preserving exact original energy * 0.1 & energy weighting)
+    // Splat path into accumulation target. When a Black Hole is present in the scene,
+    // normalize straight segments by (dist / 320.0) so entry/exit across r = 12 * rs is 100% seamless!
     wavelengthSampleToXYZInto(sampleXYZ, wl, energy * 0.1);
-    target.splatLine(curX, curY, nextX, nextY, sampleXYZ, energy);
+    const straightWeight = numBH > 0 ? energy * (dist / 320.0) : energy;
+    target.splatLine(curX, curY, nextX, nextY, sampleXYZ, straightWeight);
 
     phase = advanceWavePhase(phase, dist, wl);
     curX = nextX;

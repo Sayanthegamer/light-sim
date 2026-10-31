@@ -85,6 +85,8 @@ export class OpticsEngine {
     this.options = options ?? {};
     this.width = Math.max(1, canvas.clientWidth || canvas.width || 800);
     this.height = Math.max(1, canvas.clientHeight || canvas.height || 600);
+    this.canvas.width = this.width;
+    this.canvas.height = this.height;
 
     this.glManager = new WebGLContextManager(canvas);
     this.renderCoordinator = new RenderCoordinator(this.glManager, this.width, this.height);
@@ -200,7 +202,14 @@ export class OpticsEngine {
   }
 
   resize(width: number, height: number): void {
-    if (this.width === width && this.height === height) return;
+    if (
+      this.width === width &&
+      this.height === height &&
+      this.canvas.width === width &&
+      this.canvas.height === height
+    ) {
+      return;
+    }
     this.width = Math.max(1, width);
     this.height = Math.max(1, height);
 

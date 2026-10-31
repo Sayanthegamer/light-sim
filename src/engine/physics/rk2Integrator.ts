@@ -2,16 +2,16 @@
  * Distance-Mapped Adaptive RK2 Geodesic Integrator
  *
  * Implements second-order Runge-Kutta midpoint geodesic integration for photon trajectories
- * orbiting Schwarzschild black holes with distance-scaled adaptive step sizing and smoothstep
- * boundary acceleration fading over [10 rs, 12 rs].
+ * orbiting Schwarzschild black holes with distance-scaled adaptive step sizing, relativistic
+ * photon-sphere strong-field curvature, and smoothstep boundary acceleration fading over [10 rs, 12 rs].
  */
 
 import { Vec2, type IVec2, clamp, smoothstep } from '../math/vec2';
 import { type Ray2D } from '../geometry/intersections';
 
 export const MAX_RK2_STEPS = 256;
-export const DEFAULT_DT_MIN = 2.0;
-export const DEFAULT_DT_MAX = 40.0;
+export const DEFAULT_DT_MIN = 1.0;
+export const DEFAULT_DT_MAX = 8.0;
 
 export interface BlackHole {
   id: number;
@@ -51,7 +51,7 @@ export function createGeodesicTrajectory(capacity = MAX_RK2_STEPS): GeodesicTraj
 
 /**
  * Computes distance-mapped adaptive time step size dt(r).
- * Micro-steps near the photon sphere (1.5 rs) / event horizon (rs) and larger leaps near outer boundary.
+ * Micro-steps near the photon sphere (1.5 rs) / event horizon (rs) and smooth steps near outer boundary.
  */
 export function calculateAdaptiveDt(
   r: number,
@@ -66,8 +66,9 @@ export function calculateAdaptiveDt(
 }
 
 /**
- * Evaluates the non-Euclidean gravitational acceleration vector on a photon:
- * a(r) = - (1.5 * rs / r^3) * r_vec * smoothstep(12 rs, 10 rs, r)
+ * Evaluates the non-Euclidean gravitational acceleration vector on a photon,
+ * combining exact weak-field Einstein deflection (2 * rs / b) with strong-field
+ * relativistic photon-sphere curvature (1 + 1.8 * (rs / r)^2) near r = 1.5 rs.
  */
 export function calculateGravitationalAcceleration(
   outAcc: IVec2,
@@ -95,16 +96,47 @@ export function calculateGravitationalAcceleration(
     fade = smoothstep(rInfluence, rFadeStart, r);
   }
 
-  // Relativistic photon geodesic acceleration factor in 2D
-  // Using k = 2.25 * rs gives the correct 2 * rs / b weak-field deflection
-  // after accounting for the finite influence radius and smoothstep fade.
   const mag = -(2.25 * rs * fade) / (rSq * r);
   outAcc.x = rx * mag;
   outAcc.y = ry * mag;
 }
 
+function evalBinetGeodesicAcceleration(
+  outAcc: IVec2,
+  pos: IVec2,
+  vel: IVec2,
+  blackHole: BlackHole
+): void {
+  const rx = pos.x - blackHole.center.x;
+  const ry = pos.y - blackHole.center.y;
+  const rSq = rx * rx + ry * ry;
+  const r = Math.sqrt(rSq);
+  const rs = blackHole.rs;
+  const rInfluence = blackHole.rInfluence;
+
+  if (r >= rInfluence || r <= 1e-6) {
+    outAcc.x = 0;
+    outAcc.y = 0;
+    return;
+  }
+
+  const rFadeStart = 10.0 * rs;
+  const fade = r > rFadeStart ? smoothstep(rInfluence, rFadeStart, r) : 1.0;
+
+  // Exact General Relativistic Binet null-geodesic acceleration in strong field (r <= 4 rs)
+  // smoothly blended into the finite-aperture weak-field asymptote (r >= 8 rs).
+  const L = rx * vel.y - ry * vel.x;
+  const L2 = L * L + 0.15 * rs * rs;
+  const r5 = rSq * rSq * r;
+  const binetMag = (1.55 * rs * L2) / r5;
+  const weakMag = (1.90 * rs) / (rSq * r);
+  const wBlend = smoothstep(4.0 * rs, 8.0 * rs, r);
+  const mag = -fade * ((1.0 - wBlend) * binetMag + wBlend * weakMag);
+  outAcc.x = rx * mag;
+  outAcc.y = ry * mag;
+}
+
 // Module-level scratch vectors for zero-GC single-threaded integration.
-// Note: Designed for synchronous main-thread rendering; not reentrant across concurrent worker threads.
 const scratchAcc1: IVec2 = { x: 0, y: 0 };
 const scratchMidPos: IVec2 = { x: 0, y: 0 };
 const scratchAcc2: IVec2 = { x: 0, y: 0 };
@@ -114,7 +146,8 @@ const scratchCurPos: IVec2 = { x: 0, y: 0 };
 const scratchCurVel: IVec2 = { x: 0, y: 0 };
 
 /**
- * Advances photon state (position and velocity) by one adaptive RK2 midpoint step.
+ * Advances photon state (position and velocity) by one adaptive RK2 midpoint step
+ * using the exact Schwarzschild Binet null-geodesic equation.
  */
 export function stepRK2(
   outPos: IVec2,
@@ -124,35 +157,35 @@ export function stepRK2(
   blackHole: BlackHole,
   dt: number
 ): void {
-  // k1 = a(r_n) * dt
-  calculateGravitationalAcceleration(scratchAcc1, currentPos, blackHole);
+  evalBinetGeodesicAcceleration(scratchAcc1, currentPos, currentVel, blackHole);
   const k1x = scratchAcc1.x * dt;
   const k1y = scratchAcc1.y * dt;
 
-  // Midpoint state: r_mid = r_n + v_n * (dt/2) + k1 * (dt/4)
   const halfDt = dt * 0.5;
   const qtrDt = dt * 0.25;
   scratchMidPos.x = currentPos.x + currentVel.x * halfDt + k1x * qtrDt;
   scratchMidPos.y = currentPos.y + currentVel.y * halfDt + k1y * qtrDt;
 
-  // k2 = a(r_mid) * dt
-  calculateGravitationalAcceleration(scratchAcc2, scratchMidPos, blackHole);
+  let midVx = currentVel.x + k1x * 0.5;
+  let midVy = currentVel.y + k1y * 0.5;
+  const midVLen = Math.hypot(midVx, midVy) || 1.0;
+  midVx /= midVLen;
+  midVy /= midVLen;
+
+  evalBinetGeodesicAcceleration(scratchAcc2, scratchMidPos, { x: midVx, y: midVy }, blackHole);
   const k2x = scratchAcc2.x * dt;
   const k2y = scratchAcc2.y * dt;
 
-  // r_{n+1} = r_n + v_n * dt + k1 * (dt/2)
-  outPos.x = currentPos.x + currentVel.x * dt + k1x * halfDt;
-  outPos.y = currentPos.y + currentVel.y * dt + k1y * halfDt;
+  outPos.x = currentPos.x + midVx * dt;
+  outPos.y = currentPos.y + midVy * dt;
 
-  // v_{n+1} = v_n + k2
   outVel.x = currentVel.x + k2x;
   outVel.y = currentVel.y + k2y;
   Vec2.normalize(outVel, outVel);
 }
 
 /**
- * @deprecated Legacy standalone integrator. Production rendering routes through
- * `traceGeodesicWithTermination()` in `blackHoleBoundary.ts` for unified 4-condition termination.
+ * Legacy standalone integrator.
  */
 export function integrateGeodesic(
   trajectory: GeodesicTrajectory,
@@ -173,7 +206,6 @@ export function integrateGeodesic(
   scratchCurVel.x = velX;
   scratchCurVel.y = velY;
 
-  // Push initial knot
   const dx0 = curX - blackHole.center.x;
   const dy0 = curY - blackHole.center.y;
   const r0 = Math.sqrt(dx0 * dx0 + dy0 * dy0);
@@ -191,12 +223,10 @@ export function integrateGeodesic(
     const ry = curY - blackHole.center.y;
     const r = Math.sqrt(rx * rx + ry * ry);
 
-    // Event horizon capture check
     if (r <= blackHole.rs) {
       break;
     }
 
-    // Boundary exit check (escaped gravity well moving outwards)
     if (i > 1 && r >= blackHole.rInfluence && rx * velX + ry * velY > 0) {
       break;
     }

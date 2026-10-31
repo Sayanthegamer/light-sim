@@ -140,10 +140,10 @@ export class AccumulationTarget {
     const buf = this.buffer;
     const counts = this.sampleCountMap;
 
-    let px = x0;
-    let py = y0;
+    let px = x0 + stepX * 0.5;
+    let py = y0 + stepY * 0.5;
 
-    for (let s = 0; s <= steps; s++) {
+    for (let s = 0; s < steps; s++) {
       const fx = Math.floor(px);
       const fy = Math.floor(py);
 

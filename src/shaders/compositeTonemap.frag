@@ -49,18 +49,11 @@ void main() {
     vec3 scatterRGB = scatterTex.rgb;
 #endif
 
-    // Reject atmospheric scatter inside solid obstacles, while adding a subtle optical glass silhouette
+    // Reject atmospheric scatter inside solid obstacles (keeps black hole event horizon pitch black)
     float effectiveScatter = mask > 0.5 ? 0.0 : u_ScatterWeight;
 
     // Linear color addition in HDR space
     vec3 linearSum = (beamRGB + scatterRGB * effectiveScatter) * u_Exposure;
-
-    // Subtle ambient dielectric tint & rim highlight for masked optical elements in the dark
-    float maskEdge = clamp(fwidth(mask) * 1.5, 0.0, 1.0);
-    if (mask > 0.5) {
-        linearSum += vec3(0.004, 0.006, 0.010);
-    }
-    linearSum += maskEdge * vec3(0.025, 0.045, 0.070);
 
     // Luminance-weighted Extended Reinhard tonemapping
     vec3 tonemapped = extendedReinhard(linearSum, u_WhitePoint);

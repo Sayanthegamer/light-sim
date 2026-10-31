@@ -28,16 +28,6 @@
     sceneVersion?: number;
   } = $props();
 
-  let rotHandle = $derived.by(() => {
-    void sceneVersion;
-    return handles.find(h => h.type === HandleType.Rotate);
-  });
-
-  let resizeHandles = $derived.by(() => {
-    void sceneVersion;
-    return handles.filter(h => h.type === HandleType.ResizePrimary || h.type === HandleType.ResizeSecondary);
-  });
-
   function polyToPoints(pts: { x: number; y: number }[]): string {
     return pts.map(p => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ');
   }
@@ -80,9 +70,144 @@
     if (d < 0) d += 360;
     return d;
   }
+
+  // Build fresh, plain-object geometry snapshots on every sceneVersion tick
+  // so Svelte 5 always updates SVG coordinates at 60 FPS during drag/rotate/resize.
+  let renderedNodes = $derived.by(() => {
+    const _v = sceneVersion;
+    return nodes.map((node) => {
+      const isSel = selectedNode?.id === node.id;
+      const isHov = hoveredNode?.id === node.id;
+      const cx = node.position.x;
+      const cy = node.position.y;
+      const rot = node.rotation;
+      const deg = getDeg(rot);
+      const boundingRadius = node.boundingRadius;
+      const label = getNodeLabel(node);
+
+      if (node.type === 'prism') {
+        const pr = node as PrismNode;
+        const poly = pr.getObstaclePolygon();
+        return {
+          id: node.id,
+          vKey: `${node.id}:${_v}`,
+          type: 'prism' as const,
+          isSel,
+          isHov,
+          cx,
+          cy,
+          deg,
+          boundingRadius,
+          label,
+          points: polyToPoints(poly),
+          verts: poly
+        };
+      } else if (node.type === 'lens') {
+        const ln = node as LensNode;
+        const poly = ln.getObstaclePolygon();
+        const axisP1 = ln.localToWorld({ x: -ln.thickness * 0.9, y: 0 });
+        const axisP2 = ln.localToWorld({ x: ln.thickness * 0.9, y: 0 });
+        return {
+          id: node.id,
+          vKey: `${node.id}:${_v}`,
+          type: 'lens' as const,
+          isSel,
+          isHov,
+          cx,
+          cy,
+          deg,
+          boundingRadius,
+          label,
+          points: polyToPoints(poly),
+          axisP1,
+          axisP2
+        };
+      } else if (node.type === 'barrier') {
+        const br = node as BarrierNode;
+        const poly = br.getObstaclePolygon();
+        return {
+          id: node.id,
+          vKey: `${node.id}:${_v}`,
+          type: 'barrier' as const,
+          isSel,
+          isHov,
+          cx,
+          cy,
+          deg,
+          boundingRadius,
+          label,
+          isMirror: br.isMirror,
+          points: polyToPoints(poly)
+        };
+      } else if (node.type === 'emitter') {
+        const em = node as EmitterNode;
+        const housing = em.getHousingPolygon();
+        const tip = em.localToWorld({ x: 14, y: 0 });
+        return {
+          id: node.id,
+          vKey: `${node.id}:${_v}`,
+          type: 'emitter' as const,
+          isSel,
+          isHov,
+          cx,
+          cy,
+          deg,
+          boundingRadius,
+          label,
+          points: polyToPoints(housing),
+          ap1: housing[1],
+          ap2: housing[2],
+          tip,
+          emColor: getEmitterColor(em)
+        };
+      } else {
+        const bh = node as BlackHoleNode;
+        return {
+          id: node.id,
+          vKey: `${node.id}:${_v}`,
+          type: 'black_hole' as const,
+          isSel,
+          isHov,
+          cx,
+          cy,
+          deg,
+          boundingRadius,
+          label,
+          rs: bh.rs,
+          rPhoton: bh.rs * 1.5,
+          rInfluence: bh.rInfluence
+        };
+      }
+    });
+  });
+
+  let activeSnapshot = $derived.by(() => {
+    void sceneVersion;
+    if (!selectedNode) return null;
+    return renderedNodes.find(n => n.id === selectedNode.id) ?? null;
+  });
+
+  let hoveredSnapshot = $derived.by(() => {
+    void sceneVersion;
+    if (!hoveredNode || hoveredNode.id === selectedNode?.id) return null;
+    return renderedNodes.find(n => n.id === hoveredNode.id) ?? null;
+  });
+
+  let rotHandle = $derived.by(() => {
+    void sceneVersion;
+    const h = handles.find(item => item.type === HandleType.Rotate);
+    return h ? { x: h.position.x, y: h.position.y, type: h.type } : null;
+  });
+
+  let resizeHandles = $derived.by(() => {
+    void sceneVersion;
+    return handles
+      .filter(h => h.type === HandleType.ResizePrimary || h.type === HandleType.ResizeSecondary)
+      .map(h => ({ x: h.position.x, y: h.position.y, type: h.type }));
+  });
 </script>
 
-<svg class="absolute inset-0 w-full h-full pointer-events-none z-10 overflow-visible" data-version={sceneVersion}>
+<svg class="absolute inset-0 w-full h-full pointer-events-none z-10 overflow-visible">
   <defs>
     {#if showGrid}
       <pattern id="optical-bench-grid" width="40" height="40" patternUnits="userSpaceOnUse">
@@ -90,147 +215,143 @@
         <circle cx="0" cy="0" r="1" fill="rgba(148, 163, 184, 0.22)" />
       </pattern>
     {/if}
+    <!-- Relativistic Black Hole Photon Ring & Accretion Lensing Halo -->
+    <radialGradient id="bh-photon-ring" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#000000" stop-opacity="1" />
+      <stop offset="48%" stop-color="#000000" stop-opacity="1" />
+      <stop offset="53%" stop-color="#fff7ed" stop-opacity="0.95" />
+      <stop offset="58%" stop-color="#fb923c" stop-opacity="0.65" />
+      <stop offset="68%" stop-color="#ea580c" stop-opacity="0.22" />
+      <stop offset="85%" stop-color="#7c2d12" stop-opacity="0.06" />
+      <stop offset="100%" stop-color="#000000" stop-opacity="0" />
+    </radialGradient>
   </defs>
 
-  <!-- Optional Optical Bench Reference Grid -->
   {#if showGrid}
     <rect x="0" y="0" width="100%" height="100%" fill="url(#optical-bench-grid)" />
   {/if}
 
-  <!-- Always-Visible Scene Element Outlines & Silhouettes (solves invisible elements in the dark) -->
-  {#each nodes as node (node.id)}
-    {@const isSel = selectedNode?.id === node.id}
-    {@const isHov = hoveredNode?.id === node.id}
-    {#if showOutlines || isSel || isHov}
-      {#if node.type === 'prism'}
-        {@const pr = node as PrismNode}
-        {@const poly = pr.getObstaclePolygon()}
+  {#each renderedNodes as item (item.vKey)}
+    {#if showOutlines || item.isSel || item.isHov || item.type === 'black_hole'}
+      {#if item.type === 'prism'}
         <polygon
-          points={polyToPoints(poly)}
-          fill={isSel ? 'rgba(56, 189, 248, 0.12)' : isHov ? 'rgba(56, 189, 248, 0.09)' : 'rgba(56, 189, 248, 0.04)'}
-          stroke={isSel ? '#38bdf8' : isHov ? '#7dd3fc' : 'rgba(56, 189, 248, 0.55)'}
-          stroke-width={isSel ? 2 : isHov ? 1.75 : 1.25}
+          points={item.points}
+          fill={item.isSel ? 'rgba(56, 189, 248, 0.12)' : item.isHov ? 'rgba(56, 189, 248, 0.09)' : 'rgba(56, 189, 248, 0.04)'}
+          stroke={item.isSel ? '#38bdf8' : item.isHov ? '#7dd3fc' : 'rgba(56, 189, 248, 0.55)'}
+          stroke-width={item.isSel ? 2 : item.isHov ? 1.75 : 1.25}
           stroke-linejoin="round"
         />
-        {#each poly as v}
+        {#each item.verts as v}
           <circle
             cx={v.x}
             cy={v.y}
-            r={isSel || isHov ? 2.8 : 2}
-            fill={isSel ? '#38bdf8' : '#bae6fd'}
-            opacity={isSel || isHov ? 0.95 : 0.6}
+            r={item.isSel || item.isHov ? 2.8 : 2}
+            fill={item.isSel ? '#38bdf8' : '#bae6fd'}
+            opacity={item.isSel || item.isHov ? 0.95 : 0.6}
           />
         {/each}
-      {:else if node.type === 'lens'}
-        {@const ln = node as LensNode}
-        {@const poly = ln.getObstaclePolygon()}
-        {@const axisP1 = ln.localToWorld({ x: -ln.thickness * 0.9, y: 0 })}
-        {@const axisP2 = ln.localToWorld({ x: ln.thickness * 0.9, y: 0 })}
+      {:else if item.type === 'lens'}
         <polygon
-          points={polyToPoints(poly)}
-          fill={isSel ? 'rgba(129, 140, 248, 0.14)' : isHov ? 'rgba(129, 140, 248, 0.10)' : 'rgba(129, 140, 248, 0.05)'}
-          stroke={isSel ? '#818cf8' : isHov ? '#a5b4fc' : 'rgba(129, 140, 248, 0.6)'}
-          stroke-width={isSel ? 2 : isHov ? 1.75 : 1.25}
+          points={item.points}
+          fill={item.isSel ? 'rgba(129, 140, 248, 0.14)' : item.isHov ? 'rgba(129, 140, 248, 0.10)' : 'rgba(129, 140, 248, 0.05)'}
+          stroke={item.isSel ? '#818cf8' : item.isHov ? '#a5b4fc' : 'rgba(129, 140, 248, 0.6)'}
+          stroke-width={item.isSel ? 2 : item.isHov ? 1.75 : 1.25}
           stroke-linejoin="round"
         />
-        <!-- Principal Optical Axis Tick -->
         <line
-          x1={axisP1.x}
-          y1={axisP1.y}
-          x2={axisP2.x}
-          y2={axisP2.y}
+          x1={item.axisP1.x}
+          y1={item.axisP1.y}
+          x2={item.axisP2.x}
+          y2={item.axisP2.y}
           stroke="#818cf8"
           stroke-width="1"
           stroke-dasharray="2 2"
-          opacity={isSel || isHov ? 0.75 : 0.35}
+          opacity={item.isSel || item.isHov ? 0.75 : 0.35}
         />
-      {:else if node.type === 'barrier'}
-        {@const br = node as BarrierNode}
-        {@const poly = br.getObstaclePolygon()}
+      {:else if item.type === 'barrier'}
         <polygon
-          points={polyToPoints(poly)}
-          fill={br.isMirror
-            ? (isSel ? 'rgba(52, 211, 153, 0.25)' : 'rgba(52, 211, 153, 0.15)')
-            : (isSel ? 'rgba(161, 161, 170, 0.38)' : 'rgba(82, 82, 91, 0.55)')}
-          stroke={br.isMirror
-            ? (isSel ? '#34d399' : isHov ? '#6ee7b7' : 'rgba(52, 211, 153, 0.75)')
-            : (isSel ? '#f4f4f5' : isHov ? '#e4e4e7' : 'rgba(161, 161, 170, 0.75)')}
-          stroke-width={isSel ? 2 : isHov ? 1.75 : 1.35}
+          points={item.points}
+          fill={item.isMirror
+            ? (item.isSel ? 'rgba(52, 211, 153, 0.25)' : 'rgba(52, 211, 153, 0.15)')
+            : (item.isSel ? 'rgba(161, 161, 170, 0.38)' : 'rgba(82, 82, 91, 0.55)')}
+          stroke={item.isMirror
+            ? (item.isSel ? '#34d399' : item.isHov ? '#6ee7b7' : 'rgba(52, 211, 153, 0.75)')
+            : (item.isSel ? '#f4f4f5' : item.isHov ? '#e4e4e7' : 'rgba(161, 161, 170, 0.75)')}
+          stroke-width={item.isSel ? 2 : item.isHov ? 1.75 : 1.35}
           stroke-linejoin="round"
         />
-      {:else if node.type === 'emitter'}
-        {@const em = node as EmitterNode}
-        {@const housing = em.getHousingPolygon()}
-        {@const emColor = getEmitterColor(em)}
-        {@const tip = em.localToWorld({ x: 14, y: 0 })}
+      {:else if item.type === 'emitter'}
         <polygon
-          points={polyToPoints(housing)}
-          fill={isSel ? 'rgba(251, 191, 36, 0.18)' : isHov ? 'rgba(251, 191, 36, 0.14)' : 'rgba(39, 39, 42, 0.75)'}
-          stroke={isSel ? '#fbbf24' : isHov ? '#fcd34d' : 'rgba(251, 191, 36, 0.65)'}
-          stroke-width={isSel ? 2 : isHov ? 1.75 : 1.25}
+          points={item.points}
+          fill={item.isSel ? 'rgba(251, 191, 36, 0.18)' : item.isHov ? 'rgba(251, 191, 36, 0.14)' : 'rgba(39, 39, 42, 0.75)'}
+          stroke={item.isSel ? '#fbbf24' : item.isHov ? '#fcd34d' : 'rgba(251, 191, 36, 0.65)'}
+          stroke-width={item.isSel ? 2 : item.isHov ? 1.75 : 1.25}
           stroke-linejoin="round"
         />
-        <!-- Glowing Aperture Emission Bar -->
         <line
-          x1={housing[1].x}
-          y1={housing[1].y}
-          x2={housing[2].x}
-          y2={housing[2].y}
-          stroke={emColor}
+          x1={item.ap1.x}
+          y1={item.ap1.y}
+          x2={item.ap2.x}
+          y2={item.ap2.y}
+          stroke={item.emColor}
           stroke-width="3"
           stroke-linecap="round"
         />
-        <!-- Direction Indicator -->
         <line
-          x1={em.position.x}
-          y1={em.position.y}
-          x2={tip.x}
-          y2={tip.y}
-          stroke={emColor}
+          x1={item.cx}
+          y1={item.cy}
+          x2={item.tip.x}
+          y2={item.tip.y}
+          stroke={item.emColor}
           stroke-width="1.5"
           opacity="0.85"
         />
-        <circle cx={em.position.x} cy={em.position.y} r="3" fill={emColor} />
-      {:else if node.type === 'black_hole'}
-        {@const bh = node as BlackHoleNode}
-        <!-- Gravitational Influence Boundary (12 rs) -->
+        <circle cx={item.cx} cy={item.cy} r="3" fill={item.emColor} />
+      {:else if item.type === 'black_hole'}
+        <!-- Realistic Relativistic Photon Ring Halo & Pure Black Event Horizon Shadow -->
         <circle
-          cx={bh.position.x}
-          cy={bh.position.y}
-          r={bh.rInfluence}
-          fill="none"
-          stroke="#a855f7"
-          stroke-width="1"
-          stroke-dasharray="4 6"
-          opacity={isSel || isHov ? 0.45 : 0.18}
+          cx={item.cx}
+          cy={item.cy}
+          r={item.rs * 2.0}
+          fill="url(#bh-photon-ring)"
         />
-        <!-- Photon Sphere (1.5 rs) -->
         <circle
-          cx={bh.position.x}
-          cy={bh.position.y}
-          r={bh.rs * 1.5}
-          fill="none"
-          stroke="#d8b4fe"
-          stroke-width="1"
-          stroke-dasharray="2 3"
-          opacity={isSel || isHov ? 0.75 : 0.4}
+          cx={item.cx}
+          cy={item.cy}
+          r={item.rs}
+          fill="#000000"
+          stroke={item.isSel ? '#fb923c' : item.isHov ? '#fdba74' : 'rgba(251, 146, 60, 0.55)'}
+          stroke-width={item.isSel ? 1.5 : 1.0}
         />
-        <!-- Event Horizon (rs) -->
-        <circle
-          cx={bh.position.x}
-          cy={bh.position.y}
-          r={bh.rs}
-          fill="rgba(9, 9, 13, 0.9)"
-          stroke={isSel ? '#c084fc' : isHov ? '#e9d5ff' : 'rgba(192, 132, 252, 0.75)'}
-          stroke-width={isSel ? 2.2 : 1.5}
-        />
+        <!-- Only show technical photon-sphere & influence rings when selected or hovered -->
+        {#if item.isSel || item.isHov}
+          <circle
+            cx={item.cx}
+            cy={item.cy}
+            r={item.rPhoton}
+            fill="none"
+            stroke="#fdba74"
+            stroke-width="1"
+            stroke-dasharray="3 3"
+            opacity="0.65"
+          />
+          <circle
+            cx={item.cx}
+            cy={item.cy}
+            r={item.rInfluence}
+            fill="none"
+            stroke="#fb923c"
+            stroke-width="1"
+            stroke-dasharray="4 8"
+            opacity="0.28"
+          />
+        {/if}
       {/if}
 
-      <!-- Center Pivot Crosshair on Hover or Select -->
-      {#if isSel || isHov}
+      {#if item.isSel || item.isHov}
         <circle
-          cx={node.position.x}
-          cy={node.position.y}
+          cx={item.cx}
+          cy={item.cy}
           r="2.5"
           fill="#ffffff"
           stroke="#09090b"
@@ -240,13 +361,13 @@
     {/if}
   {/each}
 
-  <!-- Hover Identification Pill (when hovering an unselected element in the dark) -->
-  {#if hoveredNode && hoveredNode.id !== selectedNode?.id}
-    <g transform="translate({hoveredNode.position.x}, {hoveredNode.position.y - Math.max(28, hoveredNode.boundingRadius + 12)})">
+  <!-- Hover Identification Pill -->
+  {#if hoveredSnapshot}
+    <g transform="translate({hoveredSnapshot.cx}, {hoveredSnapshot.cy - Math.max(28, hoveredSnapshot.boundingRadius + 12)})">
       <rect
-        x="-68"
+        x="-74"
         y="-18"
-        width="136"
+        width="148"
         height="20"
         rx="4"
         fill="rgba(9, 9, 13, 0.88)"
@@ -261,18 +382,17 @@
         font-size="10"
         font-family="ui-monospace, monospace"
       >
-        {getNodeLabel(hoveredNode)}
+        {hoveredSnapshot.label}
       </text>
     </g>
   {/if}
 
   <!-- Active Selection Gizmo Ring, Rotation Arm & Resize Handles -->
-  {#if selectedNode}
-    <!-- Selection Bounding Ring -->
+  {#if activeSnapshot}
     <circle
-      cx={selectedNode.position.x}
-      cy={selectedNode.position.y}
-      r={selectedNode.boundingRadius}
+      cx={activeSnapshot.cx}
+      cy={activeSnapshot.cy}
+      r={activeSnapshot.boundingRadius}
       fill="none"
       stroke="#38bdf8"
       stroke-width="1.25"
@@ -280,27 +400,25 @@
       opacity="0.65"
     />
 
-    <!-- Rotation Arm & Pivot Handle -->
-    {#if rotHandle}
+    {#if rotHandle && activeSnapshot.type !== 'black_hole'}
       <line
-        x1={selectedNode.position.x}
-        y1={selectedNode.position.y}
-        x2={rotHandle.position.x}
-        y2={rotHandle.position.y}
+        x1={activeSnapshot.cx}
+        y1={activeSnapshot.cy}
+        x2={rotHandle.x}
+        y2={rotHandle.y}
         stroke="#38bdf8"
         stroke-width="1.5"
         opacity="0.85"
       />
       <circle
-        cx={rotHandle.position.x}
-        cy={rotHandle.position.y}
+        cx={rotHandle.x}
+        cy={rotHandle.y}
         r={hoveredHandle === HandleType.Rotate ? 7.5 : 6}
         fill={hoveredHandle === HandleType.Rotate ? '#38bdf8' : '#0284c7'}
         stroke="#ffffff"
         stroke-width="1.75"
       />
-      <!-- Live Angle Badge near Rotation Handle -->
-      <g transform="translate({rotHandle.position.x + 14}, {rotHandle.position.y - 8})">
+      <g transform="translate({rotHandle.x + 14}, {rotHandle.y - 8})">
         <rect
           x="0"
           y="-10"
@@ -319,17 +437,16 @@
           font-size="9.5"
           font-family="ui-monospace, monospace"
         >
-          {getDeg(selectedNode.rotation)}°
+          {activeSnapshot.deg}°
         </text>
       </g>
     {/if}
 
-    <!-- Resize Handles -->
     {#each resizeHandles as handle}
       {@const isHandleHov = hoveredHandle === handle.type}
       <rect
-        x={handle.position.x - (isHandleHov ? 5.5 : 4.5)}
-        y={handle.position.y - (isHandleHov ? 5.5 : 4.5)}
+        x={handle.x - (isHandleHov ? 5.5 : 4.5)}
+        y={handle.y - (isHandleHov ? 5.5 : 4.5)}
         width={isHandleHov ? 11 : 9}
         height={isHandleHov ? 11 : 9}
         fill={isHandleHov ? '#34d399' : '#10b981'}

@@ -48,7 +48,7 @@ export function calculateCausticIntensity(
 
 /**
  * Generates an unbroken contiguous quad ribbon mesh from paired geodesic trajectories.
- * Writes directly into the pre-allocated VBO packer without intermediate memory allocations.
+ * Rejects horizon-crossing bowties when a ribbon straddles the singularity.
  */
 export function generateRibbonMesh(
   packer: VboPacker,
@@ -78,6 +78,7 @@ export function generateRibbonMesh(
 
   const [r, g, b] = tintRGB;
   const baseWl = blackHole ? (baseLambda ?? dispersionUToWavelength(dispersionU)) : 0;
+  const maxAllowedSpread = blackHole ? Math.max(w0 * 8.0, blackHole.rs * 3.5) : Infinity;
   let quadsGenerated = 0;
 
   for (let n = 0; n < stepCount - 1; n++) {
@@ -93,6 +94,18 @@ export function generateRibbonMesh(
 
     const wn0 = calculateLocalBeamWidth(lx0, ly0, rx0, ry0);
     const wn1 = calculateLocalBeamWidth(lx1, ly1, rx1, ry1);
+
+    // Prevent torn ribbons when two rays split onto opposite sides of the event horizon
+    if (blackHole) {
+      if (wn0 > maxAllowedSpread || wn1 > maxAllowedSpread) {
+        break;
+      }
+      const midX = 0.25 * (lx0 + rx0 + lx1 + rx1) - blackHole.center.x;
+      const midY = 0.25 * (ly0 + ry0 + ly1 + ry1) - blackHole.center.y;
+      if (midX * midX + midY * midY < blackHole.rs * blackHole.rs * 0.9) {
+        break;
+      }
+    }
 
     const i0 = calculateCausticIntensity(baseIntensity, w0, wn0, epsilonPinch);
     const i1 = calculateCausticIntensity(baseIntensity, w0, wn1, epsilonPinch);

@@ -324,36 +324,44 @@ fn intersectAABB(origin: vec2<f32>, dir: vec2<f32>, aabbMin: vec2<f32>, aabbMax:
 // Schwarzschild Relativistic Geodesic Stepper (Strong-Field Numerical RK2)
 fn stepSchwarzschildGeodesic(pos: vec2<f32>, dir: vec2<f32>, center: vec2<f32>, rs: f32, dt: f32) -> vec4<f32> {
   let rVec = pos - center;
-  let r = length(rVec);
+  let rSq = dot(rVec, rVec);
+  let r = sqrt(rSq);
 
   if (r <= rs) {
     return vec4<f32>(pos, 0.0, 0.0); // Absorbed by event horizon
   }
 
-  let L = rVec.x * dir.y - rVec.y * dir.x;
-  let L2 = L * L;
-  let r5 = r * r * r * r * r;
-  let accel = -1.5 * rs * L2 * rVec / r5;
+  let rInf = rs * 12.0;
+  let rFadeStart = 10.0 * rs;
+  let fade = select(1.0, smoothstep(rInf, rFadeStart, r), r > rFadeStart);
+  let L1 = rVec.x * dir.y - rVec.y * dir.x;
+  let L1Sq = L1 * L1 + 0.15 * rs * rs;
+  let mag1 = -(1.55 * rs * L1Sq * fade) / (rSq * rSq * r);
+  let a1 = rVec * mag1;
 
   // RK2 Midpoint Step
-  let midPos = pos + dir * (0.5 * dt);
-  let midVel = dir + accel * (0.5 * dt);
+  let midPos = pos + dir * (0.5 * dt) + a1 * (0.25 * dt * dt);
+  let midVel = normalize(dir + a1 * (0.5 * dt));
 
   let midRVec = midPos - center;
-  let midR = length(midRVec);
+  let midRSq = dot(midRVec, midRVec);
+  let midR = sqrt(midRSq);
   if (midR <= rs) {
     return vec4<f32>(midPos, 0.0, 0.0);
   }
-  let midR5 = midR * midR * midR * midR * midR;
-  let midAccel = -1.5 * rs * L2 * midRVec / midR5;
+  let mFade = select(1.0, smoothstep(rInf, rFadeStart, midR), midR > rFadeStart);
+  let L2 = midRVec.x * midVel.y - midRVec.y * midVel.x;
+  let L2Sq = L2 * L2 + 0.15 * rs * rs;
+  let mag2 = -(1.55 * rs * L2Sq * mFade) / (midRSq * midRSq * midR);
+  let a2 = midRVec * mag2;
 
   let newPos = pos + midVel * dt;
-  let newDir = normalize(dir + midAccel * dt);
+  let newDir = normalize(dir + a2 * dt);
 
   return vec4<f32>(newPos, newDir);
 }
 
-// Hybrid Relativistic Evaluator: Analytic Einstein Deflection (r > 8*rs) + Numerical RK2 (r <= 8*rs)
+// Hybrid Relativistic Evaluator: Analytic Einstein Deflection (r > 8.0 * rs -> 2.0 * rs / b asymptotic limit) + Strong-Field RK2
 fn evaluateBlackHoleInteraction(pos: vec2<f32>, dir: vec2<f32>, bh: BlackHolePrimitive, dt: f32) -> vec4<f32> {
   let rVec = pos - bh.center;
   let r = length(rVec);
@@ -364,26 +372,23 @@ fn evaluateBlackHoleInteraction(pos: vec2<f32>, dir: vec2<f32>, bh: BlackHolePri
     return vec4<f32>(pos + dir * dt, dir);
   }
 
-  // Event Horizon Absorption
   if (r <= rs) {
     return vec4<f32>(pos, 0.0, 0.0);
   }
 
-  // Weak-Field Regime: r > 8.0 * rs -> Analytic Einstein Deflection O(1) with C^inf continuity
-  if (r > 8.0 * rs) {
-    let perp = normalize(vec2<f32>(-rVec.y, rVec.x));
-    let signL = select(-1.0, 1.0, dot(perp, dir) > 0.0);
-    let b = max(rs * 1.5, abs(rVec.x * dir.y - rVec.y * dir.x));
-    let deltaTheta = (2.0 * rs / b) * (dt / r);
-    let cosD = cos(deltaTheta * signL);
-    let sinD = sin(deltaTheta * signL);
-    let newDir = normalize(vec2<f32>(dir.x * cosD - dir.y * sinD, dir.x * sinD + dir.y * cosD));
-    return vec4<f32>(pos + newDir * dt, newDir);
+  // Multi-substep RK2 integration matching CPU mcPhotonTracer.ts (up to 4 microsteps per segment)
+  var p = pos;
+  var d = dir;
+  let subDt = dt * 0.25;
+  for (var s = 0u; s < 4u; s = s + 1u) {
+    let stepRes = stepSchwarzschildGeodesic(p, d, bh.center, rs, subDt);
+    p = stepRes.xy;
+    d = stepRes.zw;
+    if (length(d) < 0.1 || length(p - bh.center) <= rs) {
+      return vec4<f32>(p, 0.0, 0.0);
+    }
   }
-
-  // Strong-to-Intermediate Regime: rs < r <= 8.0 * rs -> Numerical RK2 Stepping with Adaptive Step Size
-  let dynamicDt = clamp(0.15 * r, 0.05 * rs, 2.0 * rs);
-  return stepSchwarzschildGeodesic(pos, dir, bh.center, rs, min(dt, dynamicDt));
+  return vec4<f32>(p, d);
 }
 
 // 8-Element Short-Stack BVH Traversal
@@ -563,14 +568,22 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
       let bh = blackHoles[u32(activeBhIdx)];
       let rNow = length(curPos - bh.center);
       let rs = bh.radii.x;
-      let stepDt = min(closestT, clamp(0.25 * rNow, max(1.0, 0.2 * rs), 20.0));
+      let stepDt = min(closestT, clamp(0.22 * (rNow - rs * 0.85), 2.5, 18.0));
       let geoStep = evaluateBlackHoleInteraction(curPos, curDir, bh, stepDt);
       let nextPos = geoStep.xy;
       let nextDir = geoStep.zw;
 
-      let stepFlux = (energy * energy) / max(1.0, stepDt);
-      photonVertices[outSlot0] = PhotonVertex(curPos, wavelength, 0u, color, stepFlux);
-      photonVertices[outSlot1] = PhotonVertex(nextPos, wavelength, 0u, color, stepFlux);
+      let nextR = max(rs * 1.01, length(nextPos - bh.center));
+      let gravRatio = rs / nextR;
+      let shiftedWl = wavelength + 32.0 * pow(gravRatio, 2.5);
+      let shiftedColor = wavelengthToXYZ(shiftedWl);
+
+      let phDelta = (nextR - 1.42 * rs) / (0.32 * rs);
+      let horizonFade = pow(clamp((nextR - rs) / (0.35 * rs), 0.0, 1.0), 0.75);
+      let lensingBoost = (1.0 + 3.2 * exp(-phDelta * phDelta)) * horizonFade;
+      let stepFlux = ((energy * energy) / 320.0) * lensingBoost;
+      photonVertices[outSlot0] = PhotonVertex(curPos, shiftedWl, 0u, shiftedColor, stepFlux);
+      photonVertices[outSlot1] = PhotonVertex(nextPos, shiftedWl, 0u, shiftedColor, stepFlux);
 
       curPos = nextPos;
       curDir = nextDir;
@@ -611,10 +624,12 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
       nextPos = blackHoles[0].center;
     }
 
-    // Output active line segment with exact CPU-equivalent length-weighted flux: (energy * energy) / max(1.0, closestT)
+    // Output active line segment with exact CPU-equivalent length-weighted flux
+    // (or continuous 1/320.0 density in Black Hole scenes so r = 12 * rs has zero boundary seam)
     let segmentFlux = (energy * energy) / max(1.0, closestT);
-    photonVertices[outSlot0] = PhotonVertex(curPos, wavelength, 0u, color, segmentFlux);
-    photonVertices[outSlot1] = PhotonVertex(nextPos, wavelength, 0u, color, segmentFlux);
+    let outFlux = select(segmentFlux, (energy * energy) / 320.0, numBH > 0u);
+    photonVertices[outSlot0] = PhotonVertex(curPos, wavelength, 0u, color, outFlux);
+    photonVertices[outSlot1] = PhotonVertex(nextPos, wavelength, 0u, color, outFlux);
 
     curPos = nextPos;
     curDir = nextDir;
