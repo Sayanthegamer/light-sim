@@ -6,7 +6,7 @@
  * into master Float32Array buffers.
  */
 
-import { GpuPipelineManager, BufferUsage } from './webgpuPipeline';
+import { GpuPipelineManager, BufferUsage, GPU_HALF_FLOAT_PRESCALE } from './webgpuPipeline';
 
 export const TextureUsage = {
   COPY_SRC: 0x01,
@@ -35,10 +35,20 @@ export function decodeFloat16(half: number): number {
   return sign * Math.pow(2, exp - 15) * (1 + mant / 1024);
 }
 
-// Precomputed 65,536-entry Float16-to-Float32 LUT for O(1) zero-branch readback decoding
-const FLOAT16_LUT = new Float32Array(65536);
+// Precomputed 65,536-entry Float16-to-Float32 LUT with inverse 16x pre-scale baked in.
+// Clamps positive half-float saturation (+Infinity at 0x7c00) to max float16 (65504)
+// so bright caustics never turn into black holes.
+const INV_PRESCALE = 1.0 / GPU_HALF_FLOAT_PRESCALE;
+const FLOAT16_UNSCALED_LUT = new Float32Array(65536);
 for (let i = 0; i < 65536; i++) {
-  FLOAT16_LUT[i] = decodeFloat16(i);
+  const raw = decodeFloat16(i);
+  if (Number.isFinite(raw)) {
+    FLOAT16_UNSCALED_LUT[i] = raw > 0 ? raw * INV_PRESCALE : 0.0;
+  } else if (raw === Infinity) {
+    FLOAT16_UNSCALED_LUT[i] = 65504.0 * INV_PRESCALE;
+  } else {
+    FLOAT16_UNSCALED_LUT[i] = 0.0;
+  }
 }
 
 export class GpuAccumulator {
@@ -188,11 +198,11 @@ export class GpuAccumulator {
           const dstRow = y * rowFloats;
           for (let x = 0; x < rowFloats; x++) {
             const val = floatView[srcRow + x];
-            this.readbackArray[dstRow + x] = Number.isFinite(val) ? val : 0.0;
+            this.readbackArray[dstRow + x] = Number.isFinite(val) ? val * INV_PRESCALE : 0.0;
           }
         }
       } else {
-        // rgba16float: decode half-float to single-precision float32 via fast lookup table
+        // rgba16float: decode half-float and unscale by 1/16 via precomputed LUT
         const uint16View = new Uint16Array(mappedRange);
         const strideWords = bytesPerRow / 2;
         for (let y = 0; y < this.height; y++) {
@@ -200,8 +210,7 @@ export class GpuAccumulator {
           const dstRow = y * rowFloats;
           for (let x = 0; x < rowFloats; x++) {
             const halfWord = uint16View[srcRow + x] | 0;
-            const decoded = FLOAT16_LUT[halfWord & 0xffff];
-            this.readbackArray[dstRow + x] = Number.isFinite(decoded) ? decoded : 0.0;
+            this.readbackArray[dstRow + x] = FLOAT16_UNSCALED_LUT[halfWord & 0xffff];
           }
         }
       }

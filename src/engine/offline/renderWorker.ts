@@ -102,14 +102,11 @@ function processBatch(): void {
     return;
   }
 
-  // Calibrate per-photon weight by batchSize so 1 CPU pass matches 1 GPU pass in radiant intensity
-  const calibratedWeight = 12.0 / Math.max(100, batchSize);
   const tracerOptions = {
     maxBounces: job.config.maxBounces,
     volumetricInScatter: job.config.volumetricInScatter,
     primitives: currentPrimitives ?? undefined,
-    scratch: tracerScratch,
-    photonWeight: calibratedWeight
+    scratch: tracerScratch
   };
 
   for (let i = 0; i < batchSize; i++) {
@@ -145,9 +142,9 @@ function processBatch(): void {
   const now = performance.now();
   const elapsedSinceLastReport = now - lastProgressReportTime;
 
-  // Report progress every ~120ms or on target completion
+  // Report progress every ~100ms or on target completion
   const isComplete = passCount >= job.config.targetSamples;
-  if (elapsedSinceLastReport >= 120 || isComplete) {
+  if (elapsedSinceLastReport >= 100 || isComplete) {
     postProgress(isComplete);
     lastProgressReportTime = now;
   }

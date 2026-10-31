@@ -50,7 +50,7 @@
   let tonemap = $state<'reinhard' | 'aces' | 'linear'>('reinhard');
   let whitePoint = $state(4.0);
 
-  // Render Resolution
+  // Render Resolution (1/2 or 1x)
   let renderWidth = $derived(Math.min(1920, Math.max(640, Math.floor(viewportWidth))));
   let renderHeight = $derived(Math.min(1080, Math.max(480, Math.floor(viewportHeight))));
 
@@ -84,12 +84,7 @@
     }
 
     target.buffer.set(latestBuffer);
-    target.resolveToImageData(cachedImageData.data, {
-      exposure,
-      tonemap,
-      whitePoint,
-      passCount: Math.max(1, passCount)
-    });
+    target.resolveToImageData(cachedImageData.data, { exposure, tonemap, whitePoint });
     ctx.putImageData(cachedImageData, 0, 0);
   }
 
@@ -100,10 +95,9 @@
     dispatcher = new MultiDeviceDispatcher();
 
     const activeThreads = threadCount === 0 ? hardwareConcurrency : threadCount;
-    const batchPhotons = computeDevice === 'cpu' ? 20000 : 50000;
     const job: IOfflineRenderJob = freezeSceneSnapshot(sceneGraph, renderWidth, renderHeight, {
       targetSamples: targetPasses,
-      batchPhotons,
+      batchPhotons: 50000,
       volumetricInScatter: true,
       threadCount: activeThreads
     });
@@ -152,8 +146,7 @@
 
   function handleExportHDR() {
     if (!latestBuffer) return;
-    const normalizedExposure = exposure / Math.max(1, passCount);
-    const blob = exportHDRBlob(latestBuffer, renderWidth, renderHeight, normalizedExposure);
+    const blob = exportHDRBlob(latestBuffer, renderWidth, renderHeight, exposure);
     downloadBlob(blob, `render_${Date.now()}.hdr`);
   }
 

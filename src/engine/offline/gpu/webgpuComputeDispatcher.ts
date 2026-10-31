@@ -38,7 +38,7 @@ export class WebGpuComputeDispatcher {
   private passCount = 0;
   private epochPassCount = 0;
   private epochCount = 0;
-  private readonly epochSize = 128; // Flush rgba16float before saturation/mantissa drift
+  private readonly epochSize = 5; // Consolidate rgba16float into Float64Array every 10 passes to eliminate mantissa underflow
   private masterAccumulator: Float64Array | null = null;
   private masterBuffer: Float32Array | null = null;
   private sampleCountMap: Uint32Array | null = null;
@@ -177,33 +177,27 @@ export class WebGpuComputeDispatcher {
       const timeSinceReport = now - this.lastReportTime;
       const shouldReport = isComplete || timeSinceReport >= 100;
 
-      // Consolidate epoch into double-precision masterAccumulator
+      // Consolidate 10-pass epoch into 64-bit float masterAccumulator
       if (isEpochBoundary || isComplete) {
-        const readStart = performance.now();
         const epochBuffer = await this.accumulator.readbackToFloat32Array();
-        const readElapsed = performance.now() - readStart;
-        this.pipelineMgr.adjustBatchPacing(readElapsed);
-
         this.epochCount++;
+
         const totalElements = this.masterAccumulator!.length;
         const consolidatedPasses = this.passCount - this.epochPassCount;
-        const newTotalPasses = this.passCount;
-        const invTotalPasses = 1.0 / Math.max(1, newTotalPasses);
-
-        let sqDiffSum = 0;
-        const stride = Math.max(1, Math.floor(totalElements / 16384));
-        let sampleCount = 0;
+        const invTotalPasses = 1.0 / Math.max(1, this.passCount);
 
         for (let i = 0; i < totalElements; i++) {
-          const oldMean = this.masterAccumulator![i];
-          const prevSum = oldMean * consolidatedPasses;
+          const prevSum = this.masterAccumulator![i] * consolidatedPasses;
           const newSum = prevSum + epochBuffer[i];
-          const newMean = newSum * invTotalPasses;
-          this.masterAccumulator![i] = newMean;
+          this.masterAccumulator![i] = newSum * invTotalPasses;
           this.masterBuffer![i] = newSum;
         }
 
+        // Strided variance sampling for 4K real-time telemetry
+        const stride = Math.max(1, Math.floor(totalElements / 16384));
         const epochWeight = 1.0 / Math.max(1, this.epochPassCount);
+        let sqDiffSum = 0;
+        let sampleCount = 0;
         for (let i = 0; i < totalElements; i += stride) {
           const sampleVal = epochBuffer[i] * epochWeight;
           const diff = sampleVal - this.masterAccumulator![i];
@@ -213,7 +207,6 @@ export class WebGpuComputeDispatcher {
 
         this.varianceDelta = sqDiffSum / Math.max(1, sampleCount);
 
-        // Reset GPU VRAM texture for the next epoch to prevent rgba16float mantissa underflow
         if (!isComplete) {
           this.accumulator.reset();
           this.epochPassCount = 0;
@@ -225,13 +218,8 @@ export class WebGpuComputeDispatcher {
         const totalElapsedMs = this.lastReportTime - this.startTime;
         const photonsPerSec = (this.totalPhotonsEmitted / Math.max(1, totalElapsedMs)) * 1000;
 
-        // If we are mid-epoch, combine the consolidated masterAccumulator with the live partial GPU epoch
         if (this.epochPassCount > 0 && !isComplete) {
-          const readStart = performance.now();
           const liveEpochBuf = await this.accumulator.readbackToFloat32Array();
-          const readElapsed = performance.now() - readStart;
-          this.pipelineMgr.adjustBatchPacing(readElapsed);
-
           const consolidatedPasses = this.passCount - this.epochPassCount;
           const totalElements = this.masterBuffer!.length;
           if (consolidatedPasses === 0) {

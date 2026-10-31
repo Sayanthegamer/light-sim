@@ -78,9 +78,8 @@ describe('Physical Optics WGSL Kernel Completeness & Accuracy', () => {
     expect(arcFloats[3]).toBeCloseTo(-1.62, 4);
   });
 
-  it('preserves unattenuated segmentFlux in compute shader and normalizes by batchPhotons in vertex shader', () => {
-    expect(PHOTON_TRANSPORT_WGSL).toContain('let segmentFlux = energy;');
-    expect(PHOTON_TRANSPORT_WGSL).not.toContain('energy / max(1.0, closestT)');
-    expect(CLIP_RASTER_WGSL).toContain('config.batchPhotons');
+  it('matches CPU energy^2 / closestT flux weighting and pre-scales rgba16float output', () => {
+    expect(PHOTON_TRANSPORT_WGSL).toContain('let segmentFlux = (energy * energy) / max(1.0, closestT);');
+    expect(CLIP_RASTER_WGSL).toContain('v.energy <= 1e-9');
   });
 });

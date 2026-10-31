@@ -136,7 +136,6 @@ export interface ITracerOptions {
   volumetricInScatter?: boolean;
   primitives?: IResolvedScenePrimitives;
   scratch?: ITracerScratchContext;
-  photonWeight?: number;
 }
 
 /**
@@ -164,9 +163,6 @@ export function extractScenePrimitives(scene: IOfflineSceneGeometry): IResolvedS
   for (let i = 0; i < scene.prisms.length; i++) {
     const p = scene.prisms[i];
     const nGlass = p.glass ? evaluateSellmeierIndex(p.glass, 587.6) : (p.n ?? 1.5);
-    const cauchyB = p.cauchyB ?? 4200;
-    const effB = cauchyB > 0 && cauchyB < 1.0 ? cauchyB * 1e6 : cauchyB;
-    const cauchyA = p.cauchyA ?? (nGlass - effB / (587.6 * 587.6));
     const numVerts = p.vertices.length;
 
     for (let j = 0; j < numVerts; j++) {
@@ -178,8 +174,8 @@ export function extractScenePrimitives(scene: IOfflineSceneGeometry): IResolvedS
         p2: { x: v2.x, y: v2.y },
         n1: 1.0,
         n2: nGlass,
-        cauchyA,
-        cauchyB: effB
+        cauchyA: p.cauchyA ?? nGlass,
+        cauchyB: p.cauchyB ?? 4200
       });
     }
   }
@@ -213,7 +209,6 @@ export function tracePhotonPath(
 ): IPhotonTraceStats {
   const maxBounces = options?.maxBounces ?? 64;
   const enableVolumetrics = options?.volumetricInScatter ?? true;
-  const photonWeight = options?.photonWeight ?? 0.01;
 
   const precomputed = options?.primitives ?? extractScenePrimitives(scene);
   const segments = precomputed.segments;
@@ -251,7 +246,7 @@ export function tracePhotonPath(
     scratchRay.dir.x = dirX;
     scratchRay.dir.y = dirY;
     const hasHit = findClosestIntersection(hit, scratchRay, segments, arcs);
-    let dist = hasHit ? hit.t : 2000.0;
+    let dist = hasHit ? hit.t : 1000.0;
 
     // Boundary distance check
     let boundDist = Infinity;
@@ -264,7 +259,7 @@ export function tracePhotonPath(
       dist = boundDist;
     }
 
-    // 1.5. Check Black Hole Gravitational Field Intersection / Stepping
+    // 1.5. Black Hole Gravitational Geodesic Check
     let activeBh: IOfflineBlackHole | null = null;
     let bhEntryT = dist;
 
@@ -299,7 +294,6 @@ export function tracePhotonPath(
       }
     }
 
-    // If photon is inside a black hole's influence radius, integrate curved Schwarzschild geodesic step
     if (activeBh !== null && bhEntryT <= 1e-3) {
       const rx = curX - activeBh.center.x;
       const ry = curY - activeBh.center.y;
@@ -348,8 +342,8 @@ export function tracePhotonPath(
       const redshift = 1.0 / Math.sqrt(Math.max(0.01, 1.0 - rs / Math.max(rs * 1.001, nextR)));
       const shiftedWl = wl * clamp(redshift, 1.0, 1.35);
 
-      wavelengthSampleToXYZInto(sampleXYZ, shiftedWl, energy * photonWeight);
-      target.splatLine(curX, curY, nextX, nextY, sampleXYZ, 1.0);
+      wavelengthSampleToXYZInto(sampleXYZ, shiftedWl, energy * 0.1);
+      target.splatLine(curX, curY, nextX, nextY, sampleXYZ, energy);
 
       curX = nextX;
       curY = nextY;
@@ -385,9 +379,9 @@ export function tracePhotonPath(
     const nextX = curX + dirX * dist;
     const nextY = curY + dirY * dist;
 
-    // Splat path into accumulation target (uniform per-pixel irradiance)
-    wavelengthSampleToXYZInto(sampleXYZ, wl, energy * photonWeight);
-    target.splatLine(curX, curY, nextX, nextY, sampleXYZ, 1.0);
+    // Splat path into accumulation target (preserving exact original energy * 0.1 & energy weighting)
+    wavelengthSampleToXYZInto(sampleXYZ, wl, energy * 0.1);
+    target.splatLine(curX, curY, nextX, nextY, sampleXYZ, energy);
 
     phase = advanceWavePhase(phase, dist, wl);
     curX = nextX;
@@ -401,6 +395,7 @@ export function tracePhotonPath(
     }
 
     if (didScatter && medium) {
+      // Photon scattered inside medium
       scattered = true;
       const newDir = sampleScatteringDirection2D(
         dirX,
@@ -444,12 +439,12 @@ export function tracePhotonPath(
       const dot = dirX * hit.normal.x + dirY * hit.normal.y;
       dirX -= 2.0 * dot * hit.normal.x;
       dirY -= 2.0 * dot * hit.normal.y;
-      curX += hit.normal.x * 2e-3;
-      curY += hit.normal.y * 2e-3;
+      curX += hit.normal.x * 1e-2;
+      curY += hit.normal.y * 1e-2;
       continue;
     }
 
-    // Dielectric interface (Refraction + Reflection with continuous Sellmeier/Cauchy dispersion)
+    // Dielectric interface (Refraction + Reflection with continuous Sellmeier dispersion)
     const n1 = hit.n1 <= 1.05 ? 1.0 : cauchyIndex(wl, hit.cauchyA, hit.cauchyB);
     const n2 = hit.n2 <= 1.05 ? 1.0 : cauchyIndex(wl, hit.cauchyA, hit.cauchyB);
 
@@ -463,14 +458,14 @@ export function tracePhotonPath(
       // Reflect
       dirX = refrResult.reflectedDir.x;
       dirY = refrResult.reflectedDir.y;
-      curX += hit.normal.x * 2e-3;
-      curY += hit.normal.y * 2e-3;
+      curX += hit.normal.x * 1e-2;
+      curY += hit.normal.y * 1e-2;
     } else {
       // Transmit
       dirX = refrResult.refractedDir.x;
       dirY = refrResult.refractedDir.y;
-      curX -= hit.normal.x * 2e-3;
-      curY -= hit.normal.y * 2e-3;
+      curX -= hit.normal.x * 1e-2;
+      curY -= hit.normal.y * 1e-2;
     }
 
     // Russian Roulette survival

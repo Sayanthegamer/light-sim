@@ -25,6 +25,10 @@ export const BufferUsage = {
   QUERY_RESOLVE: 0x0200
 };
 
+// Pre-scale factor applied to fragment output in rgba16float to prevent half-float mantissa underflow,
+// and inverted during CPU Float32/Float64 readback in GpuAccumulator.
+export const GPU_HALF_FLOAT_PRESCALE = 16.0;
+
 export const PHOTON_TRANSPORT_WGSL = /* wgsl */ `
 struct BVHNode {
   aabbMin: vec2<f32>,
@@ -63,7 +67,7 @@ struct EmitterPrimitive {
 struct UniformSceneConfig {
   bounds: vec4<f32>,     // minX, minY, maxX, maxY
   counts: vec4<u32>,     // numBVH, numSegments, numArcs, numBlackHoles
-  params: vec4<f32>,     // seed, maxBounces, russianRouletteThresholdOrSigmaT, passSeed
+  params: vec4<f32>,     // seed, maxBounces, russianRouletteThreshold, passSeed
   renderDim: vec2<f32>,  // width, height
   batchPhotons: u32,
   emitterCount: u32,
@@ -117,9 +121,6 @@ fn gaussian(x: f32, mu: f32, sigma1: f32, sigma2: f32) -> f32 {
 }
 
 fn wavelengthToXYZ(wl: f32) -> vec3<f32> {
-  if (wl < 360.0 || wl > 830.0) {
-    return vec3<f32>(0.0, 0.0, 0.0);
-  }
   let x = 1.056 * gaussian(wl, 599.8, 37.9, 31.0)
         + 0.362 * gaussian(wl, 442.0, 16.0, 26.7)
         - 0.065 * gaussian(wl, 501.1, 20.4, 18.9);
@@ -147,9 +148,8 @@ fn evaluateCauchy(lambdaNm: f32, a: f32, b: f32) -> f32 {
   return a + (effB / (clampedWl * clampedWl));
 }
 
-// D65 relative spectral power distribution for importance sampling
+// D65 Daylight SPD importance sampling matching CPU sampleD65Wavelength
 fn sampleD65WavelengthWgsl(rng: ptr<function, RngState>) -> f32 {
-  // 2-step rejection sampling matching D65 daylight SPD curve
   for (var iter = 0u; iter < 4u; iter = iter + 1u) {
     let wl = 380.0 + pcg32_next(rng) * 400.0;
     let u = (wl - 560.0) / 100.0;
@@ -230,7 +230,7 @@ fn isAngleInArcWgsl(angle: f32, startAngle: f32, endAngle: f32) -> bool {
   return a >= s - 1e-5 || a <= e + 1e-5;
 }
 
-// Ray-Arc Intersection (tests both quadratic roots t1 and t2 against angular sector & supports concave/convex)
+// Ray-Arc Intersection (tests both roots t1 and t2 against angular sector & supports concave/convex)
 fn intersectRayArc(origin: vec2<f32>, dir: vec2<f32>, arc: ArcPrimitive) -> HitInfo {
   var hit: HitInfo;
   hit.hit = false;
@@ -286,11 +286,9 @@ fn intersectRayArc(origin: vec2<f32>, dir: vec2<f32>, arc: ArcPrimitive) -> HitI
     let nOutside = select(1.0, glassN, isConcave);
 
     if (isBackFace) {
-      // Ray moving from inside circle to outside circle
       hit.n1 = nInside;
       hit.n2 = nOutside;
     } else {
-      // Ray moving from outside circle to inside circle
       hit.n1 = nOutside;
       hit.n2 = nInside;
     }
@@ -388,14 +386,14 @@ fn evaluateBlackHoleInteraction(pos: vec2<f32>, dir: vec2<f32>, bh: BlackHolePri
   return stepSchwarzschildGeodesic(pos, dir, bh.center, rs, min(dt, dynamicDt));
 }
 
-// 8-Element Short-Stack BVH Traversal with Child Pre-Testing
+// 8-Element Short-Stack BVH Traversal
 fn traverseBVH(origin: vec2<f32>, dir: vec2<f32>) -> HitInfo {
   var bestHit: HitInfo;
   bestHit.hit = false;
   bestHit.t = 1e9;
 
   let numNodes = config.counts.x;
-  if (numNodes <= 1u) {
+  if (numNodes == 0u) {
     let numSegs = config.counts.y;
     for (var s = 0u; s < numSegs; s = s + 1u) {
       let h = intersectRaySegment(origin, dir, segments[s]);
@@ -415,11 +413,17 @@ fn traverseBVH(origin: vec2<f32>, dir: vec2<f32>) -> HitInfo {
 
   var stack: array<u32, 8>;
   var stackPtr = 0u;
-  var curIdx = 0u;
-  var hasCurrent = intersectAABB(origin, dir, bvhNodes[0].aabbMin, bvhNodes[0].aabbMax);
+  stack[stackPtr] = 0u;
+  stackPtr = stackPtr + 1u;
 
-  while (hasCurrent) {
-    let node = bvhNodes[curIdx];
+  while (stackPtr > 0u) {
+    stackPtr = stackPtr - 1u;
+    let nodeIdx = stack[stackPtr];
+    let node = bvhNodes[nodeIdx];
+
+    if (!intersectAABB(origin, dir, node.aabbMin, node.aabbMax)) {
+      continue;
+    }
 
     if (node.leftChild == 0u) {
       // Leaf Node
@@ -434,36 +438,13 @@ fn traverseBVH(origin: vec2<f32>, dir: vec2<f32>) -> HitInfo {
           bestHit = h;
         }
       }
-      if (stackPtr > 0u) {
-        stackPtr = stackPtr - 1u;
-        curIdx = stack[stackPtr];
-      } else {
-        hasCurrent = false;
-      }
     } else {
-      // Internal Node: pre-test children so at most 1 child is pushed to stack per level
-      let leftIdx = node.leftChild;
-      let rightIdx = node.rightChildOrCount;
-      let hitL = intersectAABB(origin, dir, bvhNodes[leftIdx].aabbMin, bvhNodes[leftIdx].aabbMax);
-      let hitR = intersectAABB(origin, dir, bvhNodes[rightIdx].aabbMin, bvhNodes[rightIdx].aabbMax);
-
-      if (hitL && hitR) {
-        if (stackPtr < 8u) {
-          stack[stackPtr] = rightIdx;
-          stackPtr = stackPtr + 1u;
-        }
-        curIdx = leftIdx;
-      } else if (hitL) {
-        curIdx = leftIdx;
-      } else if (hitR) {
-        curIdx = rightIdx;
-      } else {
-        if (stackPtr > 0u) {
-          stackPtr = stackPtr - 1u;
-          curIdx = stack[stackPtr];
-        } else {
-          hasCurrent = false;
-        }
+      // Internal Node: push children to stack (max 8)
+      if (stackPtr < 7u) {
+        stack[stackPtr] = node.rightChildOrCount;
+        stackPtr = stackPtr + 1u;
+        stack[stackPtr] = node.leftChild;
+        stackPtr = stackPtr + 1u;
       }
     }
   }
@@ -485,7 +466,7 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
   let baseSeed = u32(config.params.x);
   var rng = pcg32_init(photonIdx ^ (passSeed * 10007u), baseSeed + passSeed * 9781u + photonIdx * 65537u);
 
-  // 1. Pick Emitter & Sample Initial State
+  // 1. Pick Emitter & Sample Initial State (matching CPU renderWorker.ts)
   let emIdx = u32(pcg32_next(&rng) * f32(config.emitterCount)) % config.emitterCount;
   let emitter = emitters[emIdx];
 
@@ -502,30 +483,34 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
   if (specType == 0u) {
     wavelength = emitter.params.z; // Monochromatic
   } else if (specType == 1u) {
-    wavelength = sampleD65WavelengthWgsl(&rng); // D65 Daylight
+    wavelength = sampleD65WavelengthWgsl(&rng); // D65 Daylight SPD
   } else {
     wavelength = 380.0 + pcg32_next(&rng) * 400.0; // Continuous spectrum
   }
 
   var color = wavelengthToXYZ(wavelength);
 
-  // Volumetric medium configuration from config.params.z
+  // Volumetric medium parameters matching CPU sceneSnapshot.ts (sigmaA=0.0005, sigmaS=0.002 -> sigmaT=0.0025, albedo=0.8, g=0.25)
   let paramZ = config.params.z;
-  let sigmaT = select(paramZ, 0.0005, paramZ >= 0.05);
+  let sigmaT = select(paramZ, 0.0025, paramZ >= 0.05);
   let albedo = 0.8;
   let g = 0.25;
 
-  // 2. Trace Bounces & Relativistic Geodesics
+  // 2. Trace Bounces
   var bounce = 0u;
-  var scatterCount = 0u;
   let numBH = config.counts.w;
 
-  while (bounce < maxBounces && energy > 0.002) {
+  while (bounce < maxBounces && energy > 1e-4) {
     let outSlot0 = baseVertexIdx + bounce * 2u;
     let outSlot1 = baseVertexIdx + bounce * 2u + 1u;
 
+    // Find closest intersection
+    var closestT = 1000.0;
+    var bestHit: HitInfo;
+    bestHit.hit = false;
+
     // Boundary check
-    var boundDist = 2000.0;
+    var boundDist = 1000.0;
     let b = config.bounds;
     if (curDir.x > 1e-6) { boundDist = min(boundDist, (b.z - curPos.x) / curDir.x); }
     else if (curDir.x < -1e-6) { boundDist = min(boundDist, (b.x - curPos.x) / curDir.x); }
@@ -533,10 +518,8 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
     else if (curDir.y < -1e-6) { boundDist = min(boundDist, (b.y - curPos.y) / curDir.y); }
     boundDist = max(0.0, boundDist);
 
-    // Intersect scene geometry via short-stack BVH
-    var bestHit: HitInfo;
+    // Intersect scene geometry
     bestHit = traverseBVH(curPos, curDir);
-    var closestT = 2000.0;
     closestT = boundDist;
     if (bestHit.hit && bestHit.t < boundDist) {
       closestT = bestHit.t;
@@ -544,13 +527,12 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
       bestHit.hit = false;
     }
 
-    // Relativistic Black Hole Geodesic Check
+    // Check Black Hole Relativistic Geodesic Interaction
     var activeBhIdx = -1;
     var bhEntryT = closestT;
     if (numBH > 0u) {
-      let bh0 = blackHoles[0];
       for (var bi = 0u; bi < numBH; bi = bi + 1u) {
-        let bh = select(blackHoles[bi], bh0, bi == 0u);
+        let bh = blackHoles[bi];
         let oc = curPos - bh.center;
         let r = length(oc);
         let rInf = bh.radii.y;
@@ -559,7 +541,6 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
           bhEntryT = 0.0;
           break;
         } else {
-          // Check ray entry into rInfluence sphere
           let bDot = dot(oc, curDir);
           let cVal = dot(oc, oc) - rInf * rInf;
           let disc = bDot * bDot - cVal;
@@ -578,7 +559,6 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
       }
     }
 
-    // Case A: Ray is currently inside a black hole influence sphere -> Step curved geodesic
     if (activeBhIdx >= 0 && bhEntryT <= 1e-3) {
       let bh = blackHoles[u32(activeBhIdx)];
       let rNow = length(curPos - bh.center);
@@ -588,27 +568,21 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
       let nextPos = geoStep.xy;
       let nextDir = geoStep.zw;
 
-      // Gravitational redshift modulation near black hole
-      let rNext = length(nextPos - bh.center);
-      let redshiftRatio = 1.0 / sqrt(max(0.01, 1.0 - rs / max(rs * 1.001, rNext)));
-      let shiftedWl = wavelength * clamp(redshiftRatio, 1.0, 1.35);
-      let shiftedColor = wavelengthToXYZ(shiftedWl);
-
-      photonVertices[outSlot0] = PhotonVertex(curPos, shiftedWl, 0u, shiftedColor, energy);
-      photonVertices[outSlot1] = PhotonVertex(nextPos, shiftedWl, 0u, shiftedColor, energy);
+      let stepFlux = (energy * energy) / max(1.0, stepDt);
+      photonVertices[outSlot0] = PhotonVertex(curPos, wavelength, 0u, color, stepFlux);
+      photonVertices[outSlot1] = PhotonVertex(nextPos, wavelength, 0u, color, stepFlux);
 
       curPos = nextPos;
       curDir = nextDir;
       bounce = bounce + 1u;
 
-      if (length(curDir) < 0.1 || rNext <= rs) {
+      if (length(curDir) < 0.1 || length(curPos - bh.center) <= rs) {
         energy = 0.0;
         break;
       }
       continue;
     }
 
-    // Case B: Ray approaches a black hole influence boundary before hitting an obstacle
     var entersBhBoundary = false;
     if (activeBhIdx >= 0 && bhEntryT < closestT) {
       closestT = bhEntryT;
@@ -616,9 +590,9 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
       entersBhBoundary = true;
     }
 
-    // Volumetric in-scattering check
+    // Physical volumetric in-scattering matching CPU mcPhotonTracer.ts
     var didScatter = false;
-    if (sigmaT > 1e-6 && scatterCount < 3u) {
+    if (sigmaT > 1e-6) {
       let xiScatter = pcg32_next(&rng);
       let scatterDist = -log(max(1e-7, 1.0 - xiScatter)) / sigmaT;
       if (scatterDist < closestT) {
@@ -628,14 +602,22 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
       }
     }
 
-    let nextPos = curPos + curDir * closestT;
+    let straightNextPos = curPos + curDir * closestT;
+    var nextPos = straightNextPos;
+    var nextDir = curDir;
 
-    // Output active line segment with unattenuated photon radiant flux (hardware line rasterizer handles per-pixel coverage)
-    let segmentFlux = energy;
+    // Ensure blackHoles[0] and config.counts.w are statically referenced for auto bind group layout
+    if (config.counts.w > 999999u) {
+      nextPos = blackHoles[0].center;
+    }
+
+    // Output active line segment with exact CPU-equivalent length-weighted flux: (energy * energy) / max(1.0, closestT)
+    let segmentFlux = (energy * energy) / max(1.0, closestT);
     photonVertices[outSlot0] = PhotonVertex(curPos, wavelength, 0u, color, segmentFlux);
     photonVertices[outSlot1] = PhotonVertex(nextPos, wavelength, 0u, color, segmentFlux);
 
     curPos = nextPos;
+    curDir = nextDir;
 
     if (entersBhBoundary) {
       curPos = curPos + curDir * 0.05;
@@ -644,8 +626,7 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
     }
 
     if (didScatter) {
-      scatterCount = scatterCount + 1u;
-      // Forward-peaked Henyey-Greenstein scattering
+      // Henyey-Greenstein scattering matching CPU volumetricMedium.ts
       let xiTheta = pcg32_next(&rng);
       let sq = (1.0 - g * g) / (1.0 - g + 2.0 * g * xiTheta);
       let cosTheta = clamp((1.0 + g * g - sq * sq) / (2.0 * g), -1.0, 1.0);
@@ -657,19 +638,23 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
       energy = energy * albedo;
       bounce = bounce + 1u;
 
-      if (energy < 0.1) {
-        let pSurvive = max(0.1, energy * 10.0);
-        if (pcg32_next(&rng) > pSurvive) {
+      if (energy < 0.2) {
+        if (pcg32_next(&rng) > energy * 5.0) {
           energy = 0.0;
           break;
         }
-        energy = energy / pSurvive;
+        energy = 0.2;
       }
       continue;
     }
 
+    if (length(curDir) < 0.1) {
+      energy = 0.0;
+      bounce = bounce + 1u;
+      break;
+    }
+
     if (!bestHit.hit) {
-      // Escaped boundaries
       bounce = bounce + 1u;
       break;
     }
@@ -682,12 +667,12 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
 
     if (bestHit.isMirror) {
       curDir = reflect(curDir, bestHit.normal);
-      curPos = curPos + bestHit.normal * 0.002;
+      curPos = curPos + bestHit.normal * 0.01;
       bounce = bounce + 1u;
       continue;
     }
 
-    // Dielectric Refraction / Reflection with continuous Cauchy dispersion
+    // Dielectric Refraction / Reflection matching CPU mcPhotonTracer.ts
     let n1 = select(1.0, evaluateCauchy(wavelength, bestHit.cauchyA, bestHit.cauchyB), bestHit.n1 > 1.05);
     let n2 = select(1.0, evaluateCauchy(wavelength, bestHit.cauchyA, bestHit.cauchyB), bestHit.n2 > 1.05);
     let eta = n1 / n2;
@@ -698,7 +683,7 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
     if (sinT2 >= 1.0) {
       // Total Internal Reflection (TIR)
       curDir = reflect(curDir, bestHit.normal);
-      curPos = curPos + bestHit.normal * 0.002;
+      curPos = curPos + bestHit.normal * 0.01;
     } else {
       let cosT = sqrt(max(0.0, 1.0 - sinT2));
       let rPerp = (n1 * cosI - n2 * cosT) / (n1 * cosI + n2 * cosT);
@@ -708,10 +693,10 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
       let xi = pcg32_next(&rng);
       if (xi < R) {
         curDir = reflect(curDir, bestHit.normal);
-        curPos = curPos + bestHit.normal * 0.002;
+        curPos = curPos + bestHit.normal * 0.01;
       } else {
         curDir = normalize(eta * curDir + (eta * cosI - cosT) * bestHit.normal);
-        curPos = curPos - bestHit.normal * 0.002;
+        curPos = curPos - bestHit.normal * 0.01;
       }
     }
 
@@ -771,8 +756,8 @@ fn vs_main(@builtin(vertex_index) vertexIdx: u32) -> VertexOutput {
   var out: VertexOutput;
   let v = photonVertices[vertexIdx];
 
-  // Hardware Clip-Culling: Discard dead segments with w=0 out-of-clip coordinates
-  if (v.flags != 0u || v.energy <= 1e-6) {
+  // Hardware Clip-Culling: Only discard dead segments (flags != 0) or strictly zero energy
+  if (v.flags != 0u || v.energy <= 1e-9) {
     out.position = vec4<f32>(2.0, 2.0, 0.0, 0.0); // outOfClip
     out.color = vec4<f32>(0.0, 0.0, 0.0, 0.0);
     return out;
@@ -782,10 +767,10 @@ fn vs_main(@builtin(vertex_index) vertexIdx: u32) -> VertexOutput {
   let ndcX = ((v.pos.x - b.x) / (b.z - b.x)) * 2.0 - 1.0;
   let ndcY = 1.0 - ((v.pos.y - b.y) / (b.w - b.y)) * 2.0;
 
-  // Normalize per-photon radiance by batchPhotons so every pass contributes consistent physical flux
-  let photonWeight = (v.energy * 12.0) / f32(max(100u, config.batchPhotons));
+  // Match CPU per-pixel radiance (0.1 * v.color * v.energy) pre-scaled by 16.0 to prevent rgba16float mantissa underflow
+  let scaledWeight = v.energy * (0.1 * 16.0);
   out.position = vec4<f32>(ndcX, ndcY, 0.0, 1.0);
-  out.color = vec4<f32>(v.color * photonWeight, photonWeight);
+  out.color = vec4<f32>(v.color * scaledWeight, scaledWeight);
   return out;
 }
 
@@ -803,11 +788,11 @@ export class GpuPipelineManager {
   private bindGroupCompute: GPUBindGroup | null = null;
   private bindGroupRender: GPUBindGroup | null = null;
 
-  private batchSize = 50000;
+  private batchSize = 100000;
   private allocatedBatchSize = 65536;
   private maxBounces = 32;
-  private minBatchSize = 10000;
-  private maxBatchSize = 250000;
+  private minBatchSize = 25000;
+  private maxBatchSize = 500000;
 
   constructor(device: GPUDevice) {
     this.device = device;
@@ -830,7 +815,6 @@ export class GpuPipelineManager {
 
   private syncBatchSizeUniform(): void {
     if (this.buffers.uniform) {
-      // Offset 56 bytes = uint32 index 14 (config.batchPhotons)
       this.device.queue.writeBuffer(
         this.buffers.uniform,
         56,
@@ -844,7 +828,6 @@ export class GpuPipelineManager {
    */
   updatePassSeed(passIndex: number): void {
     if (this.buffers.uniform) {
-      // Offset 44 bytes = float index 11 (config.params.w)
       const passSeed = ((passIndex * 1664525 + 1013904223) ^ Math.floor(Math.random() * 0x7fffff)) & 0x7fffff;
       this.device.queue.writeBuffer(
         this.buffers.uniform,
@@ -855,7 +838,7 @@ export class GpuPipelineManager {
   }
 
   /**
-   * Dynamically adjusts micro-batch size based on frame execution time while respecting allocated buffer bounds.
+   * Dynamically adjusts micro-batch size based on frame execution time to sustain ~60 FPS.
    */
   adjustBatchPacing(elapsedMs: number): void {
     const targetMs = 12.0;
@@ -932,25 +915,16 @@ export class GpuPipelineManager {
     maxBounces = 32,
     volumetricInScatter = true
   ): void {
-    this.maxBounces = Math.max(4, Math.min(64, maxBounces));
-
-    // Respect device maxStorageBufferBindingSize (default 128 MB = 134,217,728 bytes)
+    this.maxBounces = Math.max(4, Math.min(32, maxBounces));
     const maxStorageBytes = this.device.limits?.maxStorageBufferBindingSize ?? 134217728;
     const bytesPerPhoton = this.maxBounces * 2 * PHOTON_VERTEX_STRIDE_BYTES;
     const maxHardwarePhotons = Math.max(1024, Math.floor(maxStorageBytes / bytesPerPhoton));
 
     this.batchSize = Math.min(batchPhotons, maxHardwarePhotons);
-    this.allocatedBatchSize = Math.min(
-      maxHardwarePhotons,
-      Math.max(this.batchSize * 2, 65536)
-    );
+    this.allocatedBatchSize = Math.min(maxHardwarePhotons, Math.max(this.batchSize * 2, 50000));
 
     const bvhResult = buildGpuBVH(scene);
     const packed = packSceneBuffers(scene, this.batchSize, this.maxBounces, Date.now(), volumetricInScatter);
-
-    // Enable hardware BVH in UniformSceneConfig (uUints[4] = numBVH)
-    const uUints = new Uint32Array(packed.uniformBuffer);
-    uUints[4] = bvhResult.nodeCount;
 
     this.destroyBuffers();
 
@@ -969,7 +943,7 @@ export class GpuPipelineManager {
     });
     this.device.queue.writeBuffer(this.buffers.uniform, 0, packed.uniformBuffer);
 
-    // Output Photon Vertex Buffer sized to allocatedBatchSize to allow safe dynamic batch pacing
+    // Output Photon Vertex Buffer
     const vertexBufferSize = this.allocatedBatchSize * this.maxBounces * 2 * PHOTON_VERTEX_STRIDE_BYTES;
     this.buffers.vertices = this.device.createBuffer({
       label: 'photonVertices',
